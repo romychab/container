@@ -1,0 +1,62 @@
+apply plugin: 'maven-publish'
+apply plugin: 'signing'
+
+task libraryKotlinSourcesJar(type: Jar) {
+    archiveClassifier.set('sources')
+    from sourceSets.main.java.srcDirs
+    from sourceSets.main.kotlin.srcDirs
+}
+
+artifacts {
+    archives libraryKotlinSourcesJar
+}
+
+group = PUBLISH_GROUP_ID
+version = PUBLISH_VERSION
+
+afterEvaluate {
+    publishing {
+        publications {
+            release(MavenPublication) {
+                groupId PUBLISH_GROUP_ID
+                artifactId PUBLISH_ARTIFACT_ID
+                version PUBLISH_VERSION
+                from components.java
+                artifact libraryKotlinSourcesJar
+
+                pom {
+                    name = PUBLISH_ARTIFACT_ID
+                    description = 'Helper classes for dealing with async data loading easier'
+                    url = 'https://github.com/romychab/container'
+                    licenses {
+                        license {
+                            name = 'Apache License 2.0'
+                            url = 'https://github.com/romychab/container/blob/main/LICENSE'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'romychab'
+                            name = 'Roman Andrushchenko'
+                            email = 'rom.andrushchenko@gmail.com'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:github.com/romychab/container.git'
+                        developerConnection = 'scm:git:ssh://github.com/romychab/container.git'
+                        url = 'https://github.com/romychab/container/tree/main'
+                    }
+                }
+            }
+        }
+    }
+}
+
+signing {
+    useInMemoryPgpKeys(
+        rootProject.ext["signing.keyId"],
+        rootProject.ext["signing.key"],
+        rootProject.ext["signing.password"],
+    )
+    sign publishing.publications
+}

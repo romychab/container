@@ -1,5 +1,9 @@
 # Container
 
+[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/container.svg?label=Maven%20Central)](https://elveum.com/sh/container)
+![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
+[![License: Apache 2](https://img.shields.io/github/license/romychab/container)](LICENSE)
+
 Pure Kotlin Library which adds one sealed class
 named `Container` and a couple of helper methods and classes for
 Kotlin Flow and for converting async data loaders into reactive Flows.
@@ -64,7 +68,7 @@ flowSubject.onNext("first")
 flowSubject.onNext("second")
 flowSubject.onComplete()
 flowSubject.listen().collect {
-  ...
+  // ...
 }
 ```
 
@@ -109,9 +113,7 @@ class ProductRepository(
   private val productsRemoteDataSource: ProductsRemoteDataSource,
 ) {
 
-    private val productsSubject = LazyFlowSubject.create(
-      valueLoader = loadProducts()
-    )
+    private val productsSubject = LazyFlowSubject.create(loadProducts())
 
     // ListContainerFlow<T> is an alias to Flow<Container<List<T>>>
     fun listenProducts(): ListContainerFlow<Product> {
@@ -138,4 +140,6 @@ class ProductRepository(
 
 Just add the following lines to your `build.gradle` file:
 
-TO-DO
+```
+implementation "com.elveum:container:0.1"
+```

@@ -7,8 +7,14 @@ task libraryKotlinSourcesJar(type: Jar) {
     from sourceSets.main.kotlin.srcDirs
 }
 
+task javadocJar(type: Jar, dependsOn: dokkaHtml) {
+    archiveClassifier.set("javadoc")
+    from new File("${buildDir}/dokka/html")
+}
+
 artifacts {
     archives libraryKotlinSourcesJar
+    archives javadocJar
 }
 
 group = PUBLISH_GROUP_ID
@@ -23,6 +29,7 @@ afterEvaluate {
                 version PUBLISH_VERSION
                 from components.java
                 artifact libraryKotlinSourcesJar
+                artifact javadocJar
 
                 pom {
                     name = PUBLISH_ARTIFACT_ID

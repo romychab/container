@@ -58,7 +58,7 @@ the there are differences from `StateFlow`:
 
 Usage example:
 
-```
+```kotlin
 val flowSubject = FlowSubject.create<String>()
 flowSubject.onNext("first")
 flowSubject.onNext("second")

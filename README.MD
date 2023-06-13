@@ -8,6 +8,12 @@ Pure Kotlin Library which adds one sealed class
 named `Container` and a couple of helper methods and classes for
 Kotlin Flow and for converting async data loaders into reactive Flows.
 
+## Documentation
+
+Click [here](https://docs.elveum.com/container/).
+
+## Short Description
+
 The library consists of 3 main parts:
 - `Container<T>` class - represents the status of async operation
 - A couple of helper extension methods for easier working (mapping, filtering, etc.) with

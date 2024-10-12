@@ -1,5 +1,5 @@
 plugins {
-    id 'java-library'
+    id 'kotlin'
     id 'org.jetbrains.kotlin.jvm'
     id 'org.jetbrains.dokka'
 }
@@ -20,5 +20,5 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.4"
     testImplementation "junit:junit:4.13.2"
     testImplementation "io.mockk:mockk:1.12.4"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.1"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4"
 }

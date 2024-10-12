@@ -7,8 +7,8 @@ import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.withTimeout
 
-typealias ContainerFlow<T> = Flow<Container<T>>
-typealias ListContainerFlow<T> = Flow<ListContainer<T>>
+public typealias ContainerFlow<T> = Flow<Container<T>>
+public typealias ListContainerFlow<T> = Flow<ListContainer<T>>
 
 /**
  * Wait for the first non-pending container and return its result.
@@ -21,7 +21,7 @@ typealias ListContainerFlow<T> = Flow<ListContainer<T>>
  * If the origin flow completes without emitting [Container.Error] or [Container.Success]
  * values then [NoSuchElementException] is thrown.
  */
-suspend fun <T> Flow<Container<T>>.unwrapFirst(timeoutMillis: Long? = null): T {
+public suspend fun <T> Flow<Container<T>>.unwrapFirst(timeoutMillis: Long? = null): T {
     val flow = this
     val block: suspend () -> T = {
         val container = flow
@@ -46,7 +46,7 @@ suspend fun <T> Flow<Container<T>>.unwrapFirst(timeoutMillis: Long? = null): T {
  * If [timeoutMillis] is specified and the flow hasn't emit either [Container.Success]
  * or [Container.Error] instances then [TimeoutCancellationException] is thrown.
  */
-suspend fun <T> Flow<Container<T>>.unwrapFirstOrElse(
+public suspend fun <T> Flow<Container<T>>.unwrapFirstOrElse(
     timeoutMillis: Long? = null,
     orElse: () -> T
 ): T {
@@ -73,7 +73,7 @@ suspend fun <T> Flow<Container<T>>.unwrapFirstOrElse(
  * If [timeoutMillis] is specified and the flow hasn't emit either [Container.Success]
  * or [Container.Error] instances then [TimeoutCancellationException] is thrown.
  */
-suspend fun <T> Flow<Container<T>>.unwrapFirstOrDefault(
+public suspend fun <T> Flow<Container<T>>.unwrapFirstOrDefault(
     timeoutMillis: Long? = null,
     defaultValue: T
 ): T {
@@ -84,11 +84,11 @@ suspend fun <T> Flow<Container<T>>.unwrapFirstOrDefault(
  * Convert the original Flow which contains a [Container] of type [T] into
  * a Flow which also contains a [Container] but of type [R].
  */
-inline fun <T, R> Flow<Container<T>>.containerMap(
+public inline fun <T, R> Flow<Container<T>>.containerMap(
     crossinline mapper: ContainerMapper<T, R>
 ): Flow<Container<R>> {
     return map { container ->
-        container.suspendMap { mapper(it) }
+        container.map { mapper(it) }
     }
 }
 
@@ -100,11 +100,11 @@ inline fun <T, R> Flow<Container<T>>.containerMap(
  * value is cancelled.
  */
 @Suppress("OPT_IN_USAGE")
-inline fun <T, R> Flow<Container<T>>.containerMapLatest(
+public inline fun <T, R> Flow<Container<T>>.containerMapLatest(
     crossinline mapper: ContainerMapper<T, R>
 ): Flow<Container<R>> {
     return mapLatest { container ->
-        container.suspendMap { mapper(it) }
+        container.map { mapper(it) }
     }
 }
 
@@ -116,7 +116,7 @@ inline fun <T, R> Flow<Container<T>>.containerMapLatest(
  *   filtered by the [predicate]. If the [predicate] returns TRUE for the
  *   wrapped value then it is sent to a new flow too.
  */
-inline fun <T> Flow<Container<T>>.containerFilter(
+public inline fun <T> Flow<Container<T>>.containerFilter(
     crossinline predicate: suspend ContainerMapperScope.(value: T) -> Boolean
 ): Flow<Container<T>> {
     return filter { container ->
@@ -136,7 +136,7 @@ inline fun <T> Flow<Container<T>>.containerFilter(
  *   filtered by the [predicate]. If the [predicate] returns FALSE for the
  *   wrapped value then it is sent to a new flow too.
  */
-inline fun <T> Flow<Container<T>>.containerFilterNot(
+public inline fun <T> Flow<Container<T>>.containerFilterNot(
     crossinline predicate: suspend ContainerMapperScope.(value: T) -> Boolean
 ): Flow<Container<T>> {
     return containerFilter { predicate(it).not() }

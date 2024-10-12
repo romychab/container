@@ -7,5 +7,5 @@ import kotlinx.coroutines.CancellationException
  * this exception if a new load has been submitted before the current
  * load finishes.
  */
-class LoadCancelledException : CancellationException()
+public class LoadCancelledException : CancellationException()
 

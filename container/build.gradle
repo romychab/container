@@ -12,9 +12,8 @@ ext {
 
 apply from: "${rootProject.projectDir}/publish-library.gradle"
 
-java {
-    sourceCompatibility = JavaVersion.VERSION_1_7
-    targetCompatibility = JavaVersion.VERSION_1_7
+kotlin {
+    explicitApi()
 }
 
 dependencies {

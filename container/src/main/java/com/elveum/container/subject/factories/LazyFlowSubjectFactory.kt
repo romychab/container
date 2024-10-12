@@ -5,14 +5,14 @@ import com.elveum.container.subject.FlowSubjects
 import com.elveum.container.subject.LazyFlowSubject
 import kotlinx.coroutines.CoroutineDispatcher
 
-interface LazyFlowSubjectFactory {
+public interface LazyFlowSubjectFactory {
 
     /**
      * Create a [LazyFlowSubject] instance. The factory
      * can be assigned via [FlowSubjects.setDefaultConfiguration] so
      * [LazyFlowSubject.create] will use it as a default factory.
      */
-    fun <T> create(
+    public fun <T> create(
         cacheTimeoutMillis: Long,
         loadingDispatcher: CoroutineDispatcher,
         creator: Creator,

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.first
 /**
  * Simple loader function for [LazyFlowSubject].
  */
-typealias SimpleValueLoader<T> = suspend () -> T
+public typealias SimpleValueLoader<T> = suspend () -> T
 
 /**
  * Start a new simple load which will replace the existing value in the flow
@@ -23,7 +23,7 @@ typealias SimpleValueLoader<T> = suspend () -> T
  * May throw [LoadCancelledException] if the load has been cancelled by
  * submitting a new load.
  */
-suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
+public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
     silently: Boolean = false,
     once: Boolean = false,
     source: SourceIndicator = UnknownSourceIndicator,
@@ -42,7 +42,7 @@ suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
  * Please note that the load starts only when at least one subscriber listens
  * for flow returned by [LazyFlowSubject.listen] method.
  */
-fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
+public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
     silently: Boolean = false,
     once: Boolean = false,
     source: SourceIndicator = UnknownSourceIndicator,
@@ -57,7 +57,7 @@ fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
 /**
  * Update the value only if there is already successfully loaded old value.
  */
-fun <T> LazyFlowSubject<T>.updateIfSuccess(source: SourceIndicator? = null, updater: (T) -> T) {
+public fun <T> LazyFlowSubject<T>.updateIfSuccess(source: SourceIndicator? = null, updater: (T) -> T) {
     updateWith { container ->
         if (container is Container.Success) {
             Container.Success(updater(container.value), source ?: container.source)

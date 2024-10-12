@@ -12,24 +12,24 @@ import kotlinx.coroutines.flow.Flow
  *
  * Use [flow] method to obtain the flow itself.
  */
-interface FlowSubject<T> {
+public interface FlowSubject<T> {
 
     /**
      * Emit a new value to the flow returned by [flow]
      */
-    fun onNext(value: T)
+    public fun onNext(value: T)
 
     /**
      * Complete the flow returned by [flow] call with the provided exception.
      * Any further actions will not take effect.
      */
-    fun onError(e: Throwable)
+    public fun onError(e: Throwable)
 
     /**
      * Complete the flow returned by [flow] call with success.
      * Any further actions will not take effect.
      */
-    fun onComplete()
+    public fun onComplete()
 
     /**
      * The flow controlled by this subject. It emits values sent via
@@ -39,10 +39,10 @@ interface FlowSubject<T> {
      * the latest value has been sent before starting collecting
      * you can still receive it.
      */
-    fun flow(): Flow<T>
+    public fun flow(): Flow<T>
 
-    companion object {
-        fun <T> create(): FlowSubject<T> {
+    public companion object {
+        public fun <T> create(): FlowSubject<T> {
             val defaultConfiguration = FlowSubjects.defaultConfiguration
             return defaultConfiguration.flowSubjectFactory.create()
         }

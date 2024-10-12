@@ -4,7 +4,11 @@ import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 
-class FlowSubjectImpl<T> : FlowSubject<T> {
+public fun <T> createDefaultFlowSubject(): FlowSubject<T> {
+    return FlowSubjectImpl()
+}
+
+internal class FlowSubjectImpl<T> : FlowSubject<T> {
 
     private var state: State<T> = State.NotInitialized
     private val listeners = mutableSetOf<Listener<T>>()

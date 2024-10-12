@@ -2,15 +2,15 @@ package com.elveum.container
 
 import kotlinx.coroutines.runBlocking
 
-class LoadInProgressException : IllegalStateException("Container is Pending and can't be unwrapped")
+public class LoadInProgressException : IllegalStateException("Container is Pending and can't be unwrapped")
 
-typealias ListContainer<T> = Container<List<T>>
+public typealias ListContainer<T> = Container<List<T>>
 
 /**
  * Convert the container of type [T] into container of another type [R].
  * @throws IllegalStateException if the container is [Container.Success] and [mapper] is not provided
  */
-fun <T, R> Container<T>.map(mapper: ContainerMapper<T, R>? = null): Container<R> {
+public fun <T, R> Container<T>.map(mapper: ContainerMapper<T, R>? = null): Container<R> {
     return runBlocking {
         if (mapper == null) {
             suspendMap(null)
@@ -24,7 +24,7 @@ fun <T, R> Container<T>.map(mapper: ContainerMapper<T, R>? = null): Container<R>
  * If the container is [Container.Error], return its wrapped exception.
  * Otherwise, return NULL.
  */
-fun <T> Container<T>.exceptionOrNull(): Throwable? {
+public fun <T> Container<T>.exceptionOrNull(): Throwable? {
     return if (this is Container.Error) {
         exception
     } else {
@@ -38,7 +38,7 @@ fun <T> Container<T>.exceptionOrNull(): Throwable? {
  * If the container is [Container.Pending], [IllegalStateException] is thrown.
  * If the container is [Container.Error], the wrapped exception is thrown.
  */
-fun <T> Container<T>.unwrap(): T {
+public fun <T> Container<T>.unwrap(): T {
     return unwrapData().value
 }
 
@@ -49,7 +49,7 @@ fun <T> Container<T>.unwrap(): T {
  * - If the container is [Container.Pending], [IllegalStateException] is thrown.
  * - If the container is [Container.Error], the wrapped exception is thrown.
  */
-fun <T> Container<T>.unwrapData(): Data<T> {
+public fun <T> Container<T>.unwrapData(): Data<T> {
     return when (this) {
         is Container.Pending -> throw LoadInProgressException()
         is Container.Error -> throw exception
@@ -63,7 +63,7 @@ fun <T> Container<T>.unwrapData(): Data<T> {
  * - If the container is [Container.Pending], NULL is returned.
  * - If the container is [Container.Error], the wrapped exception is thrown.
  */
-fun <T> Container<T>.unwrapOrNull(): T? {
+public fun <T> Container<T>.unwrapOrNull(): T? {
     return unwrapDataOrNull()?.value
 }
 
@@ -74,7 +74,7 @@ fun <T> Container<T>.unwrapOrNull(): T? {
  * - If the container is [Container.Pending], NULL is returned.
  * - If the container is [Container.Error], the wrapped exception is thrown.
  */
-fun <T> Container<T>.unwrapDataOrNull(): Data<T>? {
+public fun <T> Container<T>.unwrapDataOrNull(): Data<T>? {
     return when (this) {
         is Container.Pending -> null
         is Container.Error -> throw exception
@@ -87,7 +87,7 @@ fun <T> Container<T>.unwrapDataOrNull(): Data<T>? {
  * If the container is [Container.Success], the wrapped value is returned.
  * Otherwise, NULL is returned.
  */
-fun <T> Container<T>.getOrNull(): T? {
+public fun <T> Container<T>.getOrNull(): T? {
     return getDataOrNull()?.value
 }
 
@@ -97,7 +97,7 @@ fun <T> Container<T>.getOrNull(): T? {
  * source indicator is returned.
  * Otherwise, NULL is returned.
  */
-fun <T> Container<T>.getDataOrNull(): Data<T>? {
+public fun <T> Container<T>.getDataOrNull(): Data<T>? {
     return when (this) {
         is Container.Success -> Data(value, source)
         else -> null

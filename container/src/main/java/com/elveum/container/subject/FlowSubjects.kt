@@ -4,7 +4,7 @@ import com.elveum.container.subject.factories.FlowSubjectFactory
 import com.elveum.container.subject.factories.LazyFlowSubjectFactory
 import kotlinx.coroutines.CoroutineDispatcher
 
-object FlowSubjects {
+public object FlowSubjects {
 
     internal var defaultConfiguration = Configuration()
 
@@ -13,20 +13,20 @@ object FlowSubjects {
      * own configuration.
      * @see Configuration
      */
-    fun setDefaultConfiguration(configuration: Configuration) {
+    public fun setDefaultConfiguration(configuration: Configuration) {
         this.defaultConfiguration = configuration
     }
 
     /**
      * Reset the configuration of creating subject to the default implementation.
      */
-    fun resetDefaultConfiguration() {
+    public fun resetDefaultConfiguration() {
         this.defaultConfiguration = Configuration()
     }
 
     private class FlowSubjectFactoryImpl : FlowSubjectFactory {
         override fun <T> create(): FlowSubject<T> {
-            return FlowSubjectImpl()
+            return createDefaultFlowSubject()
         }
     }
 
@@ -40,19 +40,19 @@ object FlowSubjects {
         }
     }
 
-    class Configuration(
+    public class Configuration(
 
         /**
          * Defines how a [FlowSubject] instances will be created when
          * calling [FlowSubject.create] method.
          */
-        val flowSubjectFactory: FlowSubjectFactory = FlowSubjectFactoryImpl(),
+        internal val flowSubjectFactory: FlowSubjectFactory = FlowSubjectFactoryImpl(),
 
         /**
          * Defined how a [LazyFlowSubject] instances will be created when
          * calling [LazyFlowSubject.create] method.
          */
-        val lazyFlowSubjectFactory: LazyFlowSubjectFactory = LazyFlowSubjectFactoryImpl()
+        internal val lazyFlowSubjectFactory: LazyFlowSubjectFactory = LazyFlowSubjectFactoryImpl()
 
     )
 }

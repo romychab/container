@@ -11,7 +11,7 @@ import kotlinx.coroutines.flow.StateFlow
 /**
  * Loader function for [LazyFlowSubject] which can emit loaded values.
  */
-typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
+public typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
 
 /**
  * Represents the infinite flow which acts as an async container for
@@ -40,7 +40,7 @@ typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
  * value is passed to a new subscriber and the load doesn't start from scratch.
  * Timeout is specified either by constructor or by [create] method.
  */
-interface LazyFlowSubject<T> {
+public interface LazyFlowSubject<T> {
 
     /**
      * Listen for values loaded by this subject.
@@ -58,7 +58,7 @@ interface LazyFlowSubject<T> {
      *
      * @return infinite flow which emits the current state of value load, always success, exceptions are wrapped to [Container.Error]
      */
-    fun listen(): Flow<Container<T>>
+    public fun listen(): Flow<Container<T>>
 
     /**
      * Start a new load which will replace existing value in the flow
@@ -85,7 +85,7 @@ interface LazyFlowSubject<T> {
      *         load has been failed or cancelled (e.g. all listeners have
      *         been unsubscribed or a new load has been submitted)
      */
-    fun newLoad(
+    public fun newLoad(
         silently: Boolean = false,
         once: Boolean = false,
         valueLoader: ValueLoader<T>
@@ -107,7 +107,7 @@ interface LazyFlowSubject<T> {
      * Please note that the load starts only when at least one subscriber listens
      * for flow returned by [listen] method.
      */
-    fun newAsyncLoad(
+    public fun newAsyncLoad(
         silently: Boolean = false,
         once: Boolean = false,
         valueLoader: ValueLoader<T>
@@ -118,7 +118,7 @@ interface LazyFlowSubject<T> {
      *
      * This method cancels the current load.
      */
-    fun updateWith(container: Container<T>)
+    public fun updateWith(container: Container<T>)
 
     /**
      * Update the value immediately in a flow returned by [listen] by
@@ -126,7 +126,7 @@ interface LazyFlowSubject<T> {
      *
      * This method cancels the current load.
      */
-    fun updateWith(updater: (Container<T>) -> Container<T>)
+    public fun updateWith(updater: (Container<T>) -> Container<T>)
 
     /**
      * Whether the container is loading data or not. The flow emits TRUE
@@ -134,11 +134,11 @@ interface LazyFlowSubject<T> {
      * assigning just a simple [Container.Pending] to the subject via
      * [updateWith] call doesn't affect the flow returned by this method.
      */
-    fun isValueLoading(): StateFlow<Boolean>
+    public fun isValueLoading(): StateFlow<Boolean>
 
-    companion object {
+    public companion object {
 
-        fun <T> create(
+        public fun <T> create(
             cacheTimeoutMillis: Long = 1000L,
             loadingDispatcher: CoroutineDispatcher = Dispatchers.IO,
             valueLoader: ValueLoader<T>? = null,

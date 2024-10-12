@@ -10,8 +10,8 @@ import kotlinx.coroutines.flow.*
 
 // todo: thing about re-writing the implementation to SharedFlow
 
-interface Creator {
-    fun <T> createDefault(
+public interface Creator {
+    public fun <T> createDefault(
         loadingDispatcher: CoroutineDispatcher,
         cacheTimeoutMillis: Long,
         loadingScopeFactory: LoadingScopeFactory? = null,
@@ -26,9 +26,9 @@ internal object CreatorImpl : Creator {
     ): LazyFlowSubject<T> {
         return LazyFlowSubjectImpl(
             loadingScopeFactory = loadingScopeFactory ?:
-            LoadingScopeFactory {
-                CoroutineScope(SupervisorJob() + it)
-            },
+                LoadingScopeFactory {
+                    CoroutineScope(SupervisorJob() + it)
+                },
             loadingDispatcher = loadingDispatcher,
             cacheTimeoutMillis = cacheTimeoutMillis,
         )

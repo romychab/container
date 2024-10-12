@@ -1,10 +1,10 @@
 package com.elveum.container
 
-interface ContainerMapperScope {
-    val source: SourceIndicator
+public interface ContainerMapperScope {
+    public val source: SourceIndicator
 }
 
-typealias ContainerMapper<T, R> = suspend ContainerMapperScope.(T) -> R
+public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
 
 
 /**
@@ -13,18 +13,18 @@ typealias ContainerMapper<T, R> = suspend ContainerMapperScope.(T) -> R
  * @see Container.Error
  * @see Container.Success
  */
-sealed class Container<out T> {
+public sealed class Container<out T> {
 
     /**
      * Convert the container type to another type by using a suspend lambda.
      * @throws IllegalStateException if the container is [Success] and [mapper] is not provided
      */
-    abstract suspend fun <R> suspendMap(mapper: ContainerMapper<T, R>? = null): Container<R>
+    public abstract suspend fun <R> suspendMap(mapper: ContainerMapper<T, R>? = null): Container<R>
 
     /**
      * The operation is still in progress.
      */
-    object Pending : Container<Nothing>() {
+    public data object Pending : Container<Nothing>() {
 
         override suspend fun <R> suspendMap(mapper: ContainerMapper<Nothing, R>?): Container<R> {
             return this
@@ -38,7 +38,7 @@ sealed class Container<out T> {
     /**
      * The operation has been failed.
      */
-    data class Error(
+    public data class Error(
         val exception: Throwable,
     ) : Container<Nothing>() {
 
@@ -54,7 +54,7 @@ sealed class Container<out T> {
     /**
      * The operation has been finished with success.
      */
-    data class Success<T>(
+    public data class Success<T>(
         val value: T,
         override val source: SourceIndicator = UnknownSourceIndicator,
     ) : Container<T>(), ContainerMapperScope {

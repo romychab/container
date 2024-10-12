@@ -3,9 +3,9 @@ package com.elveum.container
 import kotlinx.coroutines.*
 import kotlinx.coroutines.flow.*
 
-interface Emitter<T> {
+public interface Emitter<T> {
 
-    suspend fun emit(item: T, source: SourceIndicator = UnknownSourceIndicator)
+    public suspend fun emit(item: T, source: SourceIndicator = UnknownSourceIndicator)
 
 }
 
@@ -20,7 +20,7 @@ interface Emitter<T> {
  * The returned flow is cold. This means that data loading is started
  * each time when someone starts collecting the flow.
  */
-fun <T> containerOf(
+public fun <T> containerOf(
     source: SourceIndicator = UnknownSourceIndicator,
     loader: suspend () -> T
 ): Flow<Container<T>> {
@@ -42,7 +42,7 @@ fun <T> containerOf(
  * The returned flow is cold. This means that data loading is started
  * each time when someone starts collecting the flow.
  */
-fun <T> containerOfMany(loader: suspend Emitter<T>.() -> Unit): Flow<Container<T>> {
+public fun <T> containerOfMany(loader: suspend Emitter<T>.() -> Unit): Flow<Container<T>> {
     return flow {
         try {
             val emitter = object : Emitter<T> {

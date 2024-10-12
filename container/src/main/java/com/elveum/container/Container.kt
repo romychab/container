@@ -16,20 +16,9 @@ public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
 public sealed class Container<out T> {
 
     /**
-     * Convert the container type to another type by using a suspend lambda.
-     * @throws IllegalStateException if the container is [Success] and [mapper] is not provided
-     */
-    public abstract suspend fun <R> suspendMap(mapper: ContainerMapper<T, R>? = null): Container<R>
-
-    /**
      * The operation is still in progress.
      */
     public data object Pending : Container<Nothing>() {
-
-        override suspend fun <R> suspendMap(mapper: ContainerMapper<Nothing, R>?): Container<R> {
-            return this
-        }
-
         override fun toString(): String {
             return "Pending"
         }
@@ -41,11 +30,6 @@ public sealed class Container<out T> {
     public data class Error(
         val exception: Throwable,
     ) : Container<Nothing>() {
-
-        override suspend fun <R> suspendMap(mapper: ContainerMapper<Nothing, R>?): Container<R> {
-            return this
-        }
-
         override fun toString(): String {
             return "Error(${exception::class.java.simpleName})"
         }
@@ -58,19 +42,38 @@ public sealed class Container<out T> {
         val value: T,
         override val source: SourceIndicator = UnknownSourceIndicator,
     ) : Container<T>(), ContainerMapperScope {
-
-        override suspend fun <R> suspendMap(mapper: ContainerMapper<T, R>?): Container<R> {
-            if (mapper == null) throw IllegalStateException("Can't map Container.Success without mapper")
-            return try {
-                Success(mapper(value), source)
-            } catch (e: Exception) {
-                Error(e)
-            }
-        }
-
         override fun toString(): String {
             return "Success($value)"
         }
     }
 
 }
+
+/**
+ * Convert the container type to another type by using a lambda [mapper].
+ */
+public inline fun <T, R> Container<T>.map(
+    mapper: ContainerMapper<T, R>,
+): Container<R> {
+    return when (this) {
+        Container.Pending -> Container.Pending
+        is Container.Error -> this
+        is Container.Success -> {
+            try {
+                Container.Success(mapper(this, this.value), source)
+            } catch (e: Exception) {
+                Container.Error(e)
+            }
+        }
+    }
+}
+
+public fun <T, R> Container<T>.map(): Container<R> {
+    return when (this) {
+        Container.Pending -> Container.Pending
+        is Container.Error -> this
+        is Container.Success ->
+            throw IllegalStateException("Can't map Container.Success without mapper() lambda")
+    }
+}
+

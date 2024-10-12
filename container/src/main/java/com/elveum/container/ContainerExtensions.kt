@@ -1,24 +1,8 @@
 package com.elveum.container
 
-import kotlinx.coroutines.runBlocking
-
 public class LoadInProgressException : IllegalStateException("Container is Pending and can't be unwrapped")
 
 public typealias ListContainer<T> = Container<List<T>>
-
-/**
- * Convert the container of type [T] into container of another type [R].
- * @throws IllegalStateException if the container is [Container.Success] and [mapper] is not provided
- */
-public fun <T, R> Container<T>.map(mapper: ContainerMapper<T, R>? = null): Container<R> {
-    return runBlocking {
-        if (mapper == null) {
-            suspendMap(null)
-        } else {
-            suspendMap { mapper(it) }
-        }
-    }
-}
 
 /**
  * If the container is [Container.Error], return its wrapped exception.

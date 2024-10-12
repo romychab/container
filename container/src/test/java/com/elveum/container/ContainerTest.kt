@@ -10,56 +10,56 @@ import org.junit.Test
 class ContainerTest {
 
     @Test
-    fun suspendMap_forPendingContainerAndEmptyMapper_returnsSameInstance() = runTest {
+    fun map_forPendingContainerAndEmptyMapper_returnsSameInstance() = runTest {
         val inputContainer: Container<String> = Container.Pending
-        val outputContainer: Container<Int> = inputContainer.suspendMap()
+        val outputContainer: Container<Int> = inputContainer.map()
         assertSame(inputContainer, outputContainer)
     }
 
     @Test
-    fun suspendMap_forPendingContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
+    fun map_forPendingContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
         val inputContainer: Container<String> = Container.Pending
-        val outputContainer: Container<Int> = inputContainer.suspendMap { 1 }
+        val outputContainer: Container<Int> = inputContainer.map { 1 }
         assertSame(inputContainer, outputContainer)
     }
 
     @Test
-    fun suspendMap_forErrorContainerAndEmptyMapper_returnsSameInstance() = runTest {
+    fun map_forErrorContainerAndEmptyMapper_returnsSameInstance() = runTest {
         val inputContainer: Container<String> = Container.Error(IllegalStateException())
-        val outputContainer: Container<Int> = inputContainer.suspendMap()
+        val outputContainer: Container<Int> = inputContainer.map()
         assertSame(inputContainer, outputContainer)
     }
 
     @Test
-    fun suspendMap_forErrorContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
+    fun map_forErrorContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
         val inputContainer: Container<String> = Container.Error(IllegalStateException())
-        val outputContainer: Container<Int> = inputContainer.suspendMap { 1 }
+        val outputContainer: Container<Int> = inputContainer.map { 1 }
         assertSame(inputContainer, outputContainer)
     }
 
     @Test(expected = IllegalStateException::class)
-    fun suspendMap_forSuccessContainerWithoutMapper_throwsException() = runTest {
+    fun map_forSuccessContainerWithoutMapper_throwsException() = runTest {
         val inputContainer: Container<String> = Container.Success("123")
-        inputContainer.suspendMap<Int>()
+        inputContainer.map<String, Int>()
     }
 
     @Test
-    fun suspendMap_forSuccessContainerWithMapper_mapsValue() = runTest {
+    fun map_forSuccessContainerWithMapper_mapsValue() = runTest {
         val inputContainer = Container.Success("123")
 
-        val outputContainer = inputContainer.suspendMap { it.toInt() }
+        val outputContainer = inputContainer.map { it.toInt() }
 
         assertEquals(123, (outputContainer as Container.Success).value)
     }
 
     @Test
-    fun suspendMap_forSuccessContainer_retainsSourceIndicator() = runTest {
+    fun map_forSuccessContainer_retainsSourceIndicator() = runTest {
         val inputContainer = Container.Success(
             value = "123",
             source = LocalSourceIndicator
         )
 
-        val outputContainer = inputContainer.suspendMap { it.toInt() }
+        val outputContainer = inputContainer.map { it.toInt() }
 
         assertEquals(LocalSourceIndicator, (outputContainer as Container.Success).source)
     }

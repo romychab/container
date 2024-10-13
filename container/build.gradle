@@ -6,7 +6,7 @@ plugins {
 
 ext {
     PUBLISH_GROUP_ID = 'com.elveum'
-    PUBLISH_VERSION = '0.1'
+    PUBLISH_VERSION = '0.2'
     PUBLISH_ARTIFACT_ID = 'container'
 }
 
@@ -14,6 +14,7 @@ apply from: "${rootProject.projectDir}/publish-library.gradle"
 
 kotlin {
     explicitApi()
+    jvmToolchain(17)
 }
 
 dependencies {

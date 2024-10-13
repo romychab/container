@@ -147,5 +147,5 @@ class ProductRepository(
 Just add the following lines to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:0.1"
+implementation "com.elveum:container:0.2"
 ```

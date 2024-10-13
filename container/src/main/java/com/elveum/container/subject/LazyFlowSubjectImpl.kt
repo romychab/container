@@ -8,8 +8,6 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.*
 
-// todo: thing about re-writing the implementation to SharedFlow
-
 public interface Creator {
     public fun <T> createDefault(
         loadingDispatcher: CoroutineDispatcher,
@@ -44,8 +42,8 @@ internal class LazyFlowSubjectImpl<T>(
     private var count = 0
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
-    private var isLoadingFlow = MutableStateFlow(false)
-    private var inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
+    private val isLoadingFlow = MutableStateFlow(false)
+    private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
     private val outputFlow = MutableStateFlow<Container<T>>(Container.Pending)
 
     override fun listen(): Flow<Container<T>> = callbackFlow {
@@ -64,11 +62,10 @@ internal class LazyFlowSubjectImpl<T>(
 
     override fun newLoad(
         silently: Boolean,
-        once: Boolean,
-        valueLoader: ValueLoader<T>
+        valueLoader: ValueLoader<T>,
     ): Flow<T> = synchronized(this) {
         val flowSubject = FlowSubject.create<T>()
-        val newTask = LoadTask.Load(buildNewValueLoader(once, valueLoader), silently, flowSubject)
+        val newTask = LoadTask.Load(valueLoader, silently, flowSubject)
         processLoadCancellation()
         inputFlow.value = newTask
         return flowSubject.flow()
@@ -76,12 +73,10 @@ internal class LazyFlowSubjectImpl<T>(
 
     override fun newAsyncLoad(
         silently: Boolean,
-        once: Boolean,
         valueLoader: ValueLoader<T>
     ) = synchronized(this) {
-        val newTask = LoadTask.Load(buildNewValueLoader(once, valueLoader), silently)
-        processLoadCancellation()
-        inputFlow.value = newTask
+        newLoad(silently, valueLoader)
+        return@synchronized
     }
 
     override fun updateWith(container: Container<T>) = synchronized(this) {
@@ -118,7 +113,6 @@ internal class LazyFlowSubjectImpl<T>(
         }
     }
 
-    @Suppress("OPT_IN_USAGE")
     private fun startLoading() {
         if (scope != null) return
 
@@ -144,8 +138,10 @@ internal class LazyFlowSubjectImpl<T>(
                     scope = null
 
                     val currentLoad = inputFlow.value
-                    if (currentLoad is LoadTask.Instant && currentLoad.lastLoader != null) {
-                        inputFlow.value = LoadTask.Load(currentLoad.lastLoader)
+                    if (currentLoad is LoadTask.Instant) {
+                        currentLoad.lastRealLoader?.let {
+                            inputFlow.value = LoadTask.Load(it)
+                        }
                     }
                 }
             }
@@ -185,37 +181,24 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     private fun getLastRealLoader(): ValueLoader<T>? {
-        return when (val load = inputFlow.value) {
-            is LoadTask.Instant -> load.lastLoader
-            is LoadTask.Load -> load.loader
-        }
-    }
-
-    private fun buildNewValueLoader(once: Boolean, valueLoader: ValueLoader<T>): ValueLoader<T> {
-        if (!once) return valueLoader
-        if (count == 0) return valueLoader
-        val lastLoader = when (val currentLoadTask = inputFlow.value) {
-            is LoadTask.Instant -> currentLoadTask.lastLoader
-            is LoadTask.Load -> currentLoadTask.loader
-        } ?: return valueLoader
-        val lastRealLoader = if (lastLoader is OneShotValueLoader) {
-            lastLoader.previousValueLoader
-        } else {
-            lastLoader
-        }
-        return OneShotValueLoader(lastRealLoader, valueLoader)
+        return inputFlow.value.lastRealLoader
     }
 
     sealed class LoadTask<T> {
-        class Instant<T> constructor(
+        abstract val lastRealLoader: ValueLoader<T>?
+
+        class Instant<T>(
             val container: Container<T>,
-            val lastLoader: ValueLoader<T>? = null,
+            override val lastRealLoader: ValueLoader<T>? = null,
         ) : LoadTask<T>()
+
         class Load<T>(
             val loader: ValueLoader<T>,
             val silent: Boolean = false,
             val flowSubject: FlowSubject<T>? = null,
-        ) : LoadTask<T>()
+        ) : LoadTask<T>() {
+            override val lastRealLoader: ValueLoader<T> = loader
+        }
     }
 
     private class FlowEmitter<T>(

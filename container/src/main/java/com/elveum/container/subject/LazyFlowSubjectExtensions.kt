@@ -25,14 +25,13 @@ public typealias SimpleValueLoader<T> = suspend () -> T
  */
 public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
     silently: Boolean = false,
-    once: Boolean = false,
     source: SourceIndicator = UnknownSourceIndicator,
     valueLoader: SimpleValueLoader<T>,
 ): T {
     val multipleLoader: ValueLoader<T> = {
         emit(valueLoader(), source)
     }
-    val flow = newLoad(silently, once, multipleLoader)
+    val flow = newLoad(silently, multipleLoader)
     return flow.first()
 }
 
@@ -44,14 +43,13 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
  */
 public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
     silently: Boolean = false,
-    once: Boolean = false,
     source: SourceIndicator = UnknownSourceIndicator,
     valueLoader: SimpleValueLoader<T>
 ) {
     val multipleLoader: ValueLoader<T> = {
         emit(valueLoader(), source)
     }
-    newAsyncLoad(silently, once, multipleLoader)
+    newAsyncLoad(silently, multipleLoader)
 }
 
 /**

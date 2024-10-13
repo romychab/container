@@ -2,6 +2,7 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.subject.LazyFlowSubject.Companion.create
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -76,9 +77,6 @@ public interface LazyFlowSubject<T> {
      * the flow returned by [listen] method.
      *
      * @param silently if set to TRUE, [Container.Pending] is not emitted by the [listen] flow.
-     * @param once if set to TRUE and there has been at least one loader without this flag
-     *             then this loader will be executed only once and then it will be replaced
-     *             back to the previous loader
      *
      * @return Flow with values only emitted by the [valueLoader].
      *         The flow completes when the last value is emitted or when the
@@ -87,7 +85,6 @@ public interface LazyFlowSubject<T> {
      */
     public fun newLoad(
         silently: Boolean = false,
-        once: Boolean = false,
         valueLoader: ValueLoader<T>
     ): Flow<T>
 
@@ -100,16 +97,12 @@ public interface LazyFlowSubject<T> {
      * current load results.
      *
      * @param silently if set to TRUE, [Container.Pending] is not emitted by the [listen] flow.
-     * @param once if set to TRUE and there has been at least one loader without this flag
-     *             then this loader will be executed only once and then it will be replaced
-     *             back to the previous loader
      *
      * Please note that the load starts only when at least one subscriber listens
      * for flow returned by [listen] method.
      */
     public fun newAsyncLoad(
         silently: Boolean = false,
-        once: Boolean = false,
         valueLoader: ValueLoader<T>
     )
 

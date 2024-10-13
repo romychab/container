@@ -260,7 +260,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newAsyncLoad(silently = false, once = false, spyLoader2)
+        subject.newAsyncLoad(silently = false, spyLoader2)
         runCurrent()
 
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
@@ -282,7 +282,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newAsyncLoad(silently = false, once = false, spyLoader2)
+        subject.newAsyncLoad(silently = false, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -306,7 +306,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newAsyncLoad(silently = false, once = false, loader2)
+        subject.newAsyncLoad(silently = false, loader2)
         advanceTimeBy(11)
 
         assertEquals(
@@ -335,7 +335,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         advanceTimeBy(50)
-        subject.newAsyncLoad(silently = false, once = false, spyLoader2)
+        subject.newAsyncLoad(silently = false, spyLoader2)
         advanceTimeBy(101)
 
         coVerifyOrder {
@@ -360,7 +360,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newAsyncLoad(silently = true, once = false, spyLoader2)
+        subject.newAsyncLoad(silently = true, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -383,7 +383,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newLoad(silently = false, once = false, spyLoader2)
+        subject.newLoad(silently = false, spyLoader2)
         runCurrent()
 
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
@@ -405,7 +405,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newLoad(silently = false, once = false, spyLoader2)
+        subject.newLoad(silently = false, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -428,7 +428,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newLoad(silently = true, once = false, spyLoader2)
+        subject.newLoad(silently = true, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -455,7 +455,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         advanceTimeBy(50)
-        subject.newLoad(silently = false, once = false, spyLoader2)
+        subject.newLoad(silently = false, spyLoader2)
         advanceTimeBy(101)
 
         coVerifyOrder {
@@ -486,9 +486,9 @@ class LazyFlowSubjectImplTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, once = false, loader2).startCollecting()
+        val state1 = subject.newLoad(silently = false, loader2).startCollecting()
         runCurrent()
-        val state2 = subject.newLoad(silently = false, once = false, loader3).startCollecting()
+        val state2 = subject.newLoad(silently = false, loader3).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21", "22"), state1.collectedItems)
@@ -514,9 +514,9 @@ class LazyFlowSubjectImplTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, once = false, loader1).startCollecting()
+        val state1 = subject.newLoad(silently = false, loader1).startCollecting()
         advanceTimeBy(50)
-        val state2 = subject.newLoad(silently = false, once = false, loader2).startCollecting()
+        val state2 = subject.newLoad(silently = false, loader2).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21"), state1.collectedItems)
@@ -538,7 +538,7 @@ class LazyFlowSubjectImplTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state = subject.newLoad(silently = false, once = false, loader1).startCollecting()
+        val state = subject.newLoad(silently = false, loader1).startCollecting()
         runCurrent()
 
         assertEquals(listOf("2"), state.collectedItems)
@@ -558,7 +558,7 @@ class LazyFlowSubjectImplTest {
 
         val collectedItems = subject.listen().startCollectingToList()
         runCurrent()
-        subject.newLoad(silently = false, once = false, loader2)
+        subject.newLoad(silently = false, loader2)
         advanceTimeBy(11)
 
         assertEquals(
@@ -571,7 +571,7 @@ class LazyFlowSubjectImplTest {
     }
 
     @Test
-    fun newLoad_withOnceFlag_resetsLoaderToPreviousAfterLoading() = runFlowTest {
+    fun newLoad_afterNewLoad_usesLastLoader() = runFlowTest {
         val loader1: ValueLoader<String> = {
             delay(10)
             emit("111")
@@ -584,38 +584,7 @@ class LazyFlowSubjectImplTest {
 
         val state1 = subject.listen().startCollecting()
         advanceTimeBy(11)
-        subject.newLoad(once = true, valueLoader = loader2)
-        advanceTimeBy(11)
-        state1.cancel()
-        advanceTimeBy(cacheTimeout + 1)
-        val state2 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-
-        assertEquals(
-            listOf(Pending, Success("111"), Pending, Success("222")),
-            state1.collectedItems
-        )
-        assertEquals(
-            listOf(Pending, Success("111")),
-            state2.collectedItems
-        )
-    }
-
-    @Test
-    fun newLoad_withoutOnceFlag_usesLastLoader() = runFlowTest {
-        val loader1: ValueLoader<String> = {
-            delay(10)
-            emit("111")
-        }
-        val loader2: ValueLoader<String> = {
-            delay(10)
-            emit("222")
-        }
-        val subject = createLazyFlowSubject(loader1)
-
-        val state1 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-        subject.newLoad(once = false, valueLoader = loader2)
+        subject.newLoad(valueLoader = loader2)
         advanceTimeBy(11)
         state1.cancel()
         advanceTimeBy(cacheTimeout + 1)
@@ -629,72 +598,6 @@ class LazyFlowSubjectImplTest {
         assertEquals(
             listOf(Pending, Success("222")),
             state2.collectedItems
-        )
-    }
-
-    @Test
-    fun newLoad_withTwoOnceFlagsInRow_usesLastNonOnceLoader() = runFlowTest {
-        val loader1: ValueLoader<String> = {
-            delay(10)
-            emit("111")
-        }
-        val loader2: ValueLoader<String> = {
-            delay(10)
-            emit("222")
-        }
-        val loader3: ValueLoader<String> = {
-            delay(10)
-            emit("333")
-        }
-        val subject = createLazyFlowSubject(loader1)
-
-        val state1 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-        subject.newLoad(once = true, valueLoader = loader2)
-        advanceTimeBy(11)
-        subject.newLoad(once = true, valueLoader = loader3)
-        advanceTimeBy(11)
-        state1.cancel()
-        advanceTimeBy(cacheTimeout + 1)
-        val state2 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-
-        assertEquals(
-            listOf(
-                Pending, Success("111"),
-                Pending, Success("222"),
-                Pending, Success("333"),
-            ),
-            state1.collectedItems,
-        )
-        assertEquals(
-            listOf(Pending, Success("111")),
-            state2.collectedItems,
-        )
-    }
-
-    @Test
-    fun newLoad_firstCallWithOnceFlag_actsAsNonOnceLoader() = runFlowTest {
-        val loader1: ValueLoader<String> = {
-            delay(10)
-            emit("111")
-        }
-        val subject = createLazyFlowSubject(once = true, loader1)
-
-        val state1 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-        state1.cancel()
-        advanceTimeBy(cacheTimeout + 1)
-        val state2 = subject.listen().startCollecting()
-        advanceTimeBy(11)
-
-        assertEquals(
-            listOf(Pending, Success("111")),
-            state1.collectedItems,
-        )
-        assertEquals(
-            listOf(Pending, Success("111")),
-            state2.collectedItems,
         )
     }
 
@@ -794,7 +697,6 @@ class LazyFlowSubjectImplTest {
     }
 
     private fun FlowTest.createLazyFlowSubject(
-        once: Boolean,
         loader: ValueLoader<String>,
     ): LazyFlowSubjectImpl<String> {
         val loadingScopeFactory = mockk<LoadingScopeFactory>()
@@ -807,14 +709,7 @@ class LazyFlowSubjectImplTest {
             UnconfinedTestDispatcher(),
             cacheTimeout,
         ).apply {
-            newAsyncLoad(silently = false, once = once, loader)
+            newAsyncLoad(silently = false, loader)
         }
     }
-
-    private fun FlowTest.createLazyFlowSubject(
-        loader: ValueLoader<String>,
-    ): LazyFlowSubjectImpl<String> {
-        return createLazyFlowSubject(false, loader)
-    }
-
 }

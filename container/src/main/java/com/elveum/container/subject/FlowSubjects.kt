@@ -2,6 +2,7 @@ package com.elveum.container.subject
 
 import com.elveum.container.subject.factories.FlowSubjectFactory
 import com.elveum.container.subject.factories.LazyFlowSubjectFactory
+import com.elveum.container.subject.factories.createLazyFlowSubject
 import kotlinx.coroutines.CoroutineDispatcher
 
 public object FlowSubjects {
@@ -34,9 +35,8 @@ public object FlowSubjects {
         override fun <T> create(
             cacheTimeoutMillis: Long,
             loadingDispatcher: CoroutineDispatcher,
-            creator: Creator,
         ): LazyFlowSubject<T> {
-            return creator.createDefault(loadingDispatcher, cacheTimeoutMillis)
+            return createLazyFlowSubject(loadingDispatcher, cacheTimeoutMillis)
         }
     }
 

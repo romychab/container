@@ -119,7 +119,13 @@ class ProductRepository(
   private val productsRemoteDataSource: ProductsRemoteDataSource,
 ) {
 
-    private val productsSubject = LazyFlowSubject.create(loadProducts())
+    private val productsSubject = LazyFlowSubject.create {
+        val localProducts = productsLocalDataSource.getProducts()
+        if (localProducts != null) emit(localProducts)
+        val remoteProducts = productsRemoteDataSource.getProducts()
+        productsLocalDataSource.saveProducts(remoteProducts)
+        emit(remoteProducts)
+    }
 
     // ListContainerFlow<T> is an alias to Flow<Container<List<T>>>
     fun listenProducts(): ListContainerFlow<Product> {
@@ -127,18 +133,28 @@ class ProductRepository(
     }
 
     fun reload() {
-        productsSubject.newAsyncLoad(
-          valueLoader = loadProducts()
-        )
+        productsSubject.reloadAsync()
     }
 
-    private fun loadProducts(): ValueLoader<List<Product>> = {
+}
+```
+
+#### Load Triggers
+
+You can access an additional field named `loadTrigger` within the
+`LazyFlowSubject.create { ... }` block. Depending on its value, you can change the load
+logic. For example, you can skip loading data from the local cache if the loading process has
+been initiated by `reload` call:
+
+```kotlin
+private val productsSubject = LazyFlowSubject.create {
+    if (loadTrigger != LoadTrigger.Reload) {
         val localProducts = productsLocalDataSource.getProducts()
         if (localProducts != null) emit(localProducts)
-        val remoteProducts = productsRemoteDataSource.getProducts()
-        productsLocalDataSource.saveProducts(localProducts)
-        emit(remoteProducts)
     }
+    val remoteProducts = productsRemoteDataSource.getProducts()
+    productsLocalDataSource.saveProducts(localProducts)
+    emit(remoteProducts)
 }
 ```
 
@@ -147,5 +163,5 @@ class ProductRepository(
 Just add the following lines to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:0.2"
+implementation "com.elveum:container:0.3"
 ```

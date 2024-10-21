@@ -5,8 +5,10 @@ package com.elveum.container.subject
 import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Error
 import com.elveum.container.Container.Success
+import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.factories.FlowSubjectFactory
 import com.elveum.container.subject.factories.LoadingScopeFactory
+import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.utils.FlowTest
 import com.elveum.container.utils.JobStatus
 import com.elveum.container.utils.runFlowTest
@@ -20,6 +22,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.junit.Test.None
 
 class LazyFlowSubjectImplTest {
 
@@ -601,6 +604,43 @@ class LazyFlowSubjectImplTest {
         )
     }
 
+    @Test(expected = None::class)
+    fun reload_withoutPrevLoader_doesNothing() = runFlowTest {
+        val subject = createLazyFlowSubject()
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        subject.reload()
+        runCurrent()
+
+        assertEquals(
+            listOf(Pending),
+            state.collectedItems,
+        )
+    }
+
+    @Test
+    fun reload_withPrevLoader_executesLoaderAgain() = runFlowTest {
+        val subject = createLazyFlowSubject {
+            if (loadTrigger == LoadTrigger.NewLoad) {
+                emit("load")
+            } else if (loadTrigger == LoadTrigger.Reload) {
+                delay(10)
+                emit("reload")
+            }
+        }
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        subject.reload()
+        advanceTimeBy(11)
+
+        assertEquals(
+            listOf(Pending, Success("load"), Pending, Success("reload")),
+            state.collectedItems,
+        )
+    }
+
     @Test
     fun updateWith_cancelsLoadingAndEmitsNewValueImmediately() = runFlowTest {
         val loader: ValueLoader<String> = {
@@ -697,7 +737,7 @@ class LazyFlowSubjectImplTest {
     }
 
     private fun FlowTest.createLazyFlowSubject(
-        loader: ValueLoader<String>,
+        loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> {
         val loadingScopeFactory = mockk<LoadingScopeFactory>()
 
@@ -708,8 +748,11 @@ class LazyFlowSubjectImplTest {
             loadingScopeFactory,
             UnconfinedTestDispatcher(),
             cacheTimeout,
+            LoadTaskManager(),
         ).apply {
-            newAsyncLoad(silently = false, loader)
+            if (loader != null) {
+                newAsyncLoad(silently = false, loader)
+            }
         }
     }
 }

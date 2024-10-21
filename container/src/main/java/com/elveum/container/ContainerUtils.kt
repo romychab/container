@@ -5,6 +5,11 @@ import kotlinx.coroutines.flow.*
 
 public interface Emitter<T> {
 
+    /**
+     * Reason why a loader function has been executed.
+     */
+    public val loadTrigger: LoadTrigger
+
     public suspend fun emit(item: T, source: SourceIndicator = UnknownSourceIndicator)
 
 }
@@ -46,6 +51,7 @@ public fun <T> containerOfMany(loader: suspend Emitter<T>.() -> Unit): Flow<Cont
     return flow {
         try {
             val emitter = object : Emitter<T> {
+                override val loadTrigger: LoadTrigger = LoadTrigger.NewLoad
                 override suspend fun emit(item: T, source: SourceIndicator) {
                     val collector = this@flow
                     collector.emit(Container.Success(item, source))

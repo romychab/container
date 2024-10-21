@@ -44,6 +44,11 @@ public typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
 public interface LazyFlowSubject<T> {
 
     /**
+     * Get the current value held by this subject.
+     */
+    public val currentValue: Container<T>
+
+    /**
      * Listen for values loaded by this subject.
      *
      * Value is loaded automatically when at least 1 subscriber starts
@@ -89,37 +94,11 @@ public interface LazyFlowSubject<T> {
     ): Flow<T>
 
     /**
-     * Start a new load which will replace existing value in the flow
-     * returned by [listen].
-     * The load is managed by [valueLoader] which can emit more than one value.
-     *
-     * Use this method instead of [newLoad] if you don't want to listen for the
-     * current load results.
-     *
-     * @param silently if set to TRUE, [Container.Pending] is not emitted by the [listen] flow.
-     *
-     * Please note that the load starts only when at least one subscriber listens
-     * for flow returned by [listen] method.
-     */
-    public fun newAsyncLoad(
-        silently: Boolean = false,
-        valueLoader: ValueLoader<T>
-    )
-
-    /**
      * Update the value immediately in a flow returned by [listen].
      *
      * This method cancels the current load.
      */
     public fun updateWith(container: Container<T>)
-
-    /**
-     * Update the value immediately in a flow returned by [listen] by
-     * using the [updater] function which accepts an old value in arguments.
-     *
-     * This method cancels the current load.
-     */
-    public fun updateWith(updater: (Container<T>) -> Container<T>)
 
     /**
      * Whether the container is loading data or not. The flow emits TRUE
@@ -128,6 +107,13 @@ public interface LazyFlowSubject<T> {
      * [updateWith] call doesn't affect the flow returned by this method.
      */
     public fun isValueLoading(): StateFlow<Boolean>
+
+    /**
+     * The same as [newLoad] but using the previous loader function
+     * to update a value held by this subject.
+     * @see newLoad
+     */
+    public fun reload(silently: Boolean = false): Flow<T>
 
     public companion object {
 
@@ -138,7 +124,7 @@ public interface LazyFlowSubject<T> {
         ): LazyFlowSubject<T> {
             val configuration = FlowSubjects.defaultConfiguration
             return configuration.lazyFlowSubjectFactory.create<T>(
-                cacheTimeoutMillis, loadingDispatcher, CreatorImpl
+                cacheTimeoutMillis, loadingDispatcher,
             ).also {
                 if (valueLoader != null) {
                     it.newAsyncLoad(valueLoader = valueLoader)

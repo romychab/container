@@ -10,7 +10,7 @@ import com.elveum.container.subject.ValueLoader
 public interface EmitterWithState<T, C> : Emitter<T> {
 
     /**
-     * Get the current state value. It can be modifier by [updateState]
+     * Get the current state value. It can be modified by [updateState]
      * and also it is retained across loader executions.
      */
     public val state: C

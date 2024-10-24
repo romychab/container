@@ -2,49 +2,32 @@
 
 package com.elveum.container.subject
 
-import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Error
+import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Success
 import com.elveum.container.LoadTrigger
-import com.elveum.container.subject.factories.FlowSubjectFactory
 import com.elveum.container.subject.factories.LoadingScopeFactory
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.utils.FlowTest
 import com.elveum.container.utils.JobStatus
 import com.elveum.container.utils.runFlowTest
-import io.mockk.*
+import io.mockk.coVerify
+import io.mockk.coVerifyOrder
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.spyk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Before
 import org.junit.Test
 import org.junit.Test.None
 
 class LazyFlowSubjectImplTest {
 
     private val cacheTimeout = 1000L
-
-    @Before
-    fun setUp() {
-        FlowSubjects.setDefaultConfiguration(
-            FlowSubjects.Configuration(
-                flowSubjectFactory = object : FlowSubjectFactory {
-                    override fun <T> create(): FlowSubject<T> {
-                        return FlowSubjectImpl()
-                    }
-                },
-            )
-        )
-    }
-
-    @After
-    fun cleanUp() {
-        FlowSubjects.resetDefaultConfiguration()
-    }
 
     @Test
     fun listen_whileLoadingItems_emitsPendingStatus() = runFlowTest {
@@ -734,6 +717,25 @@ class LazyFlowSubjectImplTest {
             listOf(Pending, Success("111")),
             collectedItems,
         )
+    }
+
+    @Test
+    fun updateWith_updatesValueImmediately() = runFlowTest {
+        val subject = createLazyFlowSubject()
+
+        subject.listen().startCollecting()
+        subject.updateWith(Success("123"))
+
+        assertEquals(Success("123"), subject.currentValue)
+    }
+
+    @Test
+    fun updateWith_withoutListeners_doesNotUpdateValueImmediately() = runFlowTest {
+        val subject = createLazyFlowSubject()
+
+        subject.updateWith(Success("123"))
+
+        assertEquals(Pending, subject.currentValue)
     }
 
     private fun FlowTest.createLazyFlowSubject(

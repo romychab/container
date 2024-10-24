@@ -26,6 +26,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.FlowCollector
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -311,6 +312,24 @@ class LoadTaskTest {
 
         val flowEmitter = emitterSlot.captured as FlowEmitter<String>
         assertEquals(LoadTrigger.CacheExpired, flowEmitter.loadTrigger)
+    }
+
+    @Test
+    fun loadTask_withSilentFlag_doesNotHaveInitialValue() {
+        val loadTask = makeLoadTask(silent = true)
+        assertNull(loadTask.initialContainer)
+    }
+
+    @Test
+    fun loadTask_withoutSilentFlag_hasInitialPendingValue() {
+        val loadTask = makeLoadTask(silent = false)
+        assertEquals(Container.Pending, loadTask.initialContainer)
+    }
+
+    @Test
+    fun instantTask_alwaysHasInitialValue() {
+        val loadTask = LoadTask.Instant(Container.Success("123"))
+        assertEquals(Container.Success("123"), loadTask.initialContainer)
     }
 
     private fun makeLoadTask(

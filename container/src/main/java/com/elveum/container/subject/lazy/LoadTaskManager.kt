@@ -33,7 +33,9 @@ internal class LoadTaskManager<T> {
                 .collectLatest { loadTask ->
                     try {
                         isLoadingFlow.value = progressCounter.incrementAndGet() != 0
-                        loadTask.execute().collectLatest(::setOutputValueIfNotCancelled)
+                        loadTask.execute().collectLatest { value ->
+                            setOutputValueIfNotCancelled(loadTask, value)
+                        }
                     } finally {
                         isLoadingFlow.value = progressCounter.decrementAndGet() != 0
                     }
@@ -46,9 +48,14 @@ internal class LoadTaskManager<T> {
         job?.cancel()
         job = null
         outputFlow.value = Container.Pending
-        inputFlow.value.apply {
-            cancel()
-            setLoadTrigger(LoadTrigger.CacheExpired)
+        inputFlow.value.cancel()
+        inputFlow.update { oldLoadTask ->
+            val loader = oldLoadTask.lastRealLoader
+            if (loader != null) {
+                LoadTask.Load(loader, LoadTrigger.CacheExpired)
+            } else {
+                oldLoadTask.apply { setLoadTrigger(LoadTrigger.CacheExpired) }
+            }
         }
     }
 
@@ -57,13 +64,19 @@ internal class LoadTaskManager<T> {
             oldLoadTask.cancel()
             loadTask
         }
+        if (job != null) {
+            loadTask.initialContainer?.let { outputFlow.value = it }
+        }
     }
 
     fun getLastRealLoader() = inputFlow.value.lastRealLoader
 
-    private suspend fun setOutputValueIfNotCancelled(value: Container<T>) {
+    private suspend fun setOutputValueIfNotCancelled(
+        loadTask: LoadTask<T>,
+        value: Container<T>
+    ) {
         synchronized(this) {
-            if (coroutineContext.isActive) {
+            if (coroutineContext.isActive && inputFlow.value === loadTask) {
                 outputFlow.value = value
             }
         }

@@ -14,7 +14,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 
-internal class MockLoadTask(scope: TestScope) : LoadTask<String> {
+internal class MockLoadTask(
+    scope: TestScope,
+    override val initialContainer: Container<String>? = null,
+) : LoadTask<String> {
 
     private val _controller = LoadTaskControllerImpl(scope)
     val controller: LoadTaskController = _controller

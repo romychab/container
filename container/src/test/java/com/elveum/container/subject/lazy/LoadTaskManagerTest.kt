@@ -105,6 +105,34 @@ class LoadTaskManagerTest {
     }
 
     @Test
+    fun submitNewLoadTask_updatesValueImmediately() = runTest {
+        val loadTask = MockLoadTask(this, initialContainer = Container.Success("123"))
+        loadTaskManager.startProcessingLoads(backgroundScope)
+
+        loadTaskManager.submitNewLoadTask(loadTask)
+        advanceTimeBy(1)
+
+        assertEquals(
+            Container.Success("123"),
+            loadTaskManager.listen().value
+        )
+    }
+
+    @Test
+    fun submitNewLoadTask_withoutListeners_doesNotUpdateValueImmediately() = runTest {
+        val loadTask = MockLoadTask(this, initialContainer = Container.Success("123"))
+
+        loadTaskManager.submitNewLoadTask(loadTask)
+        advanceTimeBy(1)
+
+        assertEquals(
+            Container.Pending,
+            loadTaskManager.listen().value
+        )
+    }
+
+
+    @Test
     fun startProcessingLoads_updatesIsValueLoadingFlow() = runTest {
         val loadTask = MockLoadTask(this)
         loadTaskManager.startProcessingLoads(backgroundScope)
@@ -195,8 +223,9 @@ class LoadTaskManagerTest {
             loadTask.cancel()
         }
     }
+
     @Test
-    fun cancelProcessingLoads_setsCacheExpiredTrigger() = runTest {
+    fun cancelProcessingLoads_withEmptyRealLoader_setsCacheExpiredTrigger() = runTest {
         val loadTask = spyk(MockLoadTask(this))
         loadTaskManager.startProcessingLoads(backgroundScope)
         loadTaskManager.submitNewLoadTask(loadTask)
@@ -210,6 +239,28 @@ class LoadTaskManagerTest {
         verify(exactly = 1) {
             loadTask.setLoadTrigger(LoadTrigger.CacheExpired)
         }
+    }
+
+    @Test
+    fun cancelProcessingLoads_withRealLoader_createsNewLoadTask() = runTest {
+        val realLoader: ValueLoader<String> = { emit("2") }
+        val loadTask = spyk(MockLoadTask(this))
+        loadTask.lastRealLoader = realLoader
+        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.submitNewLoadTask(loadTask)
+
+        loadTask.controller.start()
+        loadTask.controller.emit(Container.Success("1"))
+        assertEquals(Container.Success("1"), loadTaskManager.listen().value)
+        loadTaskManager.cancelProcessingLoads()
+        advanceTimeBy(1)
+        verify(exactly = 0) {
+            loadTask.setLoadTrigger(LoadTrigger.CacheExpired)
+        }
+        loadTaskManager.startProcessingLoads(backgroundScope)
+        advanceTimeBy(1)
+
+        assertEquals(Container.Success("2"), loadTaskManager.listen().value)
     }
 
     @Test

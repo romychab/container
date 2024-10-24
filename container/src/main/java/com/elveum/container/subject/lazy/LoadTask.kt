@@ -11,16 +11,17 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 
 internal interface LoadTask<T> {
+    val initialContainer: Container<T>?
     val lastRealLoader: ValueLoader<T>?
     fun execute(): Flow<Container<T>>
     fun cancel()
     fun setLoadTrigger(loadTrigger: LoadTrigger)
 
     class Instant<T>(
-        val container: Container<T>,
+        override val initialContainer: Container<T>,
         override val lastRealLoader: ValueLoader<T>? = null,
     ) : LoadTask<T> {
-        override fun execute() = flowOf(container)
+        override fun execute() = flowOf(initialContainer)
         override fun cancel() = Unit
         override fun setLoadTrigger(loadTrigger: LoadTrigger) = Unit
     }
@@ -34,6 +35,11 @@ internal interface LoadTask<T> {
             FlowEmitter(loadTrigger.value, it, flowSubject)
         },
     ) : LoadTask<T> {
+
+        override val initialContainer: Container<T>? =
+            if (silent) null else Container.Pending
+
+        override val lastRealLoader: ValueLoader<T> = loader
 
         constructor(
             loader: ValueLoader<T>,
@@ -53,8 +59,6 @@ internal interface LoadTask<T> {
         override fun setLoadTrigger(loadTrigger: LoadTrigger) {
             this.loadTrigger.value = loadTrigger
         }
-
-        override val lastRealLoader: ValueLoader<T> = loader
 
         override fun execute() = flow {
             try {

@@ -34,7 +34,7 @@ The library consists of 3 main parts:
 
 There are a couple of methods which can simplify a code working with such
 statuses:
-- `map` and `suspendMap`
+- `map`
 - `unwrap`, `unwrapOrNull`
 - `getOrNull`, `exceptionOrNull`
 
@@ -60,7 +60,7 @@ Subjects are classes controlling flow emissions (name is taken from Reactive Str
 
 `FlowSubject` represents a finite `Flow` which emission is controlled outside
 (like `StateFlow` and `SharedFlow`). The `FlowSubject` holds the latest value but
-the there are differences from `StateFlow`:
+there are differences from `StateFlow`:
 - `FlowSubject` is a finite flow and it can be completed by using `onComplete`
   and `onError` methods
 - `FlowSubject` doesn't need a starting default value
@@ -109,7 +109,8 @@ Features:
    - `newSimpleAsyncLoad` - the same as `newSimpleLoad` but it doesn't wait for load
      results and returns immediately
 9. Also you can use `updateWith` method in order to cancel any active loader
-   and place your own value immediately to the subject
+   and place your own value immediately to the subject. The previous loader function
+   will be used again if you call `reload()` or if cache has been expired.
 
 Usage example:
 
@@ -158,10 +159,43 @@ private val productsSubject = LazyFlowSubject.create {
 }
 ```
 
+#### Source Indicators
+
+Optionally you can assign a `SourceIndicator` to any `Container.Success` value
+just to let them know about an actual source where data arrived from.
+
+```kotlin
+// in loader function:
+val subject = LazyFlowSubject.create {
+    val remoteProducts = productsRemoteDataSource.getProducts()
+    emit(remoteProducts, RemoteSourceIndicator)
+}
+
+// in `Container.Success()` directly:
+subject.updateWith(Container.Success("hello", FakeSourceIndicator))
+
+// in `Container.updateIfSuccess`:
+subject.updateIfSuccess(ImmediatelySourceIndicator) { oldValue ->
+    oldValue.copy(isFavorite = true)
+}
+```
+
+Source indicators can be accessible via `Container.Success` instance:
+
+```kotlin
+subject.listen()
+    .filterIsInstance<Container.Success<String>>()
+    .collectLatest { successContainer ->
+        val value = successContainer.value
+        val sourceIndicator = successContainer.source
+        println("$value, isRemote = ${sourceIndicator == RemoteSourceIndicator}")
+    }
+```
+
 ## Installation
 
 Just add the following lines to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:0.3"
+implementation "com.elveum:container:0.4"
 ```

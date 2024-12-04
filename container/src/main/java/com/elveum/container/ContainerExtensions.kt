@@ -33,11 +33,11 @@ public fun <T> Container<T>.unwrap(): T {
  * - If the container is [Container.Pending], [IllegalStateException] is thrown.
  * - If the container is [Container.Error], the wrapped exception is thrown.
  */
-public fun <T> Container<T>.unwrapData(): Data<T> {
+public fun <T> Container<T>.unwrapData(): SourceValue<T> {
     return when (this) {
         is Container.Pending -> throw LoadInProgressException()
         is Container.Error -> throw exception
-        is Container.Success -> Data(value, source)
+        is Container.Success -> SourceValue(value, source)
     }
 }
 
@@ -58,11 +58,11 @@ public fun <T> Container<T>.unwrapOrNull(): T? {
  * - If the container is [Container.Pending], NULL is returned.
  * - If the container is [Container.Error], the wrapped exception is thrown.
  */
-public fun <T> Container<T>.unwrapDataOrNull(): Data<T>? {
+public fun <T> Container<T>.unwrapDataOrNull(): SourceValue<T>? {
     return when (this) {
         is Container.Pending -> null
         is Container.Error -> throw exception
-        is Container.Success -> Data(value, source)
+        is Container.Success -> SourceValue(value, source)
     }
 }
 
@@ -81,9 +81,9 @@ public fun <T> Container<T>.getOrNull(): T? {
  * source indicator is returned.
  * Otherwise, NULL is returned.
  */
-public fun <T> Container<T>.getDataOrNull(): Data<T>? {
+public fun <T> Container<T>.getDataOrNull(): SourceValue<T>? {
     return when (this) {
-        is Container.Success -> Data(value, source)
+        is Container.Success -> SourceValue(value, source)
         else -> null
     }
 }

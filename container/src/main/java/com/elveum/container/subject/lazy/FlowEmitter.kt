@@ -3,7 +3,7 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadTrigger
-import com.elveum.container.SourceIndicator
+import com.elveum.container.SourceType
 import com.elveum.container.subject.FlowSubject
 import kotlinx.coroutines.flow.FlowCollector
 
@@ -16,7 +16,7 @@ internal class FlowEmitter<T>(
     private var _hasEmittedItems = false
     val hasEmittedItems get() = _hasEmittedItems
 
-    override suspend fun emit(item: T, source: SourceIndicator) {
+    override suspend fun emit(item: T, source: SourceType) {
         flowSubject?.onNext(item)
         flowCollector.emit(Container.Success(item, source))
         _hasEmittedItems = true

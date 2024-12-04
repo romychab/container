@@ -1,7 +1,7 @@
 package com.elveum.container
 
 public interface ContainerMapperScope {
-    public val source: SourceIndicator
+    public val source: SourceType
 }
 
 public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
@@ -40,7 +40,7 @@ public sealed class Container<out T> {
      */
     public data class Success<T>(
         val value: T,
-        override val source: SourceIndicator = UnknownSourceIndicator,
+        override val source: SourceType = UnknownSourceType,
     ) : Container<T>(), ContainerMapperScope {
         override fun toString(): String {
             return "Success($value)"

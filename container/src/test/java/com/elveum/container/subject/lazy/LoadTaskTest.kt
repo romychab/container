@@ -5,8 +5,8 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadTrigger
-import com.elveum.container.LocalSourceIndicator
-import com.elveum.container.RemoteSourceIndicator
+import com.elveum.container.LocalSourceType
+import com.elveum.container.RemoteSourceType
 import com.elveum.container.exceptionOrNull
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
@@ -219,16 +219,16 @@ class LoadTaskTest {
             flowCollector?.emit(Container.Success(firstArg(), secondArg()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
-            firstArg<Emitter<String>>().emit("111", LocalSourceIndicator)
-            firstArg<Emitter<String>>().emit("222", RemoteSourceIndicator)
+            firstArg<Emitter<String>>().emit("111", LocalSourceType)
+            firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
         val state = task.execute().startCollecting()
 
         assertEquals(
             listOf(
-                Container.Success("111", LocalSourceIndicator),
-                Container.Success("222", RemoteSourceIndicator),
+                Container.Success("111", LocalSourceType),
+                Container.Success("222", RemoteSourceType),
             ),
             state.collectedItems
         )
@@ -253,8 +253,8 @@ class LoadTaskTest {
             flowCollector?.emit(Container.Success(firstArg(), secondArg()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
-            firstArg<Emitter<String>>().emit("111", LocalSourceIndicator)
-            firstArg<Emitter<String>>().emit("222", RemoteSourceIndicator)
+            firstArg<Emitter<String>>().emit("111", LocalSourceType)
+            firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
         val state = task.execute().startCollecting()
@@ -262,8 +262,8 @@ class LoadTaskTest {
         assertEquals(
             listOf(
                 Container.Pending,
-                Container.Success("111", LocalSourceIndicator),
-                Container.Success("222", RemoteSourceIndicator),
+                Container.Success("111", LocalSourceType),
+                Container.Success("222", RemoteSourceType),
             ),
             state.collectedItems
         )

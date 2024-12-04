@@ -1,8 +1,8 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
-import com.elveum.container.SourceIndicator
-import com.elveum.container.UnknownSourceIndicator
+import com.elveum.container.SourceType
+import com.elveum.container.UnknownSourceType
 import kotlinx.coroutines.flow.first
 
 
@@ -67,7 +67,7 @@ public inline fun <T> LazyFlowSubject<T>.updateWith(updater: (Container<T>) -> C
  */
 public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
     silently: Boolean = false,
-    source: SourceIndicator = UnknownSourceIndicator,
+    source: SourceType = UnknownSourceType,
     valueLoader: SimpleValueLoader<T>,
 ): T {
     val multipleLoader: ValueLoader<T> = {
@@ -85,7 +85,7 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
  */
 public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
     silently: Boolean = false,
-    source: SourceIndicator = UnknownSourceIndicator,
+    source: SourceType = UnknownSourceType,
     valueLoader: SimpleValueLoader<T>
 ) {
     val multipleLoader: ValueLoader<T> = {
@@ -97,7 +97,7 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
 /**
  * Update the value only if there is already successfully loaded old value.
  */
-public fun <T> LazyFlowSubject<T>.updateIfSuccess(source: SourceIndicator? = null, updater: (T) -> T) {
+public fun <T> LazyFlowSubject<T>.updateIfSuccess(source: SourceType? = null, updater: (T) -> T) {
     updateWith { container ->
         if (container is Container.Success) {
             Container.Success(updater(container.value), source ?: container.source)

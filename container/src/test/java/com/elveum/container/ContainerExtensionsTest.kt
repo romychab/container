@@ -54,12 +54,12 @@ class ContainerExtensionsTest {
     fun map_forSuccessContainer_retainsSourceIndicator() {
         val inputContainer = Container.Success(
             value = "123",
-            source = LocalSourceIndicator
+            source = LocalSourceType
         )
 
         val outputContainer = inputContainer.map { it.toInt() }
 
-        assertEquals(LocalSourceIndicator, (outputContainer as Container.Success).source)
+        assertEquals(LocalSourceType, (outputContainer as Container.Success).source)
     }
 
     @Test
@@ -112,11 +112,11 @@ class ContainerExtensionsTest {
 
     @Test
     fun unwrapData_forSuccessContainer_returnsValueAndSourceIndicator() {
-        val successContainer = Container.Success("123", LocalSourceIndicator)
+        val successContainer = Container.Success("123", LocalSourceType)
 
         val data = successContainer.unwrapData()
 
-        assertEquals(Data("123", LocalSourceIndicator), data)
+        assertEquals(SourceValue("123", LocalSourceType), data)
     }
 
     @Test
@@ -166,11 +166,11 @@ class ContainerExtensionsTest {
 
     @Test
     fun unwrapDataOrNull_forSuccessContainer_returnsValueAndSourceIndicator() {
-        val successContainer = Container.Success("123", LocalSourceIndicator)
+        val successContainer = Container.Success("123", LocalSourceType)
 
         val data = successContainer.unwrapDataOrNull()
 
-        assertEquals(Data("123", LocalSourceIndicator), data)
+        assertEquals(SourceValue("123", LocalSourceType), data)
     }
 
     @Test
@@ -221,11 +221,11 @@ class ContainerExtensionsTest {
 
     @Test
     fun getDataOrNull_forSuccessContainer_returnsValueAndSourceIndicator() {
-        val successContainer = Container.Success("123", LocalSourceIndicator)
+        val successContainer = Container.Success("123", LocalSourceType)
 
         val data = successContainer.getDataOrNull()
 
-        assertEquals(Data("123", LocalSourceIndicator), data)
+        assertEquals(SourceValue("123", LocalSourceType), data)
     }
 
     @Test

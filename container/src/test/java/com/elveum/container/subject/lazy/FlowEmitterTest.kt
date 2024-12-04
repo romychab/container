@@ -4,7 +4,7 @@ package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
-import com.elveum.container.LocalSourceIndicator
+import com.elveum.container.LocalSourceType
 import com.elveum.container.subject.FlowSubject
 import io.mockk.MockKAnnotations
 import io.mockk.coVerify
@@ -47,11 +47,11 @@ class FlowEmitterTest {
     fun emit_sendsItem_toCollectorAndSubject() = runTest {
         val flowEmitter = makeFlowEmitter()
 
-        flowEmitter.emit("item", LocalSourceIndicator)
+        flowEmitter.emit("item", LocalSourceType)
 
         coVerify(exactly = 1) {
             flowSubject.onNext("item")
-            flowCollector.emit(Container.Success("item", LocalSourceIndicator))
+            flowCollector.emit(Container.Success("item", LocalSourceType))
         }
     }
 

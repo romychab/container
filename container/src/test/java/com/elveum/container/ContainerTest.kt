@@ -56,17 +56,17 @@ class ContainerTest {
     fun map_forSuccessContainer_retainsSourceIndicator() = runTest {
         val inputContainer = Container.Success(
             value = "123",
-            source = LocalSourceIndicator
+            source = LocalSourceType
         )
 
         val outputContainer = inputContainer.map { it.toInt() }
 
-        assertEquals(LocalSourceIndicator, (outputContainer as Container.Success).source)
+        assertEquals(LocalSourceType, (outputContainer as Container.Success).source)
     }
 
     @Test
     fun new_successContainer_usesUnknownSourceIndicator() {
-        assertEquals(UnknownSourceIndicator, Container.Success("123").source)
+        assertEquals(UnknownSourceType, Container.Success("123").source)
     }
 
 }

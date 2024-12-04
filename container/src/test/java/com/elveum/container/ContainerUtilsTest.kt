@@ -26,7 +26,7 @@ class ContainerUtilsTest {
 
     @Test
     fun containerOf_withSuccess_emitsSuccessAndCompletes() = runFlowTest {
-        val flow = containerOf(LocalSourceIndicator) {
+        val flow = containerOf(LocalSourceType) {
             delay(1000)
             "test"
         }
@@ -35,7 +35,7 @@ class ContainerUtilsTest {
         advanceTimeBy(1001)
 
         assertEquals(
-            listOf(Container.Pending, Container.Success("test", LocalSourceIndicator)),
+            listOf(Container.Pending, Container.Success("test", LocalSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Completed, collectState.jobStatus)
@@ -44,7 +44,7 @@ class ContainerUtilsTest {
     @Test
     fun containerOf_withError_emitsErrorAndCompletes() = runFlowTest {
         val expectedException = Exception()
-        val flow = containerOf(LocalSourceIndicator) {
+        val flow = containerOf(LocalSourceType) {
             delay(1000)
             throw expectedException
         }
@@ -61,7 +61,7 @@ class ContainerUtilsTest {
     @Test
     fun containerOf_isColdFlow() = runFlowTest {
         val loader = mockk<suspend () -> String>(relaxed = true)
-        val flow = containerOf(LocalSourceIndicator, loader)
+        val flow = containerOf(LocalSourceType, loader)
 
         verify { loader wasNot called }
         flow.startCollecting()
@@ -110,7 +110,7 @@ class ContainerUtilsTest {
     fun containerOfMany_withEmitCall_emitsSuccessAndDoesNotCompletes() = runFlowTest {
         val flow = containerOfMany {
             delay(1000)
-            emit("111", LocalSourceIndicator)
+            emit("111", LocalSourceType)
             delay(1000)
         }
 
@@ -118,7 +118,7 @@ class ContainerUtilsTest {
         advanceTimeBy(1001)
 
         assertEquals(
-            listOf(Container.Pending, Container.Success("111", LocalSourceIndicator)),
+            listOf(Container.Pending, Container.Success("111", LocalSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Collecting, collectState.jobStatus)
@@ -128,9 +128,9 @@ class ContainerUtilsTest {
     fun containerOfMany_afterLoaderFinish_completes() = runFlowTest {
         val flow = containerOfMany {
             delay(1000)
-            emit("111", LocalSourceIndicator)
+            emit("111", LocalSourceType)
             delay(1000)
-            emit("222", RemoteSourceIndicator)
+            emit("222", RemoteSourceType)
             delay(1000)
         }
 
@@ -139,21 +139,21 @@ class ContainerUtilsTest {
         // assert 1
         advanceTimeBy(1001)
         assertEquals(
-            listOf(Container.Pending, Container.Success("111", LocalSourceIndicator)),
+            listOf(Container.Pending, Container.Success("111", LocalSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Collecting, collectState.jobStatus)
         // assert 2
         advanceTimeBy(1000)
         assertEquals(
-            listOf(Container.Pending, Container.Success("111", LocalSourceIndicator), Container.Success("222", RemoteSourceIndicator)),
+            listOf(Container.Pending, Container.Success("111", LocalSourceType), Container.Success("222", RemoteSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Collecting, collectState.jobStatus)
         // assert 3
         advanceTimeBy(1000)
         assertEquals(
-            listOf(Container.Pending, Container.Success("111", LocalSourceIndicator), Container.Success("222", RemoteSourceIndicator)),
+            listOf(Container.Pending, Container.Success("111", LocalSourceType), Container.Success("222", RemoteSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Completed, collectState.jobStatus)
@@ -181,7 +181,7 @@ class ContainerUtilsTest {
         val expectedException = Exception()
         val flow = containerOfMany {
             delay(1000)
-            emit("111", LocalSourceIndicator)
+            emit("111", LocalSourceType)
             delay(1000)
             throw expectedException
         }
@@ -191,7 +191,7 @@ class ContainerUtilsTest {
         // assert 1
         advanceTimeBy(1001)
         assertEquals(
-            listOf(Container.Pending, Container.Success("111", LocalSourceIndicator)),
+            listOf(Container.Pending, Container.Success("111", LocalSourceType)),
             collectState.collectedItems
         )
         assertEquals(JobStatus.Collecting, collectState.jobStatus)
@@ -199,7 +199,7 @@ class ContainerUtilsTest {
         advanceTimeBy(1000)
         assertEquals(3, collectState.collectedItems.size)
         assertEquals(Container.Pending, collectState.collectedItems[0])
-        assertEquals(Container.Success("111", LocalSourceIndicator), collectState.collectedItems[1])
+        assertEquals(Container.Success("111", LocalSourceType), collectState.collectedItems[1])
         assertSame(expectedException, (collectState.collectedItems[2] as Container.Error).exception)
         assertEquals(JobStatus.Completed, collectState.jobStatus)
     }

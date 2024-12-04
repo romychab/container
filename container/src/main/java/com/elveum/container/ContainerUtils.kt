@@ -10,7 +10,7 @@ public interface Emitter<T> {
      */
     public val loadTrigger: LoadTrigger
 
-    public suspend fun emit(item: T, source: SourceIndicator = UnknownSourceIndicator)
+    public suspend fun emit(item: T, source: SourceType = UnknownSourceType)
 
 }
 
@@ -26,7 +26,7 @@ public interface Emitter<T> {
  * each time when someone starts collecting the flow.
  */
 public fun <T> containerOf(
-    source: SourceIndicator = UnknownSourceIndicator,
+    source: SourceType = UnknownSourceType,
     loader: suspend () -> T
 ): Flow<Container<T>> {
     return containerOfMany { emit(loader(), source) }
@@ -52,7 +52,7 @@ public fun <T> containerOfMany(loader: suspend Emitter<T>.() -> Unit): Flow<Cont
         try {
             val emitter = object : Emitter<T> {
                 override val loadTrigger: LoadTrigger = LoadTrigger.NewLoad
-                override suspend fun emit(item: T, source: SourceIndicator) {
+                override suspend fun emit(item: T, source: SourceType) {
                     val collector = this@flow
                     collector.emit(Container.Success(item, source))
                 }

@@ -8,7 +8,7 @@ plugins {
 
 ext {
     PUBLISH_GROUP_ID = 'com.elveum'
-    PUBLISH_VERSION = '0.5'
+    PUBLISH_VERSION = '0.6'
     PUBLISH_ARTIFACT_ID = 'container'
 }
 
@@ -30,5 +30,5 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1"
     testImplementation "junit:junit:4.13.2"
     testImplementation "io.mockk:mockk:1.13.13"
-    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.6.4"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:1.8.1"
 }

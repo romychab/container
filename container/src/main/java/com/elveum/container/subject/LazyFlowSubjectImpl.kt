@@ -2,10 +2,9 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
-import com.elveum.container.subject.factories.LoadingScopeFactory
+import com.elveum.container.subject.factories.CoroutineScopeFactory
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -18,10 +17,9 @@ import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.launch
 
 internal class LazyFlowSubjectImpl<T>(
-    private val loadingScopeFactory: LoadingScopeFactory,
-    private val loadingDispatcher: CoroutineDispatcher,
+    private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
-    private val loadTaskManager: LoadTaskManager<T>,
+    private val loadTaskManager: LoadTaskManager<T> = LoadTaskManager(),
 ) : LazyFlowSubject<T> {
 
     override val currentValue: Container<T> get() = loadTaskManager.listen().value
@@ -94,7 +92,7 @@ internal class LazyFlowSubjectImpl<T>(
 
     private fun startLoading() {
         if (scope != null) return
-        scope = loadingScopeFactory.createScope(loadingDispatcher)
+        scope = coroutineScopeFactory.createScope()
             .also(loadTaskManager::startProcessingLoads)
     }
 

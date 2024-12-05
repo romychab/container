@@ -4,7 +4,9 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -122,12 +124,14 @@ public interface LazyFlowSubject<T> {
             loadingDispatcher: CoroutineDispatcher = Dispatchers.IO,
             valueLoader: ValueLoader<T>? = null,
         ): LazyFlowSubject<T> {
-            val configuration = FlowSubjects.defaultConfiguration
-            return configuration.lazyFlowSubjectFactory.create<T>(
-                cacheTimeoutMillis, loadingDispatcher,
-            ).also {
+            return LazyFlowSubjectImpl<T>(
+                coroutineScopeFactory = {
+                    CoroutineScope(SupervisorJob() + loadingDispatcher)
+                },
+                cacheTimeoutMillis = cacheTimeoutMillis,
+            ).apply {
                 if (valueLoader != null) {
-                    it.newAsyncLoad(valueLoader = valueLoader)
+                    newAsyncLoad(valueLoader = valueLoader)
                 }
             }
         }

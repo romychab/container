@@ -6,8 +6,7 @@ import com.elveum.container.Container.Error
 import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Success
 import com.elveum.container.LoadTrigger
-import com.elveum.container.subject.factories.LoadingScopeFactory
-import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.subject.factories.CoroutineScopeFactory
 import com.elveum.container.utils.FlowTest
 import com.elveum.container.utils.JobStatus
 import com.elveum.container.utils.runFlowTest
@@ -19,7 +18,6 @@ import io.mockk.spyk
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
-import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -741,16 +739,14 @@ class LazyFlowSubjectImplTest {
     private fun FlowTest.createLazyFlowSubject(
         loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> {
-        val loadingScopeFactory = mockk<LoadingScopeFactory>()
+        val coroutineScopeFactory = mockk<CoroutineScopeFactory>()
 
-        every { loadingScopeFactory.createScope(any()) } answers {
+        every { coroutineScopeFactory.createScope() } answers {
             TestScope(testScope().testScheduler)
         }
         return LazyFlowSubjectImpl<String>(
-            loadingScopeFactory,
-            UnconfinedTestDispatcher(),
+            coroutineScopeFactory,
             cacheTimeout,
-            LoadTaskManager(),
         ).apply {
             if (loader != null) {
                 newAsyncLoad(silently = false, loader)

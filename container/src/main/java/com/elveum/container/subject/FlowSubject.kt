@@ -42,9 +42,11 @@ public interface FlowSubject<T> {
     public fun flow(): Flow<T>
 
     public companion object {
+        /**
+         * Create a new instance of default implementation of [FlowSubject].
+         */
         public fun <T> create(): FlowSubject<T> {
-            val defaultConfiguration = FlowSubjects.defaultConfiguration
-            return defaultConfiguration.flowSubjectFactory.create()
+            return FlowSubjectImpl()
         }
     }
 }

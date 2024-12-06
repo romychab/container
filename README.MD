@@ -1,6 +1,6 @@
 # Container
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/container.svg?label=Maven%20Central)](https://elveum.com/sh/container)
+[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/container.svg?label=Maven%20Central)](https://uandcode.com/sh/container)
 ![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
 [![License: Apache 2](https://img.shields.io/github/license/romychab/container)](LICENSE)
 
@@ -159,36 +159,36 @@ private val productsSubject = LazyFlowSubject.create {
 }
 ```
 
-#### Source Indicators
+#### Source Types
 
-Optionally you can assign a `SourceIndicator` to any `Container.Success` value
+Optionally you can assign a `SourceType` to any `Container.Success` value
 just to let them know about an actual source where data arrived from.
 
 ```kotlin
 // in loader function:
 val subject = LazyFlowSubject.create {
     val remoteProducts = productsRemoteDataSource.getProducts()
-    emit(remoteProducts, RemoteSourceIndicator)
+    emit(remoteProducts, RemoteSourceType)
 }
 
 // in `Container.Success()` directly:
-subject.updateWith(Container.Success("hello", FakeSourceIndicator))
+subject.updateWith(Container.Success("hello", FakeSourceType))
 
 // in `Container.updateIfSuccess`:
-subject.updateIfSuccess(ImmediatelySourceIndicator) { oldValue ->
+subject.updateIfSuccess(ImmediateSourceType) { oldValue ->
     oldValue.copy(isFavorite = true)
 }
 ```
 
-Source indicators can be accessible via `Container.Success` instance:
+Source types can be accessible via `Container.Success` instance:
 
 ```kotlin
 subject.listen()
     .filterIsInstance<Container.Success<String>>()
     .collectLatest { successContainer ->
         val value = successContainer.value
-        val sourceIndicator = successContainer.source
-        println("$value, isRemote = ${sourceIndicator == RemoteSourceIndicator}")
+        val sourceType = successContainer.source
+        println("$value, isRemote = ${sourceType == RemoteSourceType}")
     }
 ```
 
@@ -197,5 +197,5 @@ subject.listen()
 Just add the following lines to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:0.4"
+implementation "com.elveum:container:0.6"
 ```

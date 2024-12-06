@@ -51,6 +51,20 @@ public interface LazyFlowSubject<T> {
     public val currentValue: Container<T>
 
     /**
+     * Get the total number of active collectors.
+     *
+     * Pleas note, collector is active only after calling a terminal operator
+     * (such as `collect`) on the flow returned by [listen].
+     */
+    public val activeCollectorsCount: Int
+
+    /**
+     * Whether there is at least one active collector.
+     * @see activeCollectorsCount
+     */
+    public val hasActiveCollectors: Boolean get() = activeCollectorsCount > 0
+
+    /**
      * Listen for values loaded by this subject.
      *
      * Value is loaded automatically when at least 1 subscriber starts

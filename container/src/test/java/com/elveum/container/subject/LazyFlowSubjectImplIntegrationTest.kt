@@ -23,7 +23,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Test.None
 
-class LazyFlowSubjectImplTest {
+class LazyFlowSubjectImplIntegrationTest {
 
     private val cacheTimeout = 1000L
 

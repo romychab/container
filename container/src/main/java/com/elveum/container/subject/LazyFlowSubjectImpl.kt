@@ -8,35 +8,33 @@ import com.elveum.container.subject.lazy.LoadTaskManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 internal class LazyFlowSubjectImpl<T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
     private val loadTaskManager: LoadTaskManager<T> = LoadTaskManager(),
+    private val loadTaskFactory: LoadTaskFactory = LoadTaskFactory.Default,
 ) : LazyFlowSubject<T> {
 
     override val currentValue: Container<T> get() = loadTaskManager.listen().value
+    override val activeCollectorsCount: Int get() = count
 
     private var count = 0
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
-    override fun listen(): Flow<Container<T>> = callbackFlow {
-        onStart()
-
-        val job = scope?.launch {
-            loadTaskManager.listen().collect(::trySend)
-        }
-
-        awaitClose {
-            onStop(job)
+    override fun listen(): Flow<Container<T>> = flow {
+        try {
+            onStart()
+            loadTaskManager.listen().collect(this)
+        } finally {
+            onStop()
         }
     }
 
@@ -67,10 +65,9 @@ internal class LazyFlowSubjectImpl<T>(
         valueLoader: ValueLoader<T>,
         loadTrigger: LoadTrigger,
     ): Flow<T> = synchronized(loadTaskManager) {
-        val flowSubject = FlowSubject.create<T>()
-        val newTask = LoadTask.Load(valueLoader, loadTrigger, silently, flowSubject)
-        loadTaskManager.submitNewLoadTask(newTask)
-        flowSubject.flow()
+        val loadTaskRecord = loadTaskFactory.create(silently, valueLoader, loadTrigger)
+        loadTaskManager.submitNewLoadTask(loadTaskRecord.loadTask)
+        loadTaskRecord.flowSubject.flow()
     }
 
     private fun onStart() = synchronized(loadTaskManager) {
@@ -82,9 +79,8 @@ internal class LazyFlowSubjectImpl<T>(
         }
     }
 
-    private fun onStop(job: Job?) = synchronized(loadTaskManager) {
+    private fun onStop() = synchronized(loadTaskManager) {
         count--
-        job?.cancel()
         if (count == 0) {
             scheduleStopLoading()
         }
@@ -108,6 +104,33 @@ internal class LazyFlowSubjectImpl<T>(
                 }
             }
         }
+    }
+
+    interface LoadTaskFactory {
+
+        fun <T> create(
+            silently: Boolean,
+            valueLoader: ValueLoader<T>,
+            loadTrigger: LoadTrigger,
+        ): LoadTaskRecord<T>
+
+        object Default : LoadTaskFactory {
+            override fun <T> create(
+                silently: Boolean,
+                valueLoader: ValueLoader<T>,
+                loadTrigger: LoadTrigger
+            ): LoadTaskRecord<T> {
+                val flowSubject = FlowSubject.create<T>()
+                val loadTask = LoadTask.Load(valueLoader, loadTrigger, silently, flowSubject)
+                return LoadTaskRecord(loadTask, flowSubject)
+            }
+        }
+
+        class LoadTaskRecord<T>(
+            val loadTask: LoadTask<T>,
+            val flowSubject: FlowSubject<T>,
+        )
+
     }
 
 }

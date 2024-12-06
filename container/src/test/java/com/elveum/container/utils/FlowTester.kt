@@ -1,7 +1,6 @@
 package com.elveum.container.utils
 
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.toList
@@ -9,24 +8,38 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import kotlin.coroutines.EmptyCoroutineContext
 
-
-@ExperimentalCoroutinesApi
 fun runFlowTest(
     testBody: suspend FlowTest.() -> Unit
 ) {
     runTest {
-        val scope = FlowTest(this)
+        doRunFlowTest(testBody)
+    }
+}
+
+fun TestScope.runFlowTest(
+    testBody: suspend FlowTest.() -> Unit
+) {
+    runTest {
+        doRunFlowTest(testBody)
+    }
+}
+
+private suspend fun TestScope.doRunFlowTest(
+    testBody: suspend FlowTest.() -> Unit
+) {
+    val scope = FlowTest(this)
+    try {
         testBody.invoke(scope)
+    } finally {
         scope.cancelAll()
     }
 }
 
-
 sealed class JobStatus {
-    object Collecting : JobStatus()
-    object Completed : JobStatus()
-    object Cancelled : JobStatus()
-    class Failed(val error: Throwable) : JobStatus()
+    data object Collecting : JobStatus()
+    data object Completed : JobStatus()
+    data object Cancelled : JobStatus()
+    data class Failed(val error: Throwable) : JobStatus()
 }
 
 interface CollectState<T> {
@@ -36,7 +49,6 @@ interface CollectState<T> {
     fun cancel()
 }
 
-@ExperimentalCoroutinesApi
 class FlowTest(
     private val scope: TestScope
 ) {

@@ -120,7 +120,7 @@ public fun <R> combineStates(
     transform: (List<*>) -> R,
 ): StateFlow<R> {
     return CombineStateFlow(
-        flows = stateFlows,
+        flowsIterable = stateFlows,
         transform = transform,
     )
 }
@@ -145,9 +145,11 @@ internal class MapStateFlow<T, R>(
 }
 
 internal class CombineStateFlow<R>(
-    private val flows: Iterable<StateFlow<*>>,
+    flowsIterable: Iterable<StateFlow<*>>,
     transform: (List<*>) -> R,
 ) : StateFlow<R> {
+
+    private val flows = flowsIterable.toList()
 
     private val currentInputs get() = flows.map { it.value }
     private val cachedCalculation = CachedCalculation(currentInputs, transform)
@@ -160,21 +162,17 @@ internal class CombineStateFlow<R>(
     override suspend fun collect(collector: FlowCollector<R>): Nothing {
         while (true) {
             coroutineScope {
-                collector.emit(value)
+                val gatheredInputs = Array<Container<*>>(flows.size) { Container.Pending }
                 flows.forEachIndexed { currentFlowIndex, currentStateFlow ->
                     launch {
                         currentStateFlow
-                            .drop(1)
                             .collect { item ->
-                                val inputs = flows.mapIndexed { index, stateFlow ->
-                                    if (index == currentFlowIndex) {
-                                        item
-                                    } else {
-                                        stateFlow.value
-                                    }
+                                gatheredInputs[currentFlowIndex] = Container.Success(item)
+                                if (gatheredInputs.all { it is Container.Success }) {
+                                    val inputs = gatheredInputs.filterIsInstance<Container.Success<*>>().map { it.value }
+                                    val transformedValue = cachedCalculation.calculate(inputs)
+                                    collector.emit(transformedValue)
                                 }
-                                val transformedValue = cachedCalculation.calculate(inputs)
-                                collector.emit(transformedValue)
                             }
                     }
                 }

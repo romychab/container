@@ -2,6 +2,7 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.combineStates
 import com.elveum.container.subject.factories.CoroutineScopeFactory
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
@@ -10,6 +11,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.flow
@@ -23,9 +25,9 @@ internal class LazyFlowSubjectImpl<T>(
 ) : LazyFlowSubject<T> {
 
     override val currentValue: Container<T> get() = loadTaskManager.listen().value
-    override val activeCollectorsCount: Int get() = count
+    override val activeCollectorsCount: Int get() = collectorsCountFlow.value
 
-    private var count = 0
+    private val collectorsCountFlow = MutableStateFlow(0)
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
@@ -58,7 +60,11 @@ internal class LazyFlowSubjectImpl<T>(
         } ?: emptyFlow()
     }
 
-    override fun isValueLoading(): StateFlow<Boolean> = loadTaskManager.isValueLoading()
+    override fun isValueLoading(): StateFlow<Boolean> {
+        return combineStates(collectorsCountFlow, loadTaskManager.isValueLoading()) { count, isLoading ->
+            count > 0 && isLoading
+        }
+    }
 
     private fun doNewLoad(
         silently: Boolean,
@@ -71,8 +77,8 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     private fun onStart() = synchronized(loadTaskManager) {
-        count++
-        if (count == 1) {
+        collectorsCountFlow.value++
+        if (collectorsCountFlow.value == 1) {
             cancellationJob?.cancel()
             cancellationJob = null
             startLoading()
@@ -80,8 +86,8 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     private fun onStop() = synchronized(loadTaskManager) {
-        count--
-        if (count == 0) {
+        collectorsCountFlow.value--
+        if (collectorsCountFlow.value == 0) {
             scheduleStopLoading()
         }
     }
@@ -97,7 +103,7 @@ internal class LazyFlowSubjectImpl<T>(
             delay(cacheTimeoutMillis)
             synchronized(loadTaskManager) {
                 cancellationJob = null
-                if (count == 0) { // double check required
+                if (collectorsCountFlow.value == 0) { // double check required
                     loadTaskManager.cancelProcessingLoads()
                     scope?.cancel()
                     scope = null

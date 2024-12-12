@@ -65,13 +65,37 @@ class LazyFlowSubjectTest {
     }
 
     @Test
-    fun isValueLoading_delegatesCallToLoadTaskManager() {
-        val expectedFlow = MutableStateFlow(false)
-        every { loadTaskManager.isValueLoading() } returns expectedFlow
+    fun isValueLoading_withActiveCollector_canReturnTrue() = scope.runFlowTest {
+        val loadingFlow = MutableStateFlow(true)
+        val itemsFlow = MutableStateFlow<Container<String>>(Container.Success("1"))
+        every { loadTaskManager.isValueLoading() } returns loadingFlow
+        every { loadTaskManager.listen() } returns itemsFlow
 
-        val resultFlow = subject.isValueLoading()
+        val collectedItems = subject.isValueLoading().startCollectingToList()
 
-        assertSame(expectedFlow, resultFlow)
+        // initial state -> return false as there is no active collectors
+        assertFalse(collectedItems.last())
+
+        // start collecting -> return true if loadTaskManager returns true
+        val state = subject.listen().startCollecting()
+        assertTrue(collectedItems.last())
+
+        // stop collecting -> return false again
+        state.cancel()
+        assertFalse(collectedItems.last())
+    }
+
+    @Test
+    fun isValueLoading_withoutValueBeingLoaded_returnsFalse() = scope.runFlowTest {
+        val loadingFlow = MutableStateFlow(false)
+        val itemsFlow = MutableStateFlow<Container<String>>(Container.Success("1"))
+        every { loadTaskManager.isValueLoading() } returns loadingFlow
+        every { loadTaskManager.listen() } returns itemsFlow
+
+        subject.listen().startCollecting()
+        val collectedItems = subject.isValueLoading().startCollectingToList()
+
+        assertFalse(collectedItems.last())
     }
 
     @Test

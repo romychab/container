@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
@@ -130,16 +129,16 @@ internal class MapStateFlow<T, R>(
     mapper: (T) -> R,
 ) : StateFlow<R> {
 
-    private val cachedCalculation = CachedCalculation(originFlow.value, mapper)
+    private val cachingFunction = CachingFunction(mapper)
 
     override val replayCache: List<R>
         get() = listOf(value)
     override val value: R
-        get() = cachedCalculation.calculate(originFlow.value)
+        get() = cachingFunction(originFlow.value)
 
     override suspend fun collect(collector: FlowCollector<R>): Nothing {
         originFlow.collect {
-            collector.emit(cachedCalculation.calculate(it))
+            collector.emit(cachingFunction(it))
         }
     }
 }
@@ -152,12 +151,12 @@ internal class CombineStateFlow<R>(
     private val flows = flowsIterable.toList()
 
     private val currentInputs get() = flows.map { it.value }
-    private val cachedCalculation = CachedCalculation(currentInputs, transform)
+    private val cachingFunction = CachingFunction(transform)
 
     override val replayCache: List<R>
         get() = listOf(value)
     override val value: R
-        get() = cachedCalculation.calculate(currentInputs)
+        get() = cachingFunction(currentInputs)
 
     override suspend fun collect(collector: FlowCollector<R>): Nothing {
         while (true) {
@@ -170,7 +169,7 @@ internal class CombineStateFlow<R>(
                                 gatheredInputs[currentFlowIndex] = Container.Success(item)
                                 if (gatheredInputs.all { it is Container.Success }) {
                                     val inputs = gatheredInputs.filterIsInstance<Container.Success<*>>().map { it.value }
-                                    val transformedValue = cachedCalculation.calculate(inputs)
+                                    val transformedValue = cachingFunction(inputs)
                                     collector.emit(transformedValue)
                                 }
                             }
@@ -180,25 +179,4 @@ internal class CombineStateFlow<R>(
         }
     }
 
-}
-
-internal class CachedCalculation<Input, T>(
-    initialInput: Input,
-    private val calcFunction: (Input) -> T,
-) {
-    private var lastInput: Input = initialInput
-    private var cachedResult: Container<T> = Container.Pending
-
-    fun calculate(input: Input): T = synchronized(this) {
-        val lastInput = this.lastInput
-        val cachedResult = this.cachedResult
-        if (cachedResult is Container.Success && lastInput == input) {
-            cachedResult.value
-        } else {
-            calcFunction(input).also {
-                this.lastInput = input
-                this.cachedResult = Container.Success(it)
-            }
-        }
-    }
 }

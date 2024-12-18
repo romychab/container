@@ -1,4 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
 
 package com.elveum.container.subject
 
@@ -15,10 +14,10 @@ import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.test.TestScope
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Test.None
@@ -229,129 +228,6 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(
             listOf(Success("v1")),
             collectState3.collectedItems
-        )
-    }
-
-    @Test
-    fun newAsyncLoad_startsNewLoadWithPendingStatus() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
-        val loader2: ValueLoader<String> = {
-            delay(100)
-            emit("222")
-        }
-        val spyLoader2 = spyk(loader2)
-        val subject = createLazyFlowSubject(loader1)
-
-        val collectedItems = subject.listen().startCollectingToList()
-        runCurrent()
-        subject.newAsyncLoad(silently = false, spyLoader2)
-        runCurrent()
-
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
-        assertEquals(
-            listOf(Pending, Success("111"), Pending),
-            collectedItems
-        )
-    }
-
-    @Test
-    fun newAsyncLoad_loadsNewValue() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
-        val loader2: ValueLoader<String> = {
-            delay(100)
-            emit("222")
-        }
-        val spyLoader2 = spyk(loader2)
-        val subject = createLazyFlowSubject(loader1)
-
-        val collectedItems = subject.listen().startCollectingToList()
-        runCurrent()
-        subject.newAsyncLoad(silently = false, spyLoader2)
-        runCurrent()
-        advanceTimeBy(101)
-
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
-        assertEquals(
-            listOf(Pending, Success("111"), Pending, Success("222")),
-            collectedItems
-        )
-    }
-
-    @Test
-    fun newAsyncLoad_withFailedLoad_emitsErrorToFlowReturnedByListenMethod() = runFlowTest {
-        val loader1: ValueLoader<String> = { delay(100) }
-        val loader2: ValueLoader<String> = {
-            delay(10)
-            emit("222")
-            delay(10)
-            throw IllegalArgumentException()
-        }
-        val subject = createLazyFlowSubject(loader1)
-
-        val collectedItems = subject.listen().startCollectingToList()
-        runCurrent()
-        subject.newAsyncLoad(silently = false, loader2)
-        advanceTimeBy(11)
-
-        assertEquals(
-            listOf(Pending, Success("222")),
-            collectedItems
-        )
-        advanceTimeBy(10)
-        assertEquals(3, collectedItems.size)
-        assertTrue((collectedItems[2] as Error).exception is IllegalArgumentException)
-    }
-
-
-    @Test
-    fun newAsyncLoad_cancelsPreviousLoad() = runFlowTest {
-        val loader1: ValueLoader<String> = {
-            delay(100)
-            emit("111")
-        }
-        val loader2: ValueLoader<String> = {
-            delay(100)
-            emit("222")
-        }
-        val spyLoader1 = spyk(loader1)
-        val spyLoader2 = spyk(loader2)
-        val subject = createLazyFlowSubject(spyLoader1)
-
-        val collectedItems = subject.listen().startCollectingToList()
-        advanceTimeBy(50)
-        subject.newAsyncLoad(silently = false, spyLoader2)
-        advanceTimeBy(101)
-
-        coVerifyOrder {
-            spyLoader1.invoke(any())
-            spyLoader2.invoke(any())
-        }
-        assertEquals(
-            listOf(Pending, Success("222")),
-            collectedItems
-        )
-    }
-
-    @Test
-    fun newAsyncLoad_withSilentMode_loadsNewValueWithoutPendingStatus() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
-        val loader2: ValueLoader<String> = {
-            delay(100)
-            emit("222")
-        }
-        val spyLoader2 = spyk(loader2)
-        val subject = createLazyFlowSubject(loader1)
-
-        val collectedItems = subject.listen().startCollectingToList()
-        runCurrent()
-        subject.newAsyncLoad(silently = true, spyLoader2)
-        runCurrent()
-        advanceTimeBy(101)
-
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
-        assertEquals(
-            listOf(Pending, Success("111"), Success("222")),
-            collectedItems
         )
     }
 
@@ -734,6 +610,156 @@ class LazyFlowSubjectImplIntegrationTest {
         subject.updateWith(Success("123"))
 
         assertEquals(Pending, subject.currentValue)
+    }
+
+    @Test
+    fun activeCollectorsCount_withoutCollectors_returnsZero() = runFlowTest {
+        val subject = createLazyFlowSubject()
+
+        assertEquals(0, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun activeCollectorsCount_with1ActiveCollectors_returns1() = runFlowTest {
+        val loader: ValueLoader<String> = { emit("111") }
+        val subject = createLazyFlowSubject(loader)
+
+        subject.listen().startCollecting()
+
+        assertEquals(1, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun activeCollectorsCount_with2Collectors_returns2() = runFlowTest {
+        val loader: ValueLoader<String> = { emit("111") }
+        val subject = createLazyFlowSubject(loader)
+
+        subject.listen().startCollecting()
+        subject.listen().startCollecting()
+
+        assertEquals(2, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun activeCollectorsCount_with2CollectorsOnSameFlow_returns2() = runFlowTest {
+        val loader: ValueLoader<String> = { emit("111") }
+        val subject = createLazyFlowSubject(loader)
+
+        val flow = subject.listen()
+        flow.startCollecting()
+        flow.startCollecting()
+
+        assertEquals(2, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun activeCollectorsCount_afterCancellation_decreasesNumberOfCollectors() = runFlowTest {
+        val loader: ValueLoader<String> = { emit("111") }
+        val subject = createLazyFlowSubject(loader)
+
+        val state1 = subject.listen().startCollecting() // 1 active collector
+        val state2 = subject.listen().startCollecting() // 2 active collectors
+
+        state1.cancel() // 1 active collector again
+        assertEquals(1, subject.activeCollectorsCount)
+        state2.cancel() // 0 active collectors
+        assertEquals(0, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun isValueLoading_withoutLoader_alwaysReturnsFalse() = runFlowTest {
+        val subject = createLazyFlowSubject()
+
+        subject.listen().startCollecting()
+        advanceTimeBy(1)
+
+        assertFalse(subject.isValueLoading().value)
+    }
+
+    @Test
+    fun isValueLoading_withLoaderWhichIsLoadingValue_returnsTrue() = runFlowTest {
+        val loader: ValueLoader<String> = {
+            delay(10)
+            emit("111")
+        }
+        val subject = createLazyFlowSubject(loader)
+
+        subject.listen().startCollecting()
+        advanceTimeBy(1)
+
+        assertTrue(subject.isValueLoading().value)
+    }
+
+    @Test
+    fun isValueLoading_withCancelledCollector_returnsFalseImmediately() = runFlowTest {
+        val loader: ValueLoader<String> = {
+            delay(10)
+            emit("111")
+        }
+        val subject = createLazyFlowSubject(loader)
+
+        val state = subject.listen().startCollecting()
+        advanceTimeBy(1)
+        state.cancel()
+
+        assertFalse(subject.isValueLoading().value)
+    }
+
+    @Test
+    fun isValueLoading_withCancelledAndRestoredCollector_returnsTrueImmediately() = runFlowTest {
+        val loader: ValueLoader<String> = {
+            delay(cacheTimeout * 2)
+            emit("111")
+        }
+        val subject = createLazyFlowSubject(loader)
+
+        val state = subject.listen().startCollecting()
+        advanceTimeBy(1)
+        state.cancel()
+        advanceTimeBy(cacheTimeout - 5)
+        subject.listen().startCollecting()
+        advanceTimeBy(1)
+
+        assertTrue(subject.isValueLoading().value)
+    }
+
+    @Test
+    fun isValueLoading_isNotAffectedBySilentFlag() = runFlowTest {
+        val loadTime = 10L
+        val loader: ValueLoader<String> = {
+            delay(loadTime)
+            emit("111")
+        }
+        val subject = createLazyFlowSubject(loader)
+        subject.listen().startCollecting()
+        advanceTimeBy(loadTime + 1)
+
+        subject.newAsyncLoad(silently = true, loader)
+        advanceTimeBy(1)
+
+        assertTrue(subject.isValueLoading().value)
+    }
+
+    @Test
+    fun isValueLoading_whenLoadStatusIsChanged_emitsNewValue() = runFlowTest {
+        val loadTime = 10L
+        val loader: ValueLoader<String> = {
+            delay(loadTime)
+            emit("111")
+        }
+        val subject = createLazyFlowSubject(loader)
+        subject.listen().startCollecting()
+
+        val collectedItems = subject.isValueLoading().startCollectingToList()
+
+        // initial state
+        assertFalse(collectedItems.last())
+        // loading is started
+        advanceTimeBy(1)
+        assertTrue(collectedItems.last())
+        // loading is finished
+        advanceTimeBy(loadTime)
+        assertFalse(collectedItems.last())
     }
 
     private fun FlowTest.createLazyFlowSubject(

@@ -44,7 +44,10 @@ sealed class JobStatus {
 
 interface CollectState<T> {
     val collectedItems: List<T>
+    val count: Int
+    val lastItem: T
     val jobStatus: JobStatus
+    val hasItems: Boolean get() = count > 0
 
     fun cancel()
 }
@@ -122,6 +125,8 @@ class FlowTest(
         override var jobStatus: JobStatus,
     ): CollectState<T> {
 
+        override val lastItem: T get() = collectedItems.last()
+        override val count: Int get() = collectedItems.size
         var job: Job? = null
 
         override fun cancel() {

@@ -40,6 +40,7 @@ class LazyCacheTest {
 
     private lateinit var loader: CacheValueLoader<String, String>
 
+    @MockK
     private lateinit var coroutineScopeFactory: CoroutineScopeFactory
 
     private lateinit var scope: TestScope
@@ -51,7 +52,7 @@ class LazyCacheTest {
         MockKAnnotations.init(this)
         loader = mockk(relaxed = true)
         scope = TestScope()
-        coroutineScopeFactory = CoroutineScopeFactory {
+        every { coroutineScopeFactory.createScope() } answers {
             TestScope(scope.testScheduler)
         }
         lazyCache = LazyCacheImpl(
@@ -168,6 +169,25 @@ class LazyCacheTest {
         assertEquals(subject2value1, state2.collectedItems.last()) // item should not be emitted to collector of other subject 2
         assertEquals(Container.Pending, lazyCache.get(key1)) // cache slot of subject 1 should be released
         assertNotEquals(Container.Pending, lazyCache.get(key2)) // cache slot of subject 2 is active
+    }
+
+    @Test
+    fun listen_afterResubscribing_doesNotRecreateCacheSlot() = scope.runFlowTest {
+        val flow = MutableSharedFlow<Container<String>>()
+        val subject = mockSubject()
+        every { subject.listen() } returns flow
+
+        val state = lazyCache.listen(key).startCollecting()
+        state.cancel()
+        advanceTimeBy(timeoutMillis) // timeout almost expired
+        lazyCache.listen(key).startCollecting() // start collecting before expiration
+        advanceTimeBy(timeoutMillis * 2)
+        lazyCache.listen(key).startCollecting() // next collector should not lead to creating a new cache slot
+
+        verify(exactly = 1) { // as a result: coroutineScope and subject should not be created twice
+            coroutineScopeFactory.createScope()
+            subjectFactory.create<String>(any())
+        }
     }
 
     @Test

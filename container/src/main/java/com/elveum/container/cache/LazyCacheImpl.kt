@@ -104,7 +104,7 @@ internal class LazyCacheImpl<Arg, T>(
         }
     }
 
-    private fun getSubject(arg: Arg): LazyFlowSubject<T>? {
+    private fun getSubject(arg: Arg): LazyFlowSubject<T>? = synchronized(this) {
         return cacheSlots[arg]?.subject
     }
 

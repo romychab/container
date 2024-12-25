@@ -51,7 +51,7 @@ public fun <T> LazyFlowSubject<T>.reloadAsync(
 public inline fun <T> LazyFlowSubject<T>.updateWith(updater: (Container<T>) -> Container<T>) {
     val oldValue = currentValue
     val newValue = updater(oldValue)
-    if (newValue === oldValue) return
+    if (newValue == oldValue) return
     updateWith(newValue)
 }
 

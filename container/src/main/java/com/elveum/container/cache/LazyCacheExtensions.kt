@@ -62,7 +62,7 @@ public fun <Arg, T> LazyCache.Companion.createSimple(
 /**
  * Update value in the cache if the previous value is [Container.Success].
  */
-public fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
+public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
     arg: Arg,
     source: SourceType? = null,
     updater: (T) -> T,

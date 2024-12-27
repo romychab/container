@@ -97,7 +97,10 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
 /**
  * Update the value only if there is already successfully loaded old value.
  */
-public fun <T> LazyFlowSubject<T>.updateIfSuccess(source: SourceType? = null, updater: (T) -> T) {
+public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
+    source: SourceType? = null,
+    updater: (T) -> T,
+) {
     updateWith { container ->
         if (container is Container.Success) {
             Container.Success(updater(container.value), source ?: container.source)

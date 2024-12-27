@@ -114,7 +114,7 @@ class ContainerExtensionsTest {
     fun unwrapData_forSuccessContainer_returnsValueAndSourceIndicator() {
         val successContainer = Container.Success("123", LocalSourceType)
 
-        val data = successContainer.unwrapData()
+        val data = successContainer.unwrapSourceValue()
 
         assertEquals(SourceValue("123", LocalSourceType), data)
     }
@@ -124,7 +124,7 @@ class ContainerExtensionsTest {
         val expectedException = Exception("123")
         val container = Container.Error(expectedException)
 
-        val exception = catch<Exception> { container.unwrapData() }
+        val exception = catch<Exception> { container.unwrapSourceValue() }
 
         assertSame(expectedException, exception)
     }
@@ -133,7 +133,7 @@ class ContainerExtensionsTest {
     fun unwrapData_forPendingContainer_throwsLoadInProgressException() {
         val container = Container.Pending
 
-        catch<LoadInProgressException> { container.unwrapData() }
+        catch<LoadInProgressException> { container.unwrapSourceValue() }
     }
 
     @Test
@@ -168,7 +168,7 @@ class ContainerExtensionsTest {
     fun unwrapDataOrNull_forSuccessContainer_returnsValueAndSourceIndicator() {
         val successContainer = Container.Success("123", LocalSourceType)
 
-        val data = successContainer.unwrapDataOrNull()
+        val data = successContainer.unwrapSourceValueOrNull()
 
         assertEquals(SourceValue("123", LocalSourceType), data)
     }
@@ -178,7 +178,7 @@ class ContainerExtensionsTest {
         val expectedException = Exception("123")
         val container = Container.Error(expectedException)
 
-        val exception = catch<Exception> { container.unwrapDataOrNull() }
+        val exception = catch<Exception> { container.unwrapSourceValueOrNull() }
 
         assertSame(expectedException, exception)
     }
@@ -187,7 +187,7 @@ class ContainerExtensionsTest {
     fun unwrapDataOrNull_forPendingContainer_returnsNull() {
         val pendingContainer = Container.Pending
 
-        val data = pendingContainer.unwrapDataOrNull()
+        val data = pendingContainer.unwrapSourceValueOrNull()
 
         assertNull(data)
     }
@@ -223,7 +223,7 @@ class ContainerExtensionsTest {
     fun getDataOrNull_forSuccessContainer_returnsValueAndSourceIndicator() {
         val successContainer = Container.Success("123", LocalSourceType)
 
-        val data = successContainer.getDataOrNull()
+        val data = successContainer.getSourceValueOrNull()
 
         assertEquals(SourceValue("123", LocalSourceType), data)
     }
@@ -232,7 +232,7 @@ class ContainerExtensionsTest {
     fun getDataOrNull_forErrorContainer_returnsNull() {
         val errorContainer = Container.Error(Exception())
 
-        val data = errorContainer.getDataOrNull()
+        val data = errorContainer.getSourceValueOrNull()
 
         assertNull(data)
     }
@@ -241,7 +241,7 @@ class ContainerExtensionsTest {
     fun getDataOrNull_forPendingContainer_returnsNull() {
         val pendingContainer = Container.Pending
 
-        val data = pendingContainer.getDataOrNull()
+        val data = pendingContainer.getSourceValueOrNull()
 
         assertNull(data)
     }

@@ -68,6 +68,10 @@ public inline fun <T, R> Container<T>.map(
     }
 }
 
+/**
+ * Convert Pending or Error container of type T into container of type R.
+ * @throws IllegalStateException if the origin container is [Container.Success].
+ */
 public fun <T, R> Container<T>.map(): Container<R> {
     return when (this) {
         Container.Pending -> Container.Pending

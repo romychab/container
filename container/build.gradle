@@ -8,7 +8,7 @@ plugins {
 
 ext {
     PUBLISH_GROUP_ID = 'com.elveum'
-    PUBLISH_VERSION = '0.6'
+    PUBLISH_VERSION = '0.7'
     PUBLISH_ARTIFACT_ID = 'container'
 }
 

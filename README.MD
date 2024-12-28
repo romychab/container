@@ -8,14 +8,22 @@ Pure Kotlin Library which adds one sealed class
 named `Container` and a couple of helper methods and classes for
 Kotlin Flow and for converting async data loaders into reactive Flows.
 
+## Installation
+
+Just add the following line to your `build.gradle` file:
+
+```
+implementation "com.elveum:container:0.7"
+```
+
 ## Documentation
 
 Click [here](https://docs.uandcode.com/container/).
 
 ## Short Description
 
-The library consists of 3 main parts:
-- `Container<T>` class - represents the status of async operation
+The library contains:
+- `Container<T>` class - represents the status of async operation (`Pending`, `Error`, `Success`)
 - A couple of helper extension methods for easier working (mapping, filtering, etc.) with
   Kotlin Flows containing `Container<T>` or `Container<List<T>>` instances
 - Two subjects:
@@ -24,6 +32,12 @@ The library consists of 3 main parts:
   - `LazyFlowSubject` - provides a convenient way of transforming suspend functions
     into Kotlin Flow with the possibility to update values, replace loaders, load multiple
     values, cache latest loaded value and with loading values only on demand
+- `LazyCache` which can hold multiple instances of `LazyFlowSubject`
+- `StateFlow` extensions:
+  - `stateMap` function which can convert `StateFlow<T>` into `StateFlow<R>` (origin `map` function
+    converts `StateFlow<T>` into more generic `Flow<R>`)
+  - `combineStates` function which can merge 2 or more `StateFlow<*>` instances into one `StateFlow<R>` instance
+    (origin `combine` function merges flows into more generic `Flow<R>`, but not into `StateFlow<R>`)
 
 ## About Container
 
@@ -43,11 +57,11 @@ statuses:
 - `Flow<Container<T>>.unwrapFirst()` returns the first non-pending T value from the flow
 - `Flow<Container<T>>.unwrapFirstOrElse()` and `Flow<Container<T>>.unwrapFirstOrDefault()` returns
   the first non-pending T value from the flow or the default value otherwise
-- `Flow<Container<T>.containerMap()` converts the flow of type `Container<T>` into a flow
+- `Flow<Container<T>>.containerMap()` converts the flow of type `Container<T>` into a flow
   of type `Container<R>`
-- `Flow<Container<T>>.containerFilter()` filters all success T values by a given predicate
+- `Flow<Container<T>>.containerFilter()` filters all `Container.Success<T>` values by a given predicate
 
-Also there are the following type aliases:
+Also, there are the following type aliases:
 - `ListContainer<T>` = `Container<List<T>>`
 - `ContainerFlow<T>` = `Flow<Container<T>>`
 - `ListContainerFlow<T>` = `Flow<Container<List<T>>>`
@@ -80,7 +94,7 @@ flowSubject.listen().collect {
 
 ### LazyFlowSubject
 
-`LazyFlowSubject<T>` provides a specific mechanism of converting a load
+`LazyFlowSubject<T>` provides a mechanism of converting a load
 function into a `Flow<Container<T>>`.
 
 Features:
@@ -94,8 +108,8 @@ Features:
 5. The latest result is cached, so any new subscriber can receive the
    most actual loaded value without triggering the load function again and again
 6. There is a timeout (default value is 1sec) after the last subscriber
-   stops collecting the flow. After timeout expires, the cached value is
-   cleared so any further subscribers will trigger the load function again
+   stops collecting the flow. When timeout expires, the cached value is
+   cleared so any further subscribers will execute the load function again
 7. The flow can be collected by using `listen()` method
 8. You can replace the load function at any time by using the following methods:
    - `newLoad` - assign a new load function which can emit more than one value.
@@ -180,7 +194,7 @@ subject.updateIfSuccess(ImmediateSourceType) { oldValue ->
 }
 ```
 
-Source types can be accessible via `Container.Success` instance:
+Source types can be accessed via `Container.Success` instance:
 
 ```kotlin
 subject.listen()
@@ -192,10 +206,25 @@ subject.listen()
     }
 ```
 
-## Installation
+## Lazy Cache
 
-Just add the following lines to your `build.gradle` file:
+`LazyCache` is a store of multiple `LazyFlowSubject` instances. It allows you
+defining listeners and loader functions with additional arguments.
 
-```
-implementation "com.elveum:container:0.6"
+```kotlin
+
+val lazyCache = LazyCache.create<Long, User> { id ->
+    val localUser = localUsersDataSource.getUserById(id)
+    if (localUser != null) {
+        emit(localUser)
+    }
+    val remoteUser = remoteUsersDataSource.getUserById(id)
+    localUsersDataSource.save(remoteUser)
+    emit(remoteUser)
+}
+
+fun getUserById(id: Long): Flow<Container<User>> {
+    return lazyCache.listen(id)
+}
+
 ```

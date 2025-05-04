@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 internal class LazyCacheImpl<Arg, T>(
@@ -29,12 +28,8 @@ internal class LazyCacheImpl<Arg, T>(
     private val totalCount: Int get() = cacheSlots.values.sumOf { it.count }
     private var scope: CoroutineScope? = null
 
-    override fun listen(arg: Arg): Flow<Container<T>> {
-        return flow {
-            useCacheSlot(arg) { subject ->
-                subject.listen().collect(this)
-            }
-        }
+    override fun listen(arg: Arg): StateFlow<Container<T>> {
+        return ListenStateFlowImpl(arg)
     }
 
     override fun isValueLoading(arg: Arg): StateFlow<Boolean> {
@@ -127,6 +122,22 @@ internal class LazyCacheImpl<Arg, T>(
                 subject.isValueLoading().collect(collector)
             }
         }
+    }
+
+    private inner class ListenStateFlowImpl(
+        private val arg: Arg,
+    ): StateFlow<Container<T>> {
+
+        override val replayCache: List<Container<T>> get() = listOf(value)
+        override val value: Container<T>
+            get() = getSubject(arg)?.currentValue ?: Container.Pending
+
+        override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
+            useCacheSlot(arg) { subject ->
+                subject.listen().collect(collector)
+            }
+        }
+
     }
 
     interface LazyFlowSubjectFactory {

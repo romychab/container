@@ -75,11 +75,9 @@ class LazyCacheExtensionsTest {
             val loaderSlot = slot<CacheValueLoader<String, String>>()
             val emitter = mockk<Emitter<String>>(relaxUnitFun = true)
             val timeoutMillis = 2000L
-            val dispatcher = mockk<CoroutineDispatcher>()
-            every { LazyCache.create<String, String>(any(), any(), any()) } returns lazyCache
+            every { LazyCache.create<String, String>(any(), any()) } returns lazyCache
 
             val newLazyCache = LazyCache.createSimple<String, String>(
-                loadingDispatcher = dispatcher,
                 cacheTimeoutMillis = timeoutMillis,
             ) { arg -> "$arg-loaded" }
 
@@ -87,7 +85,6 @@ class LazyCacheExtensionsTest {
             verify(exactly = 1) {
                 LazyCache.create(
                     cacheTimeoutMillis = timeoutMillis,
-                    loadingDispatcher = refEq(dispatcher),
                     loader = capture(loaderSlot)
                 )
             }

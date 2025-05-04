@@ -11,10 +11,10 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
-import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 
 internal class LazyFlowSubjectImpl<T>(
@@ -31,13 +31,8 @@ internal class LazyFlowSubjectImpl<T>(
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
-    override fun listen(): Flow<Container<T>> = flow {
-        try {
-            onStart()
-            loadTaskManager.listen().collect(this)
-        } finally {
-            onStop()
-        }
+    override fun listen(): StateFlow<Container<T>> {
+        return ListenStateFlowImpl()
     }
 
     override fun newLoad(silently: Boolean, valueLoader: ValueLoader<T>): Flow<T> {
@@ -112,6 +107,21 @@ internal class LazyFlowSubjectImpl<T>(
         }
     }
 
+    private inner class ListenStateFlowImpl : StateFlow<Container<T>> {
+
+        override val replayCache: List<Container<T>> get() = listOf(value)
+        override val value: Container<T> get() = currentValue
+
+        override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
+            try {
+                onStart()
+                loadTaskManager.listen().collect(collector)
+            } finally {
+                onStop()
+            }
+        }
+    }
+
     interface LoadTaskFactory {
 
         fun <T> create(
@@ -140,3 +150,4 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
 }
+

@@ -77,7 +77,7 @@ class LazyCacheTest {
         val expectedKey = key
         val expectedEmitter = mockk<Emitter<String>>()
         val subject = mockSubject()
-        every { subject.listen() } returns MutableSharedFlow()
+        every { subject.listen() } returns MutableStateFlow(Container.Pending)
 
         lazyCache.listen(key).startCollecting()
 
@@ -94,7 +94,7 @@ class LazyCacheTest {
     @Test
     fun listen_afterStartOfCollecting_listensFlowFromSubject() = scope.runFlowTest {
         val subject = mockSubject()
-        val flow = MutableSharedFlow<Container<String>>()
+        val flow = MutableStateFlow<Container<String>>(Container.Pending)
         every { subject.listen() } returns flow
 
         val collectedItems = lazyCache.listen(key).startCollectingToList()
@@ -114,7 +114,7 @@ class LazyCacheTest {
     fun listen_afterStopOfCollecting_closesCacheSlot() = scope.runFlowTest {
         val subject = mockSubject()
         val subjectValue = Container.Success("111")
-        every { subject.listen() } returns MutableSharedFlow()
+        every { subject.listen() } returns MutableStateFlow(Container.Pending)
         every { subject.currentValue } returns subjectValue
 
         lazyCache.listen(key).startCollecting().cancel()
@@ -129,8 +129,8 @@ class LazyCacheTest {
 
     @Test
     fun listen_testMultipleArgs() = scope.runFlowTest {
-        val flow1 = MutableSharedFlow<Container<String>>()
-        val flow2 = MutableSharedFlow<Container<String>>()
+        val flow1 = MutableStateFlow<Container<String>>(Container.Pending)
+        val flow2 = MutableStateFlow<Container<String>>(Container.Pending)
         val (subject1, subject2) = mockTwoSubjects()
         every { subject1.listen() } returns flow1
         every { subject1.currentValue } returns Container.Success("1")
@@ -146,7 +146,7 @@ class LazyCacheTest {
         flow1.emit(subject1value1)
         assertEquals(subject1value1, state1.collectedItems.last()) // item is emitted to 1st collector of subject 1
         assertEquals(subject1value1, state1v2.collectedItems.last()) // item is emitted to 2nd collector of subject 1
-        assertNull(state2.collectedItems.lastOrNull()) // item should not be emitted to collector of subject 2
+        assertEquals(Container.Pending, state2.collectedItems.last()) // item should not be emitted to collector of subject 2
         // emit item by subject2
         val subject2value1 = Container.Success("2_111")
         flow2.emit(subject2value1)
@@ -173,7 +173,7 @@ class LazyCacheTest {
 
     @Test
     fun listen_afterResubscribing_doesNotRecreateCacheSlot() = scope.runFlowTest {
-        val flow = MutableSharedFlow<Container<String>>()
+        val flow = MutableStateFlow<Container<String>>(Container.Pending)
         val subject = mockSubject()
         every { subject.listen() } returns flow
 

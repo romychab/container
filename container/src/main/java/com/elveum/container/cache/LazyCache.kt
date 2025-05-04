@@ -53,7 +53,7 @@ public interface LazyCache<Arg, T> {
      * when at least 1 collector starts collecting the flow. See [LazyFlowSubject]
      * for more details.
      */
-    public fun listen(arg: Arg): Flow<Container<T>>
+    public fun listen(arg: Arg): StateFlow<Container<T>>
 
     /**
      * Invalidate and reload data.
@@ -95,18 +95,16 @@ public interface LazyCache<Arg, T> {
          * ```
          *
          * @param cacheTimeoutMillis how much time cached values remain in cache if there is no collectors
-         * @param loadingDispatcher dispatcher used for loading data
          * @param loader function that loads data into the cache on demand
          */
         public fun <Arg, T> create(
             cacheTimeoutMillis: Long = 1000L,
-            loadingDispatcher: CoroutineDispatcher = Dispatchers.IO,
             loader: CacheValueLoader<Arg, T>,
         ): LazyCache<Arg, T> {
             return LazyCacheImpl(
                 cacheTimeoutMillis = cacheTimeoutMillis,
                 coroutineScopeFactory = {
-                    CoroutineScope(SupervisorJob() + loadingDispatcher)
+                    CoroutineScope(SupervisorJob())
                 },
                 loader = loader,
             )

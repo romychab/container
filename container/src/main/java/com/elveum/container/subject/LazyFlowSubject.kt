@@ -3,9 +3,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -80,7 +78,7 @@ public interface LazyFlowSubject<T> {
      *
      * @return infinite flow which emits the current state of value load, always success, exceptions are wrapped to [Container.Error]
      */
-    public fun listen(): Flow<Container<T>>
+    public fun listen(): StateFlow<Container<T>>
 
     /**
      * Start a new load which will replace existing value in the flow
@@ -135,12 +133,11 @@ public interface LazyFlowSubject<T> {
 
         public fun <T> create(
             cacheTimeoutMillis: Long = 1000L,
-            loadingDispatcher: CoroutineDispatcher = Dispatchers.IO,
             valueLoader: ValueLoader<T>? = null,
         ): LazyFlowSubject<T> {
             return LazyFlowSubjectImpl<T>(
                 coroutineScopeFactory = {
-                    CoroutineScope(SupervisorJob() + loadingDispatcher)
+                    CoroutineScope(SupervisorJob())
                 },
                 cacheTimeoutMillis = cacheTimeoutMillis,
             ).apply {

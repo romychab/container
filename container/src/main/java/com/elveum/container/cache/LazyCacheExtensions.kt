@@ -48,12 +48,10 @@ public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
  */
 public fun <Arg, T> LazyCache.Companion.createSimple(
     cacheTimeoutMillis: Long = 1000L,
-    loadingDispatcher: CoroutineDispatcher = Dispatchers.IO,
     loader: SimpleCacheValueLoader<Arg, T>,
 ): LazyCache<Arg, T> {
     return create(
         cacheTimeoutMillis = cacheTimeoutMillis,
-        loadingDispatcher = loadingDispatcher,
     ) { arg ->
         emit(loader.invoke(arg))
     }

@@ -22,6 +22,12 @@ version = PUBLISH_VERSION
 
 afterEvaluate {
     publishing {
+        repositories {
+            maven {
+                name = "build"
+                url = uri(rootProject.layout.buildDirectory.dir("maven"))
+            }
+        }
         publications {
             release(MavenPublication) {
                 groupId PUBLISH_GROUP_ID

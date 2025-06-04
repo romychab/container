@@ -13,7 +13,7 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:1.0.0"
+implementation "com.elveum:container:1.0.1"
 ```
 
 ## Documentation

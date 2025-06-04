@@ -93,6 +93,16 @@ public inline fun <T, R> Flow<Container<T>>.containerMap(
 }
 
 /**
+ * Convert the original StateFlow which contains a [Container] of type [T] into
+ * a StateFlow which also contains a [Container] but of type [R].
+ */
+public inline fun <T, R> StateFlow<Container<T>>.containerStateMap(
+    crossinline mapper: ContainerMapper<T, R>
+): StateFlow<Container<R>> {
+    return stateMap { container -> container.map(mapper) }
+}
+
+/**
  * Convert the original Flow which contains a [Container] of type [T] info
  * a Flow which also contains a [Container] but of type [R].
  *

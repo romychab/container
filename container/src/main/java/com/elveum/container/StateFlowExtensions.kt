@@ -1,14 +1,14 @@
 package com.elveum.container
 
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * Cast [MutableStateFlow] to [StateFlow].
@@ -56,7 +56,6 @@ public fun <T1, T2, R> combineStates(
         @Suppress("UNCHECKED_CAST")
         transform(input[0] as T1, input[1] as T2)
     }
-
 }
 
 /**
@@ -137,10 +136,13 @@ internal class MapStateFlow<T, R>(
         get() = cachingFunction(originFlow.value)
 
     override suspend fun collect(collector: FlowCollector<R>): Nothing {
-        originFlow.collect {
-            collector.emit(cachingFunction(it))
-        }
+        originFlow
+            .map { cachingFunction(it) }
+            .internalDistinctUntilChanged()
+            .collect(collector)
+        awaitCancellation()
     }
+
 }
 
 internal class CombineStateFlow<R>(
@@ -159,24 +161,16 @@ internal class CombineStateFlow<R>(
         get() = cachingFunction(currentInputs)
 
     override suspend fun collect(collector: FlowCollector<R>): Nothing {
-        while (true) {
-            coroutineScope {
-                val gatheredInputs = Array<Container<*>>(flows.size) { Container.Pending }
-                flows.forEachIndexed { currentFlowIndex, currentStateFlow ->
-                    launch {
-                        currentStateFlow
-                            .collect { item ->
-                                gatheredInputs[currentFlowIndex] = Container.Success(item)
-                                if (gatheredInputs.all { it is Container.Success }) {
-                                    val inputs = gatheredInputs.filterIsInstance<Container.Success<*>>().map { it.value }
-                                    val transformedValue = cachingFunction(inputs)
-                                    collector.emit(transformedValue)
-                                }
-                            }
-                    }
-                }
-            }
+        val flow = combine(flows) { inputs ->
+            cachingFunction(inputs.toList())
         }
+        flow.internalDistinctUntilChanged()
+            .collect(collector)
+        awaitCancellation()
     }
 
+}
+
+internal fun <T> Flow<T>.internalDistinctUntilChanged(): Flow<T> {
+    return distinctUntilChanged { old, new -> old == new }
 }

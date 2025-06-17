@@ -5,85 +5,94 @@ public class LoadInProgressException : IllegalStateException("Container is Pendi
 public typealias ListContainer<T> = Container<List<T>>
 
 /**
- * If the container is [Container.Error], return its wrapped exception.
- * Otherwise, return NULL.
+ * - Returns the result of onSuccess() function if this instance is [Container.Success].
+ *   If you don't provide onSuccess() implementation, the [defaultValue] is returned.
+ * - Returns the result of onError() function if this instance is [Container.Error].
+ *   If you don't provide onError() implementation, the [defaultValue] is returned.
+ * - Returns the result of onPending() function if this instance is [Container.Pending].
+ *   If you don't provide onPending() implementation, the [defaultValue] is returned.
  */
-public fun <T> Container<T>.exceptionOrNull(): Throwable? {
-    return if (this is Container.Error) {
-        exception
-    } else {
-        null
-    }
+public inline fun <T, R> Container<T>.foldDefault(
+    defaultValue: R,
+    onPending: () -> R = { defaultValue },
+    onError: ContainerMapperScope.(Exception) -> R = { defaultValue },
+    onSuccess: ContainerMapperScope.(T) -> R = { defaultValue },
+): R {
+    return fold(
+        onPending = { onPending() },
+        onError = { onError(it) },
+        onSuccess = { onSuccess(it) },
+    )
 }
 
 /**
- * Get the value backed by the container if possible or throw exception.
+ * - Returns the result of onSuccess() function if this instance is [Container.Success].
+ *   If you don't provide onSuccess() implementation, `null` is returned.
+ * - Returns the result of onError() function if this instance is [Container.Error].
+ *   If you don't provide onError() implementation, `null` is returned.
+ * - Returns the result of onPending() function if this instance is [Container.Pending].
+ *   If you don't provide onPending() implementation, `null` is returned.
+ */
+public inline fun <T, R> Container<T>.foldNullable(
+    onPending: () -> R? = { null },
+    onError: ContainerMapperScope.(Exception) -> R? = { null },
+    onSuccess: ContainerMapperScope.(T) -> R? = { null },
+): R? {
+    return fold(
+        onSuccess = { onSuccess(it) },
+        onError = { onError(it) },
+        onPending = { onPending() },
+    )
+}
+
+/**
+ * Get the data value encapsulated by the container if possible or return NULL.
  * If the container is [Container.Success], the wrapped value is returned.
- * If the container is [Container.Pending], [IllegalStateException] is thrown.
- * If the container is [Container.Error], the wrapped exception is thrown.
+ * Otherwise, `null` is returned.
  */
-public fun <T> Container<T>.unwrap(): T {
-    return unwrapSourceValue().value
-}
-
-/**
- * Get the value backed by the container if possible or throw exception.
- * - If the container is [Container.Success], the wrapped value along
- *   ith its source indicator is returned.
- * - If the container is [Container.Pending], [IllegalStateException] is thrown.
- * - If the container is [Container.Error], the wrapped exception is thrown.
- */
-public fun <T> Container<T>.unwrapSourceValue(): SourceValue<T> {
-    return when (this) {
-        is Container.Pending -> throw LoadInProgressException()
-        is Container.Error -> throw exception
-        is Container.Success -> SourceValue(value, source)
+public fun <T> Container<T>.getContainerValueOrNull(): ContainerValue<T>? {
+    return foldNullable {
+        ContainerValue(it, source, isLoadingInBackground, reloadFunction)
     }
 }
 
 /**
- * Try to get the value backed by the container.
- * - If the container is [Container.Success], the wrapped value is returned.
- * - If the container is [Container.Pending], NULL is returned.
- * - If the container is [Container.Error], the wrapped exception is thrown.
+ * If the container is [Container.Error], return its encapsulated exception.
+ * Otherwise, return `null`.
  */
-public fun <T> Container<T>.unwrapOrNull(): T? {
-    return unwrapSourceValueOrNull()?.value
+public fun <T> Container<T>.getContainerExceptionOrNull(): ContainerValue<Exception>? {
+    return foldNullable(
+        onError = { ContainerValue(it, source, isLoadingInBackground, reloadFunction) }
+    )
 }
 
 /**
- * Try to get the value backed by the container.
- * - If the container is [Container.Success], the wrapped value along with
- *   its source indicator is returned.
- * - If the container is [Container.Pending], NULL is returned.
- * - If the container is [Container.Error], the wrapped exception is thrown.
+ * If the container is [Container.Error], return its wrapped exception.
+ * Otherwise, return `null`.
  */
-public fun <T> Container<T>.unwrapSourceValueOrNull(): SourceValue<T>? {
-    return when (this) {
-        is Container.Pending -> null
-        is Container.Error -> throw exception
-        is Container.Success -> SourceValue(value, source)
-    }
+public fun <T> Container<T>.exceptionOrNull(): Exception? {
+    return foldNullable(onError = { it })
 }
 
 /**
  * Get the value backed by the container if possible or return NULL.
  * If the container is [Container.Success], the wrapped value is returned.
- * Otherwise, NULL is returned.
+ * Otherwise, `null` is returned.
  */
 public fun <T> Container<T>.getOrNull(): T? {
-    return getSourceValueOrNull()?.value
+    return foldNullable { it }
 }
 
 /**
- * Get the data value backed by the container if possible or return NULL.
- * If the container is [Container.Success], the wrapped value along with its
- * source indicator is returned.
- * Otherwise, NULL is returned.
+ * Update additional data in the container.
  */
-public fun <T> Container<T>.getSourceValueOrNull(): SourceValue<T>? {
-    return when (this) {
-        is Container.Success -> SourceValue(value, source)
-        else -> null
-    }
+public fun <T> Container<T>.update(
+    source: SourceType? = null,
+    reloadFunction: ReloadFunction? = null,
+    isLoadingInBackground: Boolean? = null,
+): Container<T> {
+    return transform(
+        onSuccess = { value -> successContainer(value, source, isLoadingInBackground, reloadFunction) },
+        onError = { exception -> errorContainer(exception, source, isLoadingInBackground, reloadFunction) }
+    )
 }

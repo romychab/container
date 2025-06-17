@@ -10,35 +10,26 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.coroutineContext
-
 
 internal class LoadTaskManager<T> {
 
-    private val progressCounter = AtomicInteger(0)
-    private val isLoadingFlow = MutableStateFlow(false)
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
     private val outputFlow = MutableStateFlow<Container<T>>(Container.Pending)
     private var job: Job? = null
 
     fun listen(): StateFlow<Container<T>> = outputFlow
 
-    fun isValueLoading(): StateFlow<Boolean> = isLoadingFlow
-
     fun startProcessingLoads(scope: CoroutineScope) = synchronized(this) {
         if (job != null) return
+        val currentContainer: () -> Container<T> = { outputFlow.value }
         job = scope.launch {
             inputFlow
                 .collectLatest { loadTask ->
-                    try {
-                        isLoadingFlow.value = progressCounter.incrementAndGet() != 0
-                        loadTask.execute().collectLatest { value ->
+                    loadTask.execute(currentContainer)
+                        .collectLatest { value ->
                             setOutputValueIfNotCancelled(loadTask, value)
                         }
-                    } finally {
-                        isLoadingFlow.value = progressCounter.decrementAndGet() != 0
-                    }
                 }
         }
     }

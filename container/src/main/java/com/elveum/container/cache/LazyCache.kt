@@ -2,11 +2,9 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -24,15 +22,10 @@ public interface LazyCache<Arg, T> {
      * This method returns [Container.Pending] if no one collects a flow returned
      * by [listen] call with the specified [arg].
      */
-    public fun get(arg: Arg): Container<T>
-
-    /**
-     * Whether the value is being loaded right now.
-     *
-     * Please note, value is loading only when at least 1 collector starts collecting
-     * a flow returned by [listen].
-     */
-    public fun isValueLoading(arg: Arg): StateFlow<Boolean>
+    public fun get(
+        arg: Arg,
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+    ): Container<T>
 
     /**
      * Get the total number of active collectors.
@@ -53,7 +46,10 @@ public interface LazyCache<Arg, T> {
      * when at least 1 collector starts collecting the flow. See [LazyFlowSubject]
      * for more details.
      */
-    public fun listen(arg: Arg): StateFlow<Container<T>>
+    public fun listen(
+        arg: Arg,
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+    ): StateFlow<Container<T>>
 
     /**
      * Invalidate and reload data.
@@ -77,6 +73,11 @@ public interface LazyCache<Arg, T> {
      */
     public fun updateWith(arg: Arg, container: Container<T>)
 
+    /**
+     * Clean-up in-memory cached values that are not observed.
+     */
+    public fun reset()
+
     public companion object {
 
         /**
@@ -95,18 +96,17 @@ public interface LazyCache<Arg, T> {
          * ```
          *
          * @param cacheTimeoutMillis how much time cached values remain in cache if there is no collectors
-         * @param loader function that loads data into the cache on demand
+         * @param valueLoader function that loads data into the cache on demand
          */
         public fun <Arg, T> create(
             cacheTimeoutMillis: Long = 1000L,
-            loader: CacheValueLoader<Arg, T>,
+            coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
+            valueLoader: CacheValueLoader<Arg, T>,
         ): LazyCache<Arg, T> {
             return LazyCacheImpl(
                 cacheTimeoutMillis = cacheTimeoutMillis,
-                coroutineScopeFactory = {
-                    CoroutineScope(SupervisorJob())
-                },
-                loader = loader,
+                coroutineScopeFactory = coroutineScopeFactory,
+                valueLoader = valueLoader,
             )
         }
     }

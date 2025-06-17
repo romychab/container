@@ -1,7 +1,8 @@
-package com.elveum.container.subject.factories
+package com.elveum.container.factory
 
 import com.elveum.container.subject.LazyFlowSubject
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 
 public fun interface CoroutineScopeFactory {
 
@@ -10,4 +11,9 @@ public fun interface CoroutineScopeFactory {
      */
     public fun createScope(): CoroutineScope
 
+    public companion object : CoroutineScopeFactory {
+        override fun createScope(): CoroutineScope {
+            return CoroutineScope(SupervisorJob())
+        }
+    }
 }

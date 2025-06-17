@@ -2,8 +2,10 @@ package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.errorContainer
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -13,7 +15,7 @@ import kotlinx.coroutines.flow.flowOf
 internal interface LoadTask<T> {
     val initialContainer: Container<T>?
     val lastRealLoader: ValueLoader<T>?
-    fun execute(): Flow<Container<T>>
+    fun execute(currentContainer: () -> Container<T>? = { null }): Flow<Container<T>>
     fun cancel()
     fun setLoadTrigger(loadTrigger: LoadTrigger)
 
@@ -21,7 +23,7 @@ internal interface LoadTask<T> {
         override val initialContainer: Container<T>,
         override val lastRealLoader: ValueLoader<T>? = null,
     ) : LoadTask<T> {
-        override fun execute() = flowOf(initialContainer)
+        override fun execute(currentContainer: () -> Container<T>?) = flowOf(initialContainer)
         override fun cancel() = Unit
         override fun setLoadTrigger(loadTrigger: LoadTrigger) = Unit
     }
@@ -60,19 +62,26 @@ internal interface LoadTask<T> {
             this.loadTrigger.value = loadTrigger
         }
 
-        override fun execute() = flow {
+        override fun execute(currentContainer: () -> Container<T>?) = flow {
             try {
-                if (!silent) emit(Container.Pending)
+                if (!silent) {
+                    emit(Container.Pending)
+                } else {
+                    currentContainer()?.update(isLoadingInBackground = true)?.let {
+                        emit(it)
+                    }
+                }
                 val emitter = flowEmitterCreator(this)
                 loader(emitter)
-                if (!emitter.hasEmittedItems) {
+                if (!emitter.hasEmittedValues) {
                     throw IllegalStateException("Value Loader should emit at least one item or throw exception")
                 }
                 flowSubject?.onComplete()
+                emitter.emitLastItem()
             } catch (e: Exception) {
                 flowSubject?.onError(e)
                 if (e is CancellationException) throw e
-                emit(Container.Error(e))
+                emit(errorContainer(e))
             }
         }
 

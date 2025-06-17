@@ -1,13 +1,16 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
-import com.elveum.container.combineStates
-import com.elveum.container.subject.factories.CoroutineScopeFactory
+import com.elveum.container.internalDistinctUntilChanged
+import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.update
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -15,24 +18,29 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 
 internal class LazyFlowSubjectImpl<T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
-    private val loadTaskManager: LoadTaskManager<T> = LoadTaskManager(),
+    private val loadTaskManager: LoadTaskManager<T>,
     private val loadTaskFactory: LoadTaskFactory = LoadTaskFactory.Default,
 ) : LazyFlowSubject<T> {
 
-    override val currentValue: Container<T> get() = loadTaskManager.listen().value
     override val activeCollectorsCount: Int get() = collectorsCountFlow.value
 
+    private val currentValue: Container<T> get() = loadTaskManager.listen().value
     private val collectorsCountFlow = MutableStateFlow(0)
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
-    override fun listen(): StateFlow<Container<T>> {
-        return ListenStateFlowImpl()
+    override fun currentValue(configuration: ContainerConfiguration): Container<T> {
+        return currentValue.applyConfiguration(configuration)
+    }
+
+    override fun listen(configuration: ContainerConfiguration): StateFlow<Container<T>> {
+        return ListenStateFlowImpl(configuration)
     }
 
     override fun newLoad(silently: Boolean, valueLoader: ValueLoader<T>): Flow<T> {
@@ -53,12 +61,6 @@ internal class LazyFlowSubjectImpl<T>(
                 loadTrigger = LoadTrigger.Reload,
             )
         } ?: emptyFlow()
-    }
-
-    override fun isValueLoading(): StateFlow<Boolean> {
-        return combineStates(collectorsCountFlow, loadTaskManager.isValueLoading()) { count, isLoading ->
-            count > 0 && isLoading
-        }
     }
 
     private fun doNewLoad(
@@ -107,7 +109,21 @@ internal class LazyFlowSubjectImpl<T>(
         }
     }
 
-    private inner class ListenStateFlowImpl : StateFlow<Container<T>> {
+    private fun Container<T>.applyConfiguration(
+        configuration: ContainerConfiguration,
+    ): Container<T> {
+        return this
+            .runIf(!configuration.emitReloadFunction) {
+                update(reloadFunction = EmptyReloadFunction)
+            }
+            .runIf(!configuration.emitBackgroundLoads) {
+                update(isLoadingInBackground = false)
+            }
+    }
+
+    private inner class ListenStateFlowImpl(
+        private val configuration: ContainerConfiguration,
+    ) : StateFlow<Container<T>> {
 
         override val replayCache: List<Container<T>> get() = listOf(value)
         override val value: Container<T> get() = currentValue
@@ -115,10 +131,23 @@ internal class LazyFlowSubjectImpl<T>(
         override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
             try {
                 onStart()
-                loadTaskManager.listen().collect(collector)
+                loadTaskManager.listen()
+                    .map { it.update(reloadFunction = ::reload) }
+                    .map { it.applyConfiguration(configuration) }
+                    .internalDistinctUntilChanged()
+                    .collect(collector)
+                awaitCancellation()
             } finally {
                 onStop()
             }
+        }
+    }
+
+    private inline fun <T> T.runIf(condition: Boolean, block: T.() -> T): T {
+        return if (condition) {
+            block()
+        } else {
+            this
         }
     }
 
@@ -150,4 +179,3 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
 }
-

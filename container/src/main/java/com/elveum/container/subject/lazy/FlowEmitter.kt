@@ -4,7 +4,10 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadTrigger
 import com.elveum.container.SourceType
+import com.elveum.container.getOrNull
+import com.elveum.container.pendingContainer
 import com.elveum.container.subject.FlowSubject
+import com.elveum.container.successContainer
 import kotlinx.coroutines.flow.FlowCollector
 
 internal class FlowEmitter<T>(
@@ -13,12 +16,27 @@ internal class FlowEmitter<T>(
     private val flowSubject: FlowSubject<T>? = null,
 ) : Emitter<T> {
 
-    private var _hasEmittedItems = false
-    val hasEmittedItems get() = _hasEmittedItems
+    private var lastEmittedValue: Container<Container<T>> = Container.Pending
+    private var _hasEmittedValues = false
+    val hasEmittedValues get() = _hasEmittedValues
 
-    override suspend fun emit(item: T, source: SourceType) {
-        flowSubject?.onNext(item)
-        flowCollector.emit(Container.Success(item, source))
-        _hasEmittedItems = true
+    override suspend fun emit(value: T, source: SourceType, isLastValue: Boolean) {
+        _hasEmittedValues = true
+        flowSubject?.onNext(value)
+        flowCollector.emit(successContainer(value, source, isLoadingInBackground = !isLastValue))
+        lastEmittedValue = if (isLastValue) {
+            pendingContainer()
+        } else {
+            successContainer(
+                successContainer(value, source, isLoadingInBackground = false)
+            )
+        }
     }
+
+    internal suspend fun emitLastItem() {
+        lastEmittedValue.getOrNull()?.let { container ->
+            flowCollector.emit(container)
+        }
+    }
+
 }

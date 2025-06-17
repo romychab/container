@@ -3,8 +3,8 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.SourceType
 import com.elveum.container.UnknownSourceType
+import com.elveum.container.map
 import kotlinx.coroutines.flow.first
-
 
 /**
  * Simple loader function for [LazyFlowSubject].
@@ -49,7 +49,7 @@ public fun <T> LazyFlowSubject<T>.reloadAsync(
  * This method cancels the current load.
  */
 public inline fun <T> LazyFlowSubject<T>.updateWith(updater: (Container<T>) -> Container<T>) {
-    val oldValue = currentValue
+    val oldValue = currentValue()
     val newValue = updater(oldValue)
     if (newValue == oldValue) return
     updateWith(newValue)
@@ -71,7 +71,7 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
     valueLoader: SimpleValueLoader<T>,
 ): T {
     val multipleLoader: ValueLoader<T> = {
-        emit(valueLoader(), source)
+        emit(valueLoader(), source, isLastValue = true)
     }
     val flow = newLoad(silently, multipleLoader)
     return flow.first()
@@ -89,7 +89,7 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
     valueLoader: SimpleValueLoader<T>
 ) {
     val multipleLoader: ValueLoader<T> = {
-        emit(valueLoader(), source)
+        emit(valueLoader(), source, isLastValue = true)
     }
     newAsyncLoad(silently, multipleLoader)
 }
@@ -98,14 +98,9 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
  * Update the value only if there is already successfully loaded old value.
  */
 public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
-    source: SourceType? = null,
-    updater: (T) -> T,
+    crossinline updater: (T) -> T,
 ) {
     updateWith { container ->
-        if (container is Container.Success) {
-            Container.Success(updater(container.value), source ?: container.source)
-        } else {
-            container
-        }
+        container.map { updater(it) }
     }
 }

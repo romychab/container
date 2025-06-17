@@ -11,7 +11,7 @@ public class CachingFunction<Input, T>(
 ) {
 
     private var lastInput: Input? = null
-    private var cachedResult: Container<T> = Container.Pending
+    private var cachedResult: Container<T> = pendingContainer()
 
     @Synchronized
     public operator fun invoke(input: Input): T {
@@ -22,7 +22,7 @@ public class CachingFunction<Input, T>(
         } else {
             function(input).also {
                 this.lastInput = input
-                this.cachedResult = Container.Success(it)
+                this.cachedResult = successContainer(it)
             }
         }
     }

@@ -1,11 +1,10 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
+import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
-import com.elveum.container.subject.LazyFlowSubjectImpl
 import com.elveum.container.subject.ValueLoader
-import com.elveum.container.subject.factories.CoroutineScopeFactory
-import com.elveum.container.subject.newAsyncLoad
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -18,9 +17,9 @@ import kotlinx.coroutines.launch
 internal class LazyCacheImpl<Arg, T>(
     private val cacheTimeoutMillis: Long,
     private val coroutineScopeFactory: CoroutineScopeFactory,
-    private val loader: CacheValueLoader<Arg, T>,
-    private val subjectFactory: LazyFlowSubjectFactory = LazyFlowSubjectFactory.Default(
-        cacheTimeoutMillis, coroutineScopeFactory
+    private val valueLoader: CacheValueLoader<Arg, T>,
+    private val subjectFactory: LazyFlowSubjectFactory<T> = LazyFlowSubjectFactory.Default(
+        cacheTimeoutMillis, coroutineScopeFactory,
     )
 ) : LazyCache<Arg, T> {
 
@@ -28,16 +27,18 @@ internal class LazyCacheImpl<Arg, T>(
     private val totalCount: Int get() = cacheSlots.values.sumOf { it.count }
     private var scope: CoroutineScope? = null
 
-    override fun listen(arg: Arg): StateFlow<Container<T>> {
-        return ListenStateFlowImpl(arg)
+    override fun listen(
+        arg: Arg,
+        configuration: ContainerConfiguration,
+    ): StateFlow<Container<T>> {
+        return ListenStateFlowImpl(arg, configuration)
     }
 
-    override fun isValueLoading(arg: Arg): StateFlow<Boolean> {
-        return ValueLoadingStateFlowImpl(arg)
-    }
-
-    override fun get(arg: Arg): Container<T> {
-        return getSubject(arg)?.currentValue ?: Container.Pending
+    override fun get(
+        arg: Arg,
+        configuration: ContainerConfiguration,
+    ): Container<T> {
+        return getSubject(arg)?.currentValue(configuration) ?: Container.Pending
     }
 
     override fun getActiveCollectorsCount(arg: Arg): Int {
@@ -52,10 +53,24 @@ internal class LazyCacheImpl<Arg, T>(
         getSubject(arg)?.updateWith(container)
     }
 
+    override fun reset() = synchronized(this) {
+        val iterator = cacheSlots.iterator()
+        while (iterator.hasNext()) {
+            val entry = iterator.next()
+            if (entry.value.count == 0) {
+                iterator.remove()
+            }
+        }
+        if (totalCount == 0) {
+            scope?.cancel()
+            scope = null
+        }
+    }
+
     private fun registerRecord(arg: Arg): CacheRecord<T> = synchronized(this) {
-        val record = cacheSlots.computeIfAbsent(arg) {
+        val record = cacheSlots.getOrPut(arg) {
             val subject = subjectFactory.create {
-                loader.invoke(this, arg)
+                valueLoader.invoke(this, arg)
             }
             CacheRecord(subject)
         }
@@ -108,53 +123,44 @@ internal class LazyCacheImpl<Arg, T>(
         var count: Int = 0,
     )
 
-    private inner class ValueLoadingStateFlowImpl(
-        private val arg: Arg,
-    ) : StateFlow<Boolean> {
-
-        private val origin: StateFlow<Boolean>? get() = getSubject(arg)?.isValueLoading()
-
-        override val replayCache: List<Boolean> get() = origin?.replayCache ?: listOf(false)
-        override val value: Boolean get() = origin?.value ?: false
-
-        override suspend fun collect(collector: FlowCollector<Boolean>): Nothing {
-            useCacheSlot(arg) { subject ->
-                subject.isValueLoading().collect(collector)
-            }
-        }
-    }
-
     private inner class ListenStateFlowImpl(
         private val arg: Arg,
+        private val configuration: ContainerConfiguration,
     ): StateFlow<Container<T>> {
 
         override val replayCache: List<Container<T>> get() = listOf(value)
         override val value: Container<T>
-            get() = getSubject(arg)?.currentValue ?: Container.Pending
+            get() = getSubject(arg)?.currentValue(configuration) ?: Container.Pending
 
         override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
             useCacheSlot(arg) { subject ->
-                subject.listen().collect(collector)
+                subject.listen(configuration).collect(collector)
             }
         }
 
     }
 
-    interface LazyFlowSubjectFactory {
-        fun <T> create(loader: ValueLoader<T>): LazyFlowSubject<T>
+    interface LazyFlowSubjectFactory<T> {
 
-        class Default(
+        fun create(
+            valueLoader: ValueLoader<T>,
+        ): LazyFlowSubject<T>
+
+        class Default<T>(
             private val cacheTimeoutMillis: Long,
             private val coroutineScopeFactory: CoroutineScopeFactory,
-        ) : LazyFlowSubjectFactory {
-            override fun <T> create(loader: ValueLoader<T>): LazyFlowSubject<T> {
-                return LazyFlowSubjectImpl<T>(
-                    coroutineScopeFactory = coroutineScopeFactory,
+        ) : LazyFlowSubjectFactory<T> {
+
+            override fun create(
+                valueLoader: ValueLoader<T>,
+            ): LazyFlowSubject<T> {
+                return LazyFlowSubject.create(
                     cacheTimeoutMillis = cacheTimeoutMillis,
-                ).apply {
-                    newAsyncLoad(valueLoader = loader)
-                }
+                    coroutineScopeFactory = coroutineScopeFactory,
+                    valueLoader = valueLoader,
+                )
             }
+
         }
     }
 

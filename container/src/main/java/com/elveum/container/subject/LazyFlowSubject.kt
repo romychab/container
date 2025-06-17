@@ -2,12 +2,11 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
+import com.elveum.container.subject.lazy.LoadTaskManager
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-
 
 /**
  * Loader function for [LazyFlowSubject] which can emit loaded values.
@@ -44,11 +43,6 @@ public typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
 public interface LazyFlowSubject<T> {
 
     /**
-     * Get the current value held by this subject.
-     */
-    public val currentValue: Container<T>
-
-    /**
      * Get the total number of active collectors.
      *
      * Pleas note, collector is active only after calling a terminal operator
@@ -61,6 +55,13 @@ public interface LazyFlowSubject<T> {
      * @see activeCollectorsCount
      */
     public val hasActiveCollectors: Boolean get() = activeCollectorsCount > 0
+
+    /**
+     * Get the current value held by this subject.
+     */
+    public fun currentValue(
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+    ): Container<T>
 
     /**
      * Listen for values loaded by this subject.
@@ -78,7 +79,9 @@ public interface LazyFlowSubject<T> {
      *
      * @return infinite flow which emits the current state of value load, always success, exceptions are wrapped to [Container.Error]
      */
-    public fun listen(): StateFlow<Container<T>>
+    public fun listen(
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+    ): StateFlow<Container<T>>
 
     /**
      * Start a new load which will replace existing value in the flow
@@ -115,14 +118,6 @@ public interface LazyFlowSubject<T> {
     public fun updateWith(container: Container<T>)
 
     /**
-     * Whether the container is loading data or not. The flow emits TRUE
-     * if the value loader is loading data right now. Please note that
-     * assigning just a simple [Container.Pending] to the subject via
-     * [updateWith] call doesn't affect the flow returned by this method.
-     */
-    public fun isValueLoading(): StateFlow<Boolean>
-
-    /**
      * The same as [newLoad] but using the previous loader function
      * to update a value held by this subject.
      * @see newLoad
@@ -133,13 +128,13 @@ public interface LazyFlowSubject<T> {
 
         public fun <T> create(
             cacheTimeoutMillis: Long = 1000L,
+            coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             valueLoader: ValueLoader<T>? = null,
         ): LazyFlowSubject<T> {
             return LazyFlowSubjectImpl<T>(
-                coroutineScopeFactory = {
-                    CoroutineScope(SupervisorJob())
-                },
+                coroutineScopeFactory = coroutineScopeFactory,
                 cacheTimeoutMillis = cacheTimeoutMillis,
+                loadTaskManager = LoadTaskManager(),
             ).apply {
                 if (valueLoader != null) {
                     newAsyncLoad(valueLoader = valueLoader)

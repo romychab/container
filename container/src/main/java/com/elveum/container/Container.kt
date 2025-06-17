@@ -1,12 +1,5 @@
 package com.elveum.container
 
-public interface ContainerMapperScope {
-    public val source: SourceType
-}
-
-public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
-
-
 /**
  * Represents the current status of async fetch/operation.
  * @see Container.Pending
@@ -16,68 +9,111 @@ public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
 public sealed class Container<out T> {
 
     /**
+     * - Returns the result of onSuccess() function if this instance is [Container.Success].
+     * - Returns the result of onError() function if this instance is [Container.Error].
+     * - Returns the result of onPending() function if this instance is [Container.Pending].
+     */
+    public inline fun <R> fold(
+        onPending: () -> R,
+        onError: ContainerMapperScope.(Exception) -> R,
+        onSuccess: ContainerMapperScope.(T) -> R,
+    ): R {
+        return when (this) {
+            is Success<T> -> onSuccess(this, value)
+            Pending -> onPending()
+            is Error -> onError(this, exception)
+        }
+    }
+
+    public sealed class Completed<out T> : Container<T>(), ContainerMapperScope {
+
+        /**
+         * The original source where the data is loading from.
+         */
+        public abstract override val source: SourceType
+
+        /**
+         * Function for reloading data.
+         */
+        public abstract override val reloadFunction: ReloadFunction
+
+        /**
+         * Whether there is another value load in progress.
+         * For example, it may be a value being loaded from the remote source, whereas
+         * this container represents a local source.
+         */
+        public abstract override val isLoadingInBackground: Boolean
+
+    }
+
+    /**
      * The operation is still in progress.
      */
-    public data object Pending : Container<Nothing>() {
+    public data object Pending : Container<Nothing>()
+
+    /**
+     * The operation has been finished with success.
+     */
+    public data class Success<T>
+    @Deprecated("Use successContainer() function instead of direct call of constructor.")
+    constructor(
+        val value: T,
+        override val source: SourceType = UnknownSourceType,
+        override val isLoadingInBackground: Boolean = false,
+        override val reloadFunction: ReloadFunction = EmptyReloadFunction,
+    ) : Completed<T>() {
         override fun toString(): String {
-            return "Pending"
+            return "Success($value)"
         }
     }
 
     /**
      * The operation has been failed.
      */
-    public data class Error(
-        val exception: Throwable,
-    ) : Container<Nothing>() {
-        override fun toString(): String {
-            return "Error(${exception::class.java.simpleName})"
-        }
-    }
-
-    /**
-     * The operation has been finished with success.
-     */
-    public data class Success<T>(
-        val value: T,
+    public data class Error
+    @Deprecated("Use errorContainer() function instead of direct call of constructor.")
+    constructor(
+        val exception: Exception,
         override val source: SourceType = UnknownSourceType,
-    ) : Container<T>(), ContainerMapperScope {
+        override val isLoadingInBackground: Boolean = false,
+        override val reloadFunction: ReloadFunction = EmptyReloadFunction,
+    ) : Completed<Nothing>() {
         override fun toString(): String {
-            return "Success($value)"
+            return "Error($exception)"
         }
     }
 
 }
 
 /**
- * Convert the container type to another type by using a lambda [mapper].
+ * Create a pending container.
  */
-public inline fun <T, R> Container<T>.map(
-    mapper: ContainerMapper<T, R>,
-): Container<R> {
-    return when (this) {
-        Container.Pending -> Container.Pending
-        is Container.Error -> this
-        is Container.Success -> {
-            try {
-                Container.Success(mapper(this, this.value), source)
-            } catch (e: Exception) {
-                Container.Error(e)
-            }
-        }
-    }
+public fun pendingContainer(): Container.Pending {
+    return Container.Pending
 }
 
 /**
- * Convert Pending or Error container of type T into container of type R.
- * @throws IllegalStateException if the origin container is [Container.Success].
+ * Create a success container.
  */
-public fun <T, R> Container<T>.map(): Container<R> {
-    return when (this) {
-        Container.Pending -> Container.Pending
-        is Container.Error -> this
-        is Container.Success ->
-            throw IllegalStateException("Can't map Container.Success without mapper() lambda")
-    }
+public fun <T> successContainer(
+    value: T,
+    source: SourceType = UnknownSourceType,
+    isLoadingInBackground: Boolean = false,
+    reloadFunction: ReloadFunction = EmptyReloadFunction,
+): Container.Success<T> {
+    @Suppress("DEPRECATION")
+    return Container.Success(value, source, isLoadingInBackground, reloadFunction)
 }
 
+/**
+ * Create an error container.
+ */
+public fun errorContainer(
+    exception: Exception,
+    source: SourceType = UnknownSourceType,
+    isLoadingInBackground: Boolean = false,
+    reloadFunction: ReloadFunction = EmptyReloadFunction,
+): Container.Error {
+    @Suppress("DEPRECATION")
+    return Container.Error(exception, source, isLoadingInBackground, reloadFunction)
+}

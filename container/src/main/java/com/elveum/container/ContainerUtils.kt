@@ -59,7 +59,7 @@ public fun <T> containerOfMany(loader: suspend Emitter<T>.() -> Unit): Flow<Cont
             }
             emit(Container.Pending)
             emitter.loader()
-        } catch (e: Throwable) {
+        } catch (e: Exception) {
             if (e is CancellationException) throw e
             emit(Container.Error(e))
         }

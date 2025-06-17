@@ -69,7 +69,7 @@ internal interface LoadTask<T> {
                     throw IllegalStateException("Value Loader should emit at least one item or throw exception")
                 }
                 flowSubject?.onComplete()
-            } catch (e: Throwable) {
+            } catch (e: Exception) {
                 flowSubject?.onError(e)
                 if (e is CancellationException) throw e
                 emit(Container.Error(e))

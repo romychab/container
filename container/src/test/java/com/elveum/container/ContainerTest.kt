@@ -10,13 +10,6 @@ import org.junit.Test
 class ContainerTest {
 
     @Test
-    fun map_forPendingContainerAndEmptyMapper_returnsSameInstance() = runTest {
-        val inputContainer: Container<String> = Container.Pending
-        val outputContainer: Container<Int> = inputContainer.map()
-        assertSame(inputContainer, outputContainer)
-    }
-
-    @Test
     fun map_forPendingContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
         val inputContainer: Container<String> = Container.Pending
         val outputContainer: Container<Int> = inputContainer.map { 1 }
@@ -24,23 +17,10 @@ class ContainerTest {
     }
 
     @Test
-    fun map_forErrorContainerAndEmptyMapper_returnsSameInstance() = runTest {
-        val inputContainer: Container<String> = Container.Error(IllegalStateException())
-        val outputContainer: Container<Int> = inputContainer.map()
-        assertSame(inputContainer, outputContainer)
-    }
-
-    @Test
-    fun map_forErrorContainerAndNonEmptyMapper_returnsSameInstance() = runTest {
+    fun map_forErrorContainerAndNonEmptyMapper_returnsErrorInstance() = runTest {
         val inputContainer: Container<String> = Container.Error(IllegalStateException())
         val outputContainer: Container<Int> = inputContainer.map { 1 }
-        assertSame(inputContainer, outputContainer)
-    }
-
-    @Test(expected = IllegalStateException::class)
-    fun map_forSuccessContainerWithoutMapper_throwsException() = runTest {
-        val inputContainer: Container<String> = Container.Success("123")
-        inputContainer.map<String, Int>()
+        assertEquals(inputContainer, outputContainer)
     }
 
     @Test

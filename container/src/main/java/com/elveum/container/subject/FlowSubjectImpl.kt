@@ -15,7 +15,7 @@ internal class FlowSubjectImpl<T> : FlowSubject<T> {
         listeners.forEach { it.onNext(value) }
     }
 
-    override fun onError(e: Throwable) = synchronized(this) {
+    override fun onError(e: Exception) = synchronized(this) {
         if (state is State.Closed) return
         state = State.Closed(e, null)
         listeners.forEach { it.onComplete(e) }
@@ -42,7 +42,7 @@ internal class FlowSubjectImpl<T> : FlowSubject<T> {
                     trySend(value)
                 }
 
-                override fun onComplete(e: Throwable?) {
+                override fun onComplete(e: Exception?) {
                     channel.close(e)
                 }
             }
@@ -72,12 +72,12 @@ internal class FlowSubjectImpl<T> : FlowSubject<T> {
 
     private interface Listener<T> {
         fun onNext(value: T)
-        fun onComplete(e: Throwable? = null)
+        fun onComplete(e: Exception? = null)
     }
 
     private sealed class State<out T> {
-        object NotInitialized : State<Nothing>()
+        data object NotInitialized : State<Nothing>()
         class WithValue<T>(val value: T) : State<T>()
-        class Closed<T>(val exception: Throwable?, val value: T?): State<T>()
+        class Closed<T>(val exception: Exception?, val value: T?): State<T>()
     }
 }

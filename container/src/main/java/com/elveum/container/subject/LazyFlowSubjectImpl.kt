@@ -3,8 +3,8 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
-import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.update

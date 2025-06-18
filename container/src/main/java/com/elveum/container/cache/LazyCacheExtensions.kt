@@ -2,8 +2,8 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.SourceType
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.Dispatchers
+import com.elveum.container.factory.DefaultCacheTimeoutMillis
+import com.elveum.container.transform
 
 public typealias SimpleCacheValueLoader<Arg, T> = suspend (Arg) -> T
 
@@ -47,7 +47,7 @@ public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
  * ``
  */
 public fun <Arg, T> LazyCache.Companion.createSimple(
-    cacheTimeoutMillis: Long = 1000L,
+    cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
     loader: SimpleCacheValueLoader<Arg, T>,
 ): LazyCache<Arg, T> {
     return create(
@@ -65,11 +65,11 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
     source: SourceType? = null,
     updater: (T) -> T,
 ) {
-    updateWith(arg) { container ->
-        if (container is Container.Success) {
-            Container.Success(updater(container.value), source ?: container.source)
-        } else {
-            container
-        }
+    updateWith(arg) { oldContainer ->
+        oldContainer.transform(
+            onSuccess = {
+                successContainer(updater(it), source ?: this.source)
+            }
+        )
     }
 }

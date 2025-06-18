@@ -16,8 +16,8 @@ import kotlin.reflect.KClass
  * is retained automatically.
  */
 public inline fun <T, R> Container<T>.transform(
+    onError: ContainerMapperScope.(Exception) -> Container<R> = { errorContainer(it) },
     onSuccess: ContainerMapperScope.(T) -> Container<R>,
-    onError: ContainerMapperScope.(Exception) -> Container<R>,
 ): Container<R> {
     return fold(
         onSuccess = {
@@ -46,10 +46,9 @@ public inline fun <T, R> Container<T>.transform(
 public inline fun <T, R> Container<T>.map(
     mapper: ContainerMapperScope.(T) -> R,
 ): Container<R> {
-    return transform(
-        onSuccess = { value -> successContainer(mapper(value)) },
-        onError = { exception -> errorContainer(exception) },
-    )
+    return transform {
+        successContainer(mapper(it))
+    }
 }
 
 /**

@@ -2,9 +2,13 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.factory.ContainerFactory
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
+import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -99,13 +103,15 @@ public interface LazyCache<Arg, T> {
          * @param valueLoader function that loads data into the cache on demand
          */
         public fun <Arg, T> create(
-            cacheTimeoutMillis: Long = 1000L,
+            cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
+            transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
             valueLoader: CacheValueLoader<Arg, T>,
         ): LazyCache<Arg, T> {
             return LazyCacheImpl(
                 cacheTimeoutMillis = cacheTimeoutMillis,
                 coroutineScopeFactory = coroutineScopeFactory,
+                transformation = transformation,
                 valueLoader = valueLoader,
             )
         }

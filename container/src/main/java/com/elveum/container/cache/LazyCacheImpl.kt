@@ -5,6 +5,8 @@ import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
@@ -17,9 +19,10 @@ import kotlinx.coroutines.launch
 internal class LazyCacheImpl<Arg, T>(
     private val cacheTimeoutMillis: Long,
     private val coroutineScopeFactory: CoroutineScopeFactory,
+    transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
     private val valueLoader: CacheValueLoader<Arg, T>,
     private val subjectFactory: LazyFlowSubjectFactory<T> = LazyFlowSubjectFactory.Default(
-        cacheTimeoutMillis, coroutineScopeFactory,
+        cacheTimeoutMillis, coroutineScopeFactory, transformation,
     )
 ) : LazyCache<Arg, T> {
 
@@ -149,6 +152,7 @@ internal class LazyCacheImpl<Arg, T>(
         class Default<T>(
             private val cacheTimeoutMillis: Long,
             private val coroutineScopeFactory: CoroutineScopeFactory,
+            private val transformation: ContainerTransformation<T>,
         ) : LazyFlowSubjectFactory<T> {
 
             override fun create(
@@ -157,6 +161,7 @@ internal class LazyCacheImpl<Arg, T>(
                 return LazyFlowSubject.create(
                     cacheTimeoutMillis = cacheTimeoutMillis,
                     coroutineScopeFactory = coroutineScopeFactory,
+                    transformation = transformation,
                     valueLoader = valueLoader,
                 )
             }

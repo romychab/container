@@ -2,6 +2,8 @@ package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -12,7 +14,9 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlin.coroutines.coroutineContext
 
-internal class LoadTaskManager<T> {
+internal class LoadTaskManager<T>(
+    private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+) {
 
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
     private val outputFlow = MutableStateFlow<Container<T>>(Container.Pending)
@@ -27,6 +31,7 @@ internal class LoadTaskManager<T> {
             inputFlow
                 .collectLatest { loadTask ->
                     loadTask.execute(currentContainer)
+                        .run(transformation)
                         .collectLatest { value ->
                             setOutputValueIfNotCancelled(loadTask, value)
                         }

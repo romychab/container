@@ -3,7 +3,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.SourceType
 import com.elveum.container.UnknownSourceType
-import com.elveum.container.map
+import com.elveum.container.transform
 import kotlinx.coroutines.flow.first
 
 /**
@@ -48,13 +48,14 @@ public fun <T> LazyFlowSubject<T>.reloadAsync(
  *
  * This method cancels the current load.
  */
-public inline fun <T> LazyFlowSubject<T>.updateWith(updater: (Container<T>) -> Container<T>) {
+public inline fun <T> LazyFlowSubject<T>.updateWith(
+    updater: (Container<T>) -> Container<T>,
+) {
     val oldValue = currentValue()
     val newValue = updater(oldValue)
     if (newValue == oldValue) return
     updateWith(newValue)
 }
-
 
 /**
  * Start a new simple load which will replace the existing value in the flow
@@ -98,9 +99,14 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
  * Update the value only if there is already successfully loaded old value.
  */
 public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
-    crossinline updater: (T) -> T,
+    source: SourceType? = null,
+    updater: (T) -> T,
 ) {
-    updateWith { container ->
-        container.map { updater(it) }
+    updateWith { oldContainer ->
+        oldContainer.transform(
+            onSuccess = {
+                successContainer(updater(it), source ?: this.source)
+            }
+        )
     }
 }

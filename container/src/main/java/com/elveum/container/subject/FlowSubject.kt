@@ -2,7 +2,6 @@ package com.elveum.container.subject
 
 import kotlinx.coroutines.flow.Flow
 
-
 /**
  * Represents a finite flow which emissions can be controlled
  * by the following methods:
@@ -23,7 +22,7 @@ public interface FlowSubject<T> {
      * Complete the flow returned by [flow] call with the provided exception.
      * Any further actions will not take effect.
      */
-    public fun onError(e: Throwable)
+    public fun onError(e: Exception)
 
     /**
      * Complete the flow returned by [flow] call with success.

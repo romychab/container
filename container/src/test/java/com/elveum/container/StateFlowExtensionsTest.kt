@@ -1,6 +1,6 @@
 package com.elveum.container
 
-import com.elveum.container.utils.runFlowTest
+import com.uandcode.flowtest.runFlowTest
 import io.mockk.called
 import io.mockk.every
 import io.mockk.mockk
@@ -71,7 +71,7 @@ class StateFlowExtensionsTest {
         }
         val mappedFlow = originFlow.stateMap(mapFunction)
 
-        val collectedItems = mappedFlow.startCollectingToList()
+        val collectedItems = mappedFlow.startCollecting().collectedItems
 
         // initial state
         assertEquals(1, collectedItems.size)
@@ -122,7 +122,7 @@ class StateFlowExtensionsTest {
         }
 
         val combinedFlow = combineStates(listOf(flowA, flowB, flowC), transform = combineFunction)
-        val collectedItems = combinedFlow.startCollectingToList()
+        val collectedItems = combinedFlow.startCollecting().collectedItems
 
         // initial state
         assertEquals(1, collectedItems.size)

@@ -2,12 +2,13 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubjectImpl.LoadTaskFactory
-import com.elveum.container.subject.factories.CoroutineScopeFactory
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
-import com.elveum.container.utils.JobStatus
-import com.elveum.container.utils.runFlowTest
+import com.elveum.container.successContainer
+import com.uandcode.flowtest.CollectStatus
+import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
@@ -55,47 +56,13 @@ class LazyFlowSubjectTest {
 
     @Test
     fun currentValue_returnsValueFromLoadTaskManager() {
-        val expectedValue = Container.Success("123")
+        val expectedValue = successContainer("123")
         val flow = MutableStateFlow<Container<String>>(expectedValue)
         every { loadTaskManager.listen() } returns flow
 
-        val resultValue = subject.currentValue
+        val resultValue = subject.currentValue()
 
-        assertSame(expectedValue, resultValue)
-    }
-
-    @Test
-    fun isValueLoading_withActiveCollector_canReturnTrue() = scope.runFlowTest {
-        val loadingFlow = MutableStateFlow(true)
-        val itemsFlow = MutableStateFlow<Container<String>>(Container.Success("1"))
-        every { loadTaskManager.isValueLoading() } returns loadingFlow
-        every { loadTaskManager.listen() } returns itemsFlow
-
-        val collectedItems = subject.isValueLoading().startCollectingToList()
-
-        // initial state -> return false as there is no active collectors
-        assertFalse(collectedItems.last())
-
-        // start collecting -> return true if loadTaskManager returns true
-        val state = subject.listen().startCollecting()
-        assertTrue(collectedItems.last())
-
-        // stop collecting -> return false again
-        state.cancel()
-        assertFalse(collectedItems.last())
-    }
-
-    @Test
-    fun isValueLoading_withoutValueBeingLoaded_returnsFalse() = scope.runFlowTest {
-        val loadingFlow = MutableStateFlow(false)
-        val itemsFlow = MutableStateFlow<Container<String>>(Container.Success("1"))
-        every { loadTaskManager.isValueLoading() } returns loadingFlow
-        every { loadTaskManager.listen() } returns itemsFlow
-
-        subject.listen().startCollecting()
-        val collectedItems = subject.isValueLoading().startCollectingToList()
-
-        assertFalse(collectedItems.last())
+        assertEquals(expectedValue, resultValue)
     }
 
     @Test
@@ -116,7 +83,7 @@ class LazyFlowSubjectTest {
 
         val state = subject.reload().startCollecting()
 
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         assertTrue(state.collectedItems.isEmpty())
     }
 
@@ -146,7 +113,7 @@ class LazyFlowSubjectTest {
 
     @Test
     fun updateWith_executesInstantTask() {
-        val expectedContainer = Container.Success("123")
+        val expectedContainer = successContainer("123")
         val expectedValueLoader = mockk<ValueLoader<String>>()
         val loadTaskSlot = slot<LoadTask<String>>()
         every { loadTaskManager.getLastRealLoader() } returns expectedValueLoader
@@ -208,13 +175,13 @@ class LazyFlowSubjectTest {
         assertEquals(Container.Pending, state.collectedItems.last())
 
         // assert next state 1
-        val expectedValue1 = Container.Success("1")
+        val expectedValue1 = successContainer("1")
         flow.value = expectedValue1
         assertEquals(2, state.collectedItems.size)
         assertEquals(expectedValue1, state.collectedItems.last())
 
         // assert next state 2
-        val expectedValue2 = Container.Success("2")
+        val expectedValue2 = successContainer("2")
         flow.value = expectedValue2
         assertEquals(3, state.collectedItems.size)
         assertEquals(expectedValue2, state.collectedItems.last())
@@ -232,7 +199,7 @@ class LazyFlowSubjectTest {
         verify(exactly = 1) {
             loadTaskManager.startProcessingLoads(capture(scopeSlot))
         }
-        assertSame(testScope().testScheduler, scopeSlot.captured.testScheduler)
+        assertSame(scope.testScheduler, scopeSlot.captured.testScheduler)
     }
 
     @Test

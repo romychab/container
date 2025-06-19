@@ -2,7 +2,6 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
-import com.elveum.container.factory.ContainerFactory
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.subject.ContainerConfiguration

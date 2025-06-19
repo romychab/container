@@ -1,5 +1,3 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
@@ -10,8 +8,9 @@ import com.elveum.container.RemoteSourceType
 import com.elveum.container.exceptionOrNull
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
-import com.elveum.container.utils.JobStatus
-import com.elveum.container.utils.runFlowTest
+import com.elveum.container.successContainer
+import com.uandcode.flowtest.CollectStatus
+import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.every
@@ -22,9 +21,9 @@ import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -50,15 +49,15 @@ class LoadTaskTest {
 
     @Test
     fun instantLoadTask_emitsDataImmediately() = runFlowTest {
-        val task = LoadTask.Instant(Container.Success("item"))
+        val task = LoadTask.Instant(successContainer("item"))
 
         val flow = task.execute()
         val state = flow.startCollecting()
         advanceUntilIdle()
 
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         assertEquals(
-            listOf(Container.Success("item")),
+            listOf(successContainer("item")),
             state.collectedItems,
         )
     }
@@ -70,14 +69,14 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting(unconfined = false)
+        val state = task.execute().startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
         assertEquals(
             listOf(Container.Pending),
             state.collectedItems,
         )
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
     }
 
     @Test
@@ -87,11 +86,11 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting(unconfined = false)
+        val state = task.execute().startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
         assertEquals(emptyList<Container<String>>(), state.collectedItems)
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
     }
 
     @Test
@@ -102,6 +101,7 @@ class LoadTaskTest {
         }
 
         val state = task.execute().startCollecting()
+        advanceTimeBy(11)
 
         val exception = state.collectedItems.last().exceptionOrNull()
         assertTrue(exception is IllegalStateException)
@@ -118,6 +118,7 @@ class LoadTaskTest {
         }
 
         val state = task.execute().startCollecting()
+        advanceTimeBy(11)
 
         assertEquals(2, state.collectedItems.size)
         assertEquals(Container.Pending, state.collectedItems.first())
@@ -138,7 +139,7 @@ class LoadTaskTest {
 
         val state = task.execute().startCollecting()
 
-        assertEquals(JobStatus.Cancelled, state.jobStatus)
+        assertEquals(CollectStatus.Cancelled, state.collectStatus)
         assertTrue(state.collectedItems.isEmpty())
         verify(exactly = 1) {
             flowSubject.onError(refEq(cancellationException))
@@ -155,7 +156,7 @@ class LoadTaskTest {
 
         val state = task.execute().startCollecting()
 
-        assertEquals(JobStatus.Cancelled, state.jobStatus)
+        assertEquals(CollectStatus.Cancelled, state.collectStatus)
         assertEquals(
             listOf(Container.Pending),
             state.collectedItems,
@@ -175,7 +176,7 @@ class LoadTaskTest {
 
         val state = task.execute().startCollecting()
 
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         val exception = state.collectedItems.last().exceptionOrNull()
         assertSame(expectedException, exception)
         verify(exactly = 1) {
@@ -194,7 +195,7 @@ class LoadTaskTest {
 
         val state = task.execute().startCollecting()
 
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         assertEquals(2, state.collectedItems.size)
         assertEquals(Container.Pending, state.collectedItems.first())
         val exception = state.collectedItems.last().exceptionOrNull()
@@ -214,9 +215,9 @@ class LoadTaskTest {
                 flowEmitter
             }
         )
-        every { flowEmitter.hasEmittedItems } returns true
+        every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any()) } coAnswers {
-            flowCollector?.emit(Container.Success(firstArg(), secondArg()))
+            flowCollector?.emit(successContainer( firstArg(), secondArg()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -227,12 +228,12 @@ class LoadTaskTest {
 
         assertEquals(
             listOf(
-                Container.Success("111", LocalSourceType),
-                Container.Success("222", RemoteSourceType),
+                successContainer("111", LocalSourceType),
+                successContainer("222", RemoteSourceType),
             ),
             state.collectedItems
         )
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         verify(exactly = 1) {
             flowSubject.onComplete()
         }
@@ -248,9 +249,9 @@ class LoadTaskTest {
                 flowEmitter
             }
         )
-        every { flowEmitter.hasEmittedItems } returns true
+        every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any()) } coAnswers {
-            flowCollector?.emit(Container.Success(firstArg(), secondArg()))
+            flowCollector?.emit(successContainer( firstArg(), secondArg()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -262,12 +263,12 @@ class LoadTaskTest {
         assertEquals(
             listOf(
                 Container.Pending,
-                Container.Success("111", LocalSourceType),
-                Container.Success("222", RemoteSourceType),
+                successContainer("111", LocalSourceType),
+                successContainer("222", RemoteSourceType),
             ),
             state.collectedItems
         )
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
         verify(exactly = 1) {
             flowSubject.onComplete()
         }
@@ -281,7 +282,7 @@ class LoadTaskTest {
 
     @Test
     fun instantTask_returnsPresetLastLoader() {
-        val loadTask = LoadTask.Instant(Container.Success("1"), valueLoader)
+        val loadTask = LoadTask.Instant(successContainer("1"), valueLoader)
         assertSame(valueLoader, loadTask.lastRealLoader)
     }
 
@@ -328,8 +329,8 @@ class LoadTaskTest {
 
     @Test
     fun instantTask_alwaysHasInitialValue() {
-        val loadTask = LoadTask.Instant(Container.Success("123"))
-        assertEquals(Container.Success("123"), loadTask.initialContainer)
+        val loadTask = LoadTask.Instant(successContainer("123"))
+        assertEquals(successContainer("123"), loadTask.initialContainer)
     }
 
     private fun makeLoadTask(

@@ -6,6 +6,7 @@ import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LocalSourceType
 import com.elveum.container.subject.FlowSubject
+import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.coVerify
 import io.mockk.impl.annotations.MockK
@@ -33,14 +34,14 @@ class FlowEmitterTest {
     @Test
     fun hasEmittedItems_beforeEmittingItems_returnsFalse() {
         val flowEmitter = makeFlowEmitter()
-        assertFalse(flowEmitter.hasEmittedItems)
+        assertFalse(flowEmitter.hasEmittedValues)
     }
 
     @Test
     fun hasEmittedItems_afterEmittingItem_returnsTrue() = runTest {
         val flowEmitter = makeFlowEmitter()
         flowEmitter.emit("item")
-        assertTrue(flowEmitter.hasEmittedItems)
+        assertTrue(flowEmitter.hasEmittedValues)
     }
 
     @Test
@@ -51,7 +52,21 @@ class FlowEmitterTest {
 
         coVerify(exactly = 1) {
             flowSubject.onNext("item")
-            flowCollector.emit(Container.Success("item", LocalSourceType))
+            flowCollector.emit(successContainer("item", LocalSourceType, true))
+        }
+    }
+
+    @Test
+    fun emitLastItem_sendsLastItem() = runTest {
+        val flowEmitter = makeFlowEmitter()
+
+        flowEmitter.emit("item", LocalSourceType)
+        flowEmitter.emitLastItem()
+
+        coVerify(exactly = 1) {
+            flowSubject.onNext("item")
+            flowCollector.emit(successContainer("item", LocalSourceType, true))
+            flowCollector.emit(successContainer("item", LocalSourceType))
         }
     }
 

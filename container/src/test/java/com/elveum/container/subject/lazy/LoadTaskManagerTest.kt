@@ -5,6 +5,7 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.successContainer
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
@@ -14,9 +15,7 @@ import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
-import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -27,11 +26,6 @@ class LoadTaskManagerTest {
     @Before
     fun setUp() {
         loadTaskManager = LoadTaskManager()
-    }
-
-    @Test
-    fun isValueLoading_holdsFalseByDefault() {
-        assertFalse(loadTaskManager.isValueLoading().value)
     }
 
     @Test
@@ -71,7 +65,7 @@ class LoadTaskManagerTest {
         runCurrent()
 
         verify(exactly = 1) {
-            loadTask.execute()
+            loadTask.execute(any())
         }
     }
 
@@ -84,7 +78,7 @@ class LoadTaskManagerTest {
         runCurrent()
 
         verify(exactly = 1) {
-            loadTask.execute()
+            loadTask.execute(any())
         }
     }
 
@@ -100,27 +94,27 @@ class LoadTaskManagerTest {
 
         verify(exactly = 1) {
             loadTask1.cancel()
-            loadTask2.execute()
+            loadTask2.execute(any())
         }
     }
 
     @Test
     fun submitNewLoadTask_updatesValueImmediately() = runTest {
-        val loadTask = MockLoadTask(this, initialContainer = Container.Success("123"))
+        val loadTask = MockLoadTask(this, initialContainer = successContainer("123"))
         loadTaskManager.startProcessingLoads(backgroundScope)
 
         loadTaskManager.submitNewLoadTask(loadTask)
         advanceTimeBy(1)
 
         assertEquals(
-            Container.Success("123"),
+            successContainer("123"),
             loadTaskManager.listen().value
         )
     }
 
     @Test
     fun submitNewLoadTask_withoutListeners_doesNotUpdateValueImmediately() = runTest {
-        val loadTask = MockLoadTask(this, initialContainer = Container.Success("123"))
+        val loadTask = MockLoadTask(this, initialContainer = successContainer("123"))
 
         loadTaskManager.submitNewLoadTask(loadTask)
         advanceTimeBy(1)
@@ -129,21 +123,6 @@ class LoadTaskManagerTest {
             Container.Pending,
             loadTaskManager.listen().value
         )
-    }
-
-
-    @Test
-    fun startProcessingLoads_updatesIsValueLoadingFlow() = runTest {
-        val loadTask = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
-
-        loadTaskManager.submitNewLoadTask(loadTask)
-        runCurrent()
-
-        assertTrue(loadTaskManager.isValueLoading().value)
-        loadTask.controller.start()
-        loadTask.controller.complete()
-        assertFalse(loadTaskManager.isValueLoading().value)
     }
 
     @Test
@@ -155,11 +134,11 @@ class LoadTaskManagerTest {
 
         loadTask.controller.start()
 
-        loadTask.controller.emit(Container.Success("1"))
-        assertEquals(Container.Success("1"), loadTaskManager.listen().value)
+        loadTask.controller.emit(successContainer("1"))
+        assertEquals(successContainer("1"), loadTaskManager.listen().value)
 
-        loadTask.controller.emit(Container.Success("2"))
-        assertEquals(Container.Success("2"), loadTaskManager.listen().value)
+        loadTask.controller.emit(successContainer("2"))
+        assertEquals(successContainer("2"), loadTaskManager.listen().value)
     }
 
     @Test
@@ -174,11 +153,11 @@ class LoadTaskManagerTest {
         loadTask2.controller.start()
         advanceTimeBy(1)
 
-        loadTask1.controller.emit(Container.Success("1"))
+        loadTask1.controller.emit(successContainer("1"))
         assertEquals(Container.Pending, loadTaskManager.listen().value)
 
-        loadTask2.controller.emit(Container.Success("2"))
-        assertEquals(Container.Success("2"), loadTaskManager.listen().value)
+        loadTask2.controller.emit(successContainer("2"))
+        assertEquals(successContainer("2"), loadTaskManager.listen().value)
     }
 
     @Test
@@ -190,7 +169,7 @@ class LoadTaskManagerTest {
         loadTaskManager.cancelProcessingLoads()
         advanceTimeBy(1)
 
-        loadTask.controller.emit(Container.Success("1"))
+        loadTask.controller.emit(successContainer("1"))
         assertEquals(Container.Pending, loadTaskManager.listen().value)
     }
 
@@ -201,8 +180,8 @@ class LoadTaskManagerTest {
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTask.controller.start()
-        loadTask.controller.emit(Container.Success("1"))
-        assertEquals(Container.Success("1"), loadTaskManager.listen().value)
+        loadTask.controller.emit(successContainer("1"))
+        assertEquals(successContainer("1"), loadTaskManager.listen().value)
         loadTaskManager.cancelProcessingLoads()
         advanceTimeBy(1)
 
@@ -231,8 +210,8 @@ class LoadTaskManagerTest {
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTask.controller.start()
-        loadTask.controller.emit(Container.Success("1"))
-        assertEquals(Container.Success("1"), loadTaskManager.listen().value)
+        loadTask.controller.emit(successContainer("1"))
+        assertEquals(successContainer("1"), loadTaskManager.listen().value)
         loadTaskManager.cancelProcessingLoads()
         advanceTimeBy(1)
 
@@ -250,8 +229,8 @@ class LoadTaskManagerTest {
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTask.controller.start()
-        loadTask.controller.emit(Container.Success("1"))
-        assertEquals(Container.Success("1"), loadTaskManager.listen().value)
+        loadTask.controller.emit(successContainer("1"))
+        assertEquals(successContainer("1"), loadTaskManager.listen().value)
         loadTaskManager.cancelProcessingLoads()
         advanceTimeBy(1)
         verify(exactly = 0) {
@@ -260,7 +239,7 @@ class LoadTaskManagerTest {
         loadTaskManager.startProcessingLoads(backgroundScope)
         advanceTimeBy(1)
 
-        assertEquals(Container.Success("2"), loadTaskManager.listen().value)
+        assertEquals(successContainer("2"), loadTaskManager.listen().value)
     }
 
     @Test
@@ -281,11 +260,11 @@ class LoadTaskManagerTest {
         loadTask2.controller.start()
         advanceTimeBy(1)
 
-        loadTask1.controller.emit(Container.Success("1"))
+        loadTask1.controller.emit(successContainer("1"))
         assertEquals(Container.Pending, loadTaskManager.listen().value)
 
-        loadTask2.controller.emit(Container.Success("2"))
-        assertEquals(Container.Success("2"), loadTaskManager.listen().value)
+        loadTask2.controller.emit(successContainer("2"))
+        assertEquals(successContainer("2"), loadTaskManager.listen().value)
     }
 
 }

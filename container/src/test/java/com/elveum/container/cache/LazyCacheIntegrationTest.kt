@@ -2,9 +2,10 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
-import com.elveum.container.subject.factories.CoroutineScopeFactory
-import com.elveum.container.utils.JobStatus
-import com.elveum.container.utils.runFlowTest
+import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.successContainer
+import com.uandcode.flowtest.CollectStatus
+import com.uandcode.flowtest.runFlowTest
 import io.mockk.called
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -50,7 +51,7 @@ class LazyCacheIntegrationTest {
         lazyCache = LazyCacheImpl(
             cacheTimeoutMillis = timeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory,
-            loader = this.loader,
+            valueLoader = this.loader,
         )
     }
 
@@ -73,26 +74,26 @@ class LazyCacheIntegrationTest {
         coVerify(exactly = 1) {
             loader(any(), key)
         }
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
         assertEquals(1, state.count)
         assertEquals(Container.Pending, state.lastItem)
     }
 
     @Test
     fun listen_collectsLoadedValues() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
 
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
         assertEquals(2, state.count)
         assertEquals(expectedContainer, state.lastItem)
     }
 
     @Test
     fun listen_withSameArg_doesNotTriggerLoaderTwice() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
 
         val state1 = lazyCache.listen(key).startCollecting()
         advanceTimeBy(1)
@@ -102,16 +103,16 @@ class LazyCacheIntegrationTest {
         coVerify(exactly = 1) {
             loader(any(), key)
         }
-        assertEquals(JobStatus.Collecting, state1.jobStatus)
-        assertEquals(JobStatus.Collecting, state2.jobStatus)
+        assertEquals(CollectStatus.Collecting, state1.collectStatus)
+        assertEquals(CollectStatus.Collecting, state2.collectStatus)
         assertEquals(expectedContainer, state1.lastItem)
         assertEquals(expectedContainer, state2.lastItem)
     }
 
     @Test
     fun listen_withMultipleArgs_startsMultipleLoads() = scope.runFlowTest {
-        val expectedContainer1 = Container.Success(expectedLoadedValue(key1))
-        val expectedContainer2 = Container.Success(expectedLoadedValue(key2))
+        val expectedContainer1 = successContainer(expectedLoadedValue(key1))
+        val expectedContainer2 = successContainer(expectedLoadedValue(key2))
 
         val state1 = lazyCache.listen(key1).startCollecting()
         val state2 = lazyCache.listen(key2).startCollecting()
@@ -123,8 +124,8 @@ class LazyCacheIntegrationTest {
         coVerify(exactly = 1) {
             loader(any(), key2)
         }
-        assertEquals(JobStatus.Collecting, state1.jobStatus)
-        assertEquals(JobStatus.Collecting, state2.jobStatus)
+        assertEquals(CollectStatus.Collecting, state1.collectStatus)
+        assertEquals(CollectStatus.Collecting, state2.collectStatus)
         assertEquals(expectedContainer1, state1.lastItem)
         assertEquals(expectedContainer2, state2.lastItem)
     }
@@ -143,7 +144,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun listen_withinTimeout_holdsCachedValue() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
         val state1 = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
@@ -160,7 +161,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun listen_afterTimeout_startsNewLoad() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
         val state1 = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
@@ -179,7 +180,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun listen_countsTimeoutSeparatelyForEachArg() = scope.runFlowTest {
-        val expectedContainer2 = Container.Success(expectedLoadedValue(key2))
+        val expectedContainer2 = successContainer(expectedLoadedValue(key2))
         val state1 = lazyCache.listen(key1).startCollecting()
         val state2 = lazyCache.listen(key2).startCollecting()
         advanceTimeBy(loadDelay + 1) // force load all values
@@ -189,8 +190,8 @@ class LazyCacheIntegrationTest {
         state2.cancel()
 
         advanceTimeBy(1) // now cache is expired for the first key, but the second isn't
-        val collectedItems1 = lazyCache.listen(key1).startCollectingToList()
-        val collectedItems2 = lazyCache.listen(key2).startCollectingToList()
+        val collectedItems1 = lazyCache.listen(key1).startCollecting().collectedItems
+        val collectedItems2 = lazyCache.listen(key2).startCollecting().collectedItems
         assertEquals(Container.Pending, collectedItems1.last())
         assertEquals(expectedContainer2, collectedItems2.last())
     }
@@ -208,7 +209,7 @@ class LazyCacheIntegrationTest {
 
         val errorContainer = state.lastItem as Container.Error
         assertSame(expectedException, errorContainer.exception)
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
     }
 
     @Test
@@ -218,7 +219,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun get_withActiveCollector_returnsLatestValue() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
         lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
@@ -229,7 +230,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun get_afterCacheExpiration_returnsPendingStatus() = scope.runFlowTest {
-        val expectedContainer = Container.Success(expectedLoadedValue(key))
+        val expectedContainer = successContainer(expectedLoadedValue(key))
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
@@ -245,8 +246,8 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun get_withMultipleArgs_returnsDifferentResults() = scope.runFlowTest {
-        val expectedContainer1 = Container.Success(expectedLoadedValue(key1))
-        val expectedContainer2 = Container.Success(expectedLoadedValue(key2))
+        val expectedContainer1 = successContainer(expectedLoadedValue(key1))
+        val expectedContainer2 = successContainer(expectedLoadedValue(key2))
         lazyCache.listen(key1).startCollecting()
         lazyCache.listen(key2).startCollecting()
         advanceTimeBy(loadDelay + 1)
@@ -315,44 +316,6 @@ class LazyCacheIntegrationTest {
     }
 
     @Test
-    fun isValueLoading_withoutCollectors_returnsFalse() {
-        assertFalse(lazyCache.isValueLoading(key).value)
-    }
-
-    @Test
-    fun isValueLoading_withLoaderBeingExecuted_returnTrue() = scope.runFlowTest {
-        lazyCache.listen(key).startCollecting()
-
-        val flow = lazyCache.isValueLoading(key)
-        val collectedItems = flow.startCollectingToList()
-
-        // initial state
-        assertFalse(collectedItems.last())
-
-        advanceTimeBy(1) // loading started
-        assertTrue(collectedItems.last())
-        assertTrue(flow.value)
-
-        advanceTimeBy(loadDelay) // loading finished
-        assertFalse(collectedItems.last())
-        assertFalse(flow.value)
-    }
-
-    @Test
-    fun isValueLoading_withCancelledLoad_returnsFalse() = scope.runFlowTest {
-        val state = lazyCache.listen(key).startCollecting()
-        val flow = lazyCache.isValueLoading(key)
-        val collectedItems = flow.startCollectingToList()
-        advanceTimeBy(1)
-
-        state.cancel()
-        advanceTimeBy(1)
-
-        assertFalse(collectedItems.last())
-        assertFalse(flow.value)
-    }
-
-    @Test
     fun reload_withoutSilentFlag_emitsPendingAndSuccessStatuses() = scope.runFlowTest {
         mockLoaderReturningDifferentResults()
         val state = lazyCache.listen(key).startCollecting()
@@ -363,7 +326,7 @@ class LazyCacheIntegrationTest {
         advanceTimeBy(1)
         assertEquals(Container.Pending, state.lastItem)
         advanceTimeBy(loadDelay)
-        assertEquals(Container.Success(expectedLoadedValue(key, 2)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem)
     }
 
     @Test
@@ -375,9 +338,9 @@ class LazyCacheIntegrationTest {
         lazyCache.reload(key, silently = true)
 
         advanceTimeBy(1)
-        assertEquals(Container.Success(expectedLoadedValue(key, 1)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 1)), state.lastItem)
         advanceTimeBy(loadDelay)
-        assertEquals(Container.Success(expectedLoadedValue(key, 2)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem)
     }
 
     @Test
@@ -419,7 +382,7 @@ class LazyCacheIntegrationTest {
 
         advanceTimeBy(loadDelay)
         assertEquals(expectedLoadedValue(key, 2), state.lastItem)
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
     }
 
     @Test
@@ -443,16 +406,16 @@ class LazyCacheIntegrationTest {
 
         // initial state
         assertFalse(state1.hasItems)
-        assertEquals(JobStatus.Collecting, state1.jobStatus)
+        assertEquals(CollectStatus.Collecting, state1.collectStatus)
         // assert error
         advanceTimeBy(loadDelay + 1)
-        val jobStatus1 = state1.jobStatus as JobStatus.Failed
-        val exception1 = jobStatus1.error as IllegalStateException
+        val jobStatus1 = state1.collectStatus as CollectStatus.Failed
+        val exception1 = jobStatus1.exception as IllegalStateException
         assertEquals(expectedException.message, exception1.message)
         // assert error if the same flow is collected again
         val state2 = flow.startCollecting()
-        val jobStatus2 = state2.jobStatus as JobStatus.Failed
-        val exception2 = jobStatus2.error as IllegalStateException
+        val jobStatus2 = state2.collectStatus as CollectStatus.Failed
+        val exception2 = jobStatus2.exception as IllegalStateException
         assertEquals(expectedException.message, exception2.message)
     }
 
@@ -460,7 +423,7 @@ class LazyCacheIntegrationTest {
     fun updateWith_withoutActiveCollector_doesNothing() = scope.runFlowTest {
         lazyCache.listen(key)
 
-        lazyCache.updateWith(key, Container.Success("123"))
+        lazyCache.updateWith(key, successContainer("123"))
         advanceTimeBy(loadDelay + 1)
 
         assertEquals(Container.Pending, lazyCache.get(key))
@@ -468,14 +431,14 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun updateWith_withActiveCollector_replacesLastValue() = scope.runFlowTest {
-        val expectedContainer = Container.Success("hello")
+        val expectedContainer = successContainer("hello")
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
         lazyCache.updateWith(key, expectedContainer)
 
         assertEquals(
-            listOf(Container.Pending, Container.Success(expectedLoadedValue(key)), expectedContainer),
+            listOf(Container.Pending, successContainer(expectedLoadedValue(key)), expectedContainer),
             state.collectedItems,
         )
         assertEquals(expectedContainer, lazyCache.get(key))
@@ -483,7 +446,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun updateWith_withActiveCollectorAndLoader_cancelsLoaderAndReplacesValue() = scope.runFlowTest {
-        val expectedContainer = Container.Success("hello")
+        val expectedContainer = successContainer("hello")
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay) // almost loaded
 
@@ -504,7 +467,7 @@ class LazyCacheIntegrationTest {
 
         state.cancel()
         advanceTimeBy(timeoutMillis + 1)
-        lazyCache.updateWith(key, Container.Success("123"))
+        lazyCache.updateWith(key, successContainer("123"))
 
         assertEquals(Container.Pending, lazyCache.get(key))
     }

@@ -2,6 +2,9 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.errorContainer
+import com.elveum.container.pendingContainer
+import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.coVerify
 import io.mockk.every
@@ -11,7 +14,6 @@ import io.mockk.mockkObject
 import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
-import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertSame
@@ -42,40 +44,13 @@ class LazyCacheExtensionsTest {
     }
 
     @Test
-    fun updateWith_doesNotUpdateTheSameValue() {
-        val key = "key"
-        val value = Container.Success("value")
-        every { lazyCache.get(key) } returns value
-
-        lazyCache.updateWith(key) { Container.Success("value") }
-
-        verify(exactly = 0) {
-            lazyCache.updateWith(key, any<Container<String>>())
-        }
-    }
-
-    @Test
-    fun updateWith_updatesNewValue() {
-        val key = "key"
-        val oldValue = Container.Success("old-value")
-        val newValue = Container.Success("new-value")
-        every { lazyCache.get(key) } returns oldValue
-
-        lazyCache.updateWith(key) { newValue }
-
-        verify(exactly = 1) {
-            lazyCache.updateWith(key, newValue)
-        }
-    }
-
-    @Test
     fun createSimple_delegatesCallToCreateAndEmitsOneValue() = runTest {
         try {
             mockkObject(LazyCache.Companion)
             val loaderSlot = slot<CacheValueLoader<String, String>>()
             val emitter = mockk<Emitter<String>>(relaxUnitFun = true)
             val timeoutMillis = 2000L
-            every { LazyCache.create<String, String>(any(), any()) } returns lazyCache
+            every { LazyCache.create<String, String>(any(), any(), any(), any()) } returns lazyCache
 
             val newLazyCache = LazyCache.createSimple<String, String>(
                 cacheTimeoutMillis = timeoutMillis,
@@ -85,7 +60,7 @@ class LazyCacheExtensionsTest {
             verify(exactly = 1) {
                 LazyCache.create(
                     cacheTimeoutMillis = timeoutMillis,
-                    loader = capture(loaderSlot)
+                    valueLoader = capture(loaderSlot)
                 )
             }
             val loaderFunction = loaderSlot.captured
@@ -100,8 +75,8 @@ class LazyCacheExtensionsTest {
 
     @Test
     fun updateIfSuccess_withNonSuccessPreviousValue_doesNothing() {
-        val pending = Container.Pending
-        val error = Container.Error(IllegalStateException(""))
+        val pending = pendingContainer()
+        val error = errorContainer(IllegalStateException(""))
         every { lazyCache.get("arg") } returns pending andThen error
 
         // test pending
@@ -120,12 +95,12 @@ class LazyCacheExtensionsTest {
     @Test
     fun updateIfSuccess_withSuccessPreviousValue_updatesValue() {
         val oldValue = "value"
-        every { lazyCache.get("arg") } returns Container.Success(oldValue)
+        every { lazyCache.get("arg") } returns successContainer(oldValue)
 
         lazyCache.updateIfSuccess("arg") { "updated-$it" }
 
         verify(exactly = 1) {
-            lazyCache.updateWith("arg", Container.Success("updated-value"))
+            lazyCache.updateWith("arg", successContainer("updated-value"))
         }
     }
 

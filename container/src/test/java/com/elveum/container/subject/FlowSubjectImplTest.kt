@@ -1,13 +1,13 @@
-@file:OptIn(ExperimentalCoroutinesApi::class)
-
 package com.elveum.container.subject
 
-import com.elveum.container.utils.JobStatus
-import com.elveum.container.utils.runFlowTest
+import com.uandcode.flowtest.CollectStatus
+import com.uandcode.flowtest.runFlowTest
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.onCompletion
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class FlowSubjectImplTest {
@@ -16,7 +16,7 @@ class FlowSubjectImplTest {
     fun onNext_sendsItemToFlow() = runFlowTest {
         val subject = FlowSubjectImpl<String>()
 
-        val collectedItems = subject.flow().startCollectingToList()
+        val collectedItems = subject.flow().startCollecting().collectedItems
         subject.onNext("111")
         subject.onNext("222")
 
@@ -29,7 +29,7 @@ class FlowSubjectImplTest {
 
         subject.onNext("111")
         subject.onNext("222")
-        val collectedItems = subject.flow().startCollectingToList()
+        val collectedItems = subject.flow().startCollecting().collectedItems
         subject.onNext("333")
         subject.onNext("444")
 
@@ -46,7 +46,7 @@ class FlowSubjectImplTest {
         val collectedState = subject.flow().startCollecting()
 
         assertEquals(listOf("222"), collectedState.collectedItems)
-        assertEquals(JobStatus.Completed, collectedState.jobStatus)
+        assertEquals(CollectStatus.Completed, collectedState.collectStatus)
     }
 
     @Test
@@ -59,7 +59,7 @@ class FlowSubjectImplTest {
         val collectedState = subject.flow().startCollecting()
 
         assertEquals(emptyList<String>(), collectedState.collectedItems)
-        assertTrue(collectedState.jobStatus is JobStatus.Failed)
+        assertTrue(collectedState.collectStatus is CollectStatus.Failed)
     }
 
     @Test
@@ -80,7 +80,7 @@ class FlowSubjectImplTest {
 
         assertFalse(completedInOperator)
         assertFalse(errorInOperator)
-        assertEquals(JobStatus.Collecting, state.jobStatus)
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
     }
 
     @Test
@@ -99,7 +99,7 @@ class FlowSubjectImplTest {
 
         assertEquals(listOf("111"), state.collectedItems)
         assertTrue(completedInOperator)
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
     }
 
     @Test
@@ -118,10 +118,10 @@ class FlowSubjectImplTest {
         subject.onNext("222")
 
         assertEquals(listOf("111"), state.collectedItems)
-        val jobStatus = state.jobStatus
+        val jobStatus = state.collectStatus
         assertTrue(
-            jobStatus is JobStatus.Failed
-                    && (jobStatus.error as CustomException).data == "test"
+            jobStatus is CollectStatus.Failed
+                    && (jobStatus.exception as CustomException).data == "test"
         )
         caughtInOperatorException.let {
             assertTrue(it is CustomException && it.data == "test")
@@ -136,7 +136,7 @@ class FlowSubjectImplTest {
         subject.onComplete()
         subject.onComplete()
 
-        assertEquals(JobStatus.Completed, state.jobStatus)
+        assertEquals(CollectStatus.Completed, state.collectStatus)
     }
 
     @Test(expected = Test.None::class)
@@ -149,8 +149,8 @@ class FlowSubjectImplTest {
         subject.onError(exception1)
         subject.onError(exception2)
 
-        val jobStatus = state.jobStatus as JobStatus.Failed
-        val exception = jobStatus.error as CustomException
+        val jobStatus = state.collectStatus as CollectStatus.Failed
+        val exception = jobStatus.exception as CustomException
         assertEquals("111", exception.data)
     }
 

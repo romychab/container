@@ -24,7 +24,7 @@ internal class MockLoadTask(
 
     override var lastRealLoader: ValueLoader<String>? = null
 
-    override fun execute(): Flow<Container<String>> {
+    override fun execute(currentContainer: () -> Container<String>?): Flow<Container<String>> {
         return channelFlow {
             _controller.awaitStart()
             val job = launch {

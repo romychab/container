@@ -44,6 +44,33 @@ class LazyCacheExtensionsTest {
     }
 
     @Test
+    fun updateWith_doesNotUpdateTheSameValue() {
+        val key = "key"
+        val value = successContainer("value")
+        every { lazyCache.get(key) } returns value
+
+        lazyCache.updateWith(key) { successContainer("value") }
+
+        verify(exactly = 0) {
+            lazyCache.updateWith(key, any<Container<String>>())
+        }
+    }
+
+    @Test
+    fun updateWith_updatesNewValue() {
+        val key = "key"
+        val oldValue = successContainer("old-value")
+        val newValue = successContainer("new-value")
+        every { lazyCache.get(key) } returns oldValue
+
+        lazyCache.updateWith(key) { newValue }
+
+        verify(exactly = 1) {
+            lazyCache.updateWith(key, newValue)
+        }
+    }
+
+    @Test
     fun createSimple_delegatesCallToCreateAndEmitsOneValue() = runTest {
         try {
             mockkObject(LazyCache.Companion)

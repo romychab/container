@@ -8,12 +8,17 @@ Pure Kotlin Library which adds one sealed class
 named `Container` and a couple of helper methods and classes for
 Kotlin Flow and for converting async data loaders into reactive Flows.
 
+`Container` is a simple class that represents the status of async operation:
+- `Container.Pending` - data is loading
+- `Container.Success` - data has been loaded successfully
+- `Container.Error` - loading has been failed with error
+
 ## Installation
 
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:1.0.1"
+implementation "com.elveum:container:2.0.0-beta01"
 ```
 
 ## Documentation
@@ -25,7 +30,7 @@ Click [here](https://docs.uandcode.com/container/).
 The library contains:
 - `Container<T>` class - represents the status of async operation (`Pending`, `Error`, `Success`)
 - A couple of helper extension methods for easier working (mapping, filtering, etc.) with
-  Kotlin Flows containing `Container<T>` or `Container<List<T>>` instances
+  Kotlin Flows containing `Container<T>` instances
 - Two subjects:
   - `FlowSubject` - represents a simple __finite__ flow which emissions can be controlled
     outside
@@ -43,23 +48,36 @@ The library contains:
 
 `Container` is a simple class which represents the status of async operation:
 - `Container.Pending` - data is loading
-- `Container.Success<T>(value)` - data has been loaded successfully
-- `Container.Error(exception)` - loading has been failed with error
+- `Container.Success` - data has been loaded successfully
+- `Container.Error` - loading has been failed with error
 
-There are a couple of methods which can simplify a code working with such
+You can instantiate all these subtypes by using `pendingContainer()`, `successContainer()`,
+and `errorContainer()` functions.
+
+There are a couple of methods which can simplify code working with such
 statuses:
-- `map`
-- `unwrap`, `unwrapOrNull`
+- `fold`, `foldDefault`, `foldNullable`
+- `transform`
+- `map`, `mapException`
+- `catch`, `catchAll`
 - `getOrNull`, `exceptionOrNull`
 
 ## Integration with Kotlin Flows
 
-- `Flow<Container<T>>.unwrapFirst()` returns the first non-pending T value from the flow
-- `Flow<Container<T>>.unwrapFirstOrElse()` and `Flow<Container<T>>.unwrapFirstOrDefault()` returns
-  the first non-pending T value from the flow or the default value otherwise
 - `Flow<Container<T>>.containerMap()` converts the flow of type `Container<T>` into a flow
   of type `Container<R>`
+- `StateFlow<Container<T>>.containerStateMap()` converts StateFlow of type `Container<T>` into a 
+  flow of type `Container<R>`
 - `Flow<Container<T>>.containerFilter()` filters all `Container.Success<T>` values by a given predicate
+
+Other extension functions: 
+- `Flow<Container<T>>.containerFilterNot`
+- `Flow<Container<T>>.containerFold`
+- `Flow<Container<T>>.containerFoldDefault`
+- `Flow<Container<T>>.containerFoldNullable`
+- `Flow<Container<T>>.containerTransform`
+- `Flow<Container<T>>.containerCatch`
+- `Flow<Container<T>>.containerCatchAll`
 
 Also, there are the following type aliases:
 - `ListContainer<T>` = `Container<List<T>>`

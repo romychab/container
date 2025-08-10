@@ -1,6 +1,7 @@
 package com.elveum.container.factory
 
 import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.EmptyContainerTransformation
 
 /**
  * Factory for creating new container flow transformations. It is
@@ -18,7 +19,7 @@ public interface TransformationFactory {
          * Default implementation does not affect container flows.
          */
         override fun <T> create(): ContainerTransformation<T> {
-            return { it }
+            return EmptyContainerTransformation()
         }
 
     }

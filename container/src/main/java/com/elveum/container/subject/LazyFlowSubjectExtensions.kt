@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.SourceType
 import com.elveum.container.UnknownSourceType
 import com.elveum.container.transform
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 
 /**
@@ -109,4 +110,21 @@ public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
             }
         )
     }
+}
+
+/**
+ * Listen for values loaded by this subject and for each emitted container:
+ * - attach a valid reload function
+ * - re-emit background load indicator if data is being reloaded
+ */
+public fun <T> LazyFlowSubject<T>.listenReloadable(
+    emitReloadFunction: Boolean = true,
+    emitBackgroundLoads: Boolean = true,
+): Flow<Container<T>> {
+    return listen(
+        configuration = ContainerConfiguration(
+            emitBackgroundLoads = emitBackgroundLoads,
+            emitReloadFunction = emitReloadFunction,
+        )
+    )
 }

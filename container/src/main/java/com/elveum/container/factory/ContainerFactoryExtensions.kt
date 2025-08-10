@@ -34,6 +34,33 @@ public fun <T> ContainerFactory.createFlow(
 /**
  * Execute and cache [valueLoader] lazily when at least 1 subscriber
  * starts collecting a flow.
+ *
+ * Each emitted [Container] instance will have a valid reload function by default.
+ */
+public fun <T> ContainerFactory.createReloadableFlow(
+    emitBackgroundLoads: Boolean = true,
+    emitReloadFunction: Boolean = true,
+    cacheTimeoutMillis: Long? = null,
+    coroutineScopeFactory: CoroutineScopeFactory? = null,
+    transformation: ContainerTransformation<T>? = null,
+    valueLoader: ValueLoader<T>
+): Flow<Container<T>> {
+    return createSubject(
+        cacheTimeoutMillis,
+        coroutineScopeFactory,
+        transformation,
+        valueLoader
+    ).listen(
+        configuration = ContainerConfiguration(
+            emitBackgroundLoads = emitBackgroundLoads,
+            emitReloadFunction = emitReloadFunction,
+        )
+    )
+}
+
+/**
+ * Execute and cache [valueLoader] lazily when at least 1 subscriber
+ * starts collecting a flow.
  */
 public fun <T> ContainerFactory.createSimpleSubject(
     sourceType: SourceType = UnknownSourceType,

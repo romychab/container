@@ -74,7 +74,10 @@ internal interface LoadTask<T> {
                 val emitter = flowEmitterCreator(this)
                 loader(emitter)
                 if (!emitter.hasEmittedValues) {
-                    throw IllegalStateException("Value Loader should emit at least one item or throw exception")
+                    throw IllegalStateException("Value Loader should emit at least one item or " +
+                            "throw exception. If you don't want to emit values (e.g. it's okay for " +
+                            "you to have an infinite Container.Pending state), you can call " +
+                            "awaitCancellation() in the end of your loader function.")
                 }
                 flowSubject?.onComplete()
                 emitter.emitLastItem()

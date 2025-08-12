@@ -271,4 +271,103 @@ class CombineContainerFlowExtensionsTest {
         )
     }
 
+    @Test
+    fun `test containerCombineWith for 1 additional flow`() = runFlowTest {
+        val flowA = MutableStateFlow<Container<String>>(pendingContainer())
+        val flowB = MutableStateFlow("b1")
+
+        val resultFlow = flowA.containerCombineWith(flowB) { v1, v2 ->
+            "$v1-$v2"
+        }
+        val collectedItems = resultFlow.startCollecting()
+
+        // initial combined value => pending
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        // first success value => success
+        flowA.value = successContainer("a1")
+        assertEquals(successContainer("a1-b1"), collectedItems.lastItem)
+        // emit new value to 1st flow
+        flowA.value = successContainer("a2")
+        assertEquals(successContainer("a2-b1"), collectedItems.lastItem)
+        // emit new value to 2nd flow
+        flowB.value = "b2"
+        assertEquals(successContainer("a2-b2"), collectedItems.lastItem)
+        // emit error to one flow -> combined container must be error
+        flowA.value = errorContainer(IllegalStateException())
+        assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
+        // emit success instead of error
+        flowA.value = successContainer("a3")
+        assertEquals(successContainer("a3-b2"), collectedItems.lastItem)
+    }
+
+    @Test
+    fun `test containerCombineWith for 2 additional flows`() = runFlowTest {
+        val flowA = MutableStateFlow<Container<String>>(pendingContainer())
+        val flowB = MutableStateFlow("b1")
+        val flowC = MutableStateFlow("c1")
+
+        val resultFlow = flowA.containerCombineWith(flowB, flowC) { v1, v2, v3 ->
+            "$v1-$v2-$v3"
+        }
+        val collectedItems = resultFlow.startCollecting()
+
+        // initial combined value => pending
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        // first success value => success
+        flowA.value = successContainer("a1")
+        assertEquals(successContainer("a1-b1-c1"), collectedItems.lastItem)
+        // emit new value to 1st flow
+        flowA.value = successContainer("a2")
+        assertEquals(successContainer("a2-b1-c1"), collectedItems.lastItem)
+        // emit new value to 2nd flow
+        flowB.value = "b2"
+        assertEquals(successContainer("a2-b2-c1"), collectedItems.lastItem)
+        // emit new value to 3rd flow
+        flowC.value = "c2"
+        assertEquals(successContainer("a2-b2-c2"), collectedItems.lastItem)
+        // emit error to one flow -> combined container must be error
+        flowA.value = errorContainer(IllegalStateException())
+        assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
+        // emit success instead of error
+        flowA.value = successContainer("a3")
+        assertEquals(successContainer("a3-b2-c2"), collectedItems.lastItem)
+    }
+
+    @Test
+    fun `test containerCombineWith for 3 additional flows`() = runFlowTest {
+        val flowA = MutableStateFlow<Container<String>>(pendingContainer())
+        val flowB = MutableStateFlow("b1")
+        val flowC = MutableStateFlow("c1")
+        val flowD = MutableStateFlow("d1")
+
+        val resultFlow = flowA.containerCombineWith(flowB, flowC, flowD) { v1, v2, v3, v4 ->
+            "$v1-$v2-$v3-$v4"
+        }
+        val collectedItems = resultFlow.startCollecting()
+
+        // initial combined value => pending
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        // first success value => success
+        flowA.value = successContainer("a1")
+        assertEquals(successContainer("a1-b1-c1-d1"), collectedItems.lastItem)
+        // emit new value to 1st flow
+        flowA.value = successContainer("a2")
+        assertEquals(successContainer("a2-b1-c1-d1"), collectedItems.lastItem)
+        // emit new value to 2nd flow
+        flowB.value = "b2"
+        assertEquals(successContainer("a2-b2-c1-d1"), collectedItems.lastItem)
+        // emit new value to 3rd flow
+        flowC.value = "c2"
+        assertEquals(successContainer("a2-b2-c2-d1"), collectedItems.lastItem)
+        // emit new value to 4th flow
+        flowD.value = "d2"
+        assertEquals(successContainer("a2-b2-c2-d2"), collectedItems.lastItem)
+        // emit error to one flow -> combined container must be error
+        flowA.value = errorContainer(IllegalStateException())
+        assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
+        // emit success instead of error
+        flowA.value = successContainer("a3")
+        assertEquals(successContainer("a3-b2-c2-d2"), collectedItems.lastItem)
+    }
+
 }

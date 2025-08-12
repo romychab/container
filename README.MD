@@ -18,7 +18,7 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta02"
+implementation "com.elveum:container:2.0.0-beta03"
 ```
 
 ## Documentation
@@ -72,6 +72,7 @@ statuses:
 
 Other extension functions: 
 - `Flow<Container<T>>.containerFilterNot`
+- `Flow<Container<T>>.containerMapLatest`
 - `Flow<Container<T>>.containerFold`
 - `Flow<Container<T>>.containerFoldDefault`
 - `Flow<Container<T>>.containerFoldNullable`
@@ -83,6 +84,28 @@ Also, there are the following type aliases:
 - `ListContainer<T>` = `Container<List<T>>`
 - `ContainerFlow<T>` = `Flow<Container<T>>`
 - `ListContainerFlow<T>` = `Flow<Container<List<T>>>`
+
+Combine container flows:
+
+```kotlin
+val flow1: Flow<Container<String>> = ...
+val flow2: Flow<Container<Int>> = ...
+val combinedFlow: Flow<Container<String>> = 
+    combineContainerFlows(flow1, flow2) { string, number ->
+       "$string,$number"
+    }
+```
+
+Combine a container flow with other flows:
+
+```kotlin
+val flow1: Flow<Container<String>> = ...
+val flow2: Flow<Int> = ...
+val combinedFlow: Flow<Container<String>> = flow1
+    .containerCombineWith(flow2) { string, number ->
+        "$string,$number"
+    }
+```
 
 ## Subjects
 

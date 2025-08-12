@@ -3,9 +3,11 @@ package com.elveum.container
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.mockk
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -264,4 +266,43 @@ class ContainerFlowExtensionsTest {
             updatedReloadFunction.lastItem
         )
     }
+
+    @Test
+    fun test_containerUpdate_withBlock()  = runFlowTest {
+        val expectedValue = "value"
+        val expectedException = IllegalStateException()
+        val initialIsLoading = true
+        val expectedIsLoading = false
+        val initialReloadFunction: ReloadFunction = mockk()
+        val expectedReloadFunction: ReloadFunction = mockk()
+        val initialSource = LocalSourceType
+        val expectedSource = RemoteSourceType
+        val inputFlow = MutableSharedFlow<Container<String>>()
+
+        val outputFlow = inputFlow
+            .containerUpdate {
+                assertEquals(initialIsLoading, isLoadingInBackground)
+                assertSame(initialReloadFunction, reloadFunction)
+                assertSame(initialSource, source)
+                isLoadingInBackground = expectedIsLoading
+                reloadFunction = expectedReloadFunction
+                source = expectedSource
+            }
+        val collectedItems = outputFlow.startCollecting()
+
+        inputFlow.emit(successContainer(expectedValue, initialSource, initialIsLoading, initialReloadFunction))
+        val container1 = collectedItems.lastItem as Container.Success<String>
+        assertEquals(expectedValue, container1.value)
+        assertEquals(expectedIsLoading, container1.isLoadingInBackground)
+        assertEquals(expectedSource, container1.source)
+        assertSame(expectedReloadFunction, container1.reloadFunction)
+
+        inputFlow.emit(errorContainer(expectedException, initialSource, initialIsLoading, initialReloadFunction))
+        val container2 = collectedItems.lastItem as Container.Error
+        assertEquals(expectedException, container2.exception)
+        assertEquals(expectedIsLoading, container2.isLoadingInBackground)
+        assertEquals(expectedSource, container2.source)
+        assertSame(expectedReloadFunction, container2.reloadFunction)
+    }
+
 }

@@ -102,6 +102,83 @@ public fun <R> combineContainerFlows(
     }
 }
 
+/**
+ * Combine [this] container flow with another non-container flow. The result flow has
+ * the same status (pending, error, or success) as origin container flow.
+ */
+public fun <T0, T1, R> Flow<Container<T0>>.containerCombineWith(
+    flow: Flow<T1>,
+    transform: suspend CombineContainerFlowScope.(T0, T1) -> R
+): Flow<Container<R>> {
+    return containerCombineWith(
+        flows = listOf(flow),
+        transform = { input ->
+            @Suppress("UNCHECKED_CAST")
+            transform(this, input[0] as T0, input[1] as T1)
+        },
+    )
+}
+
+/**
+ * Combine [this] container flow with 2 other non-container flows. The result flow has
+ * the same status (pending, error, or success) as origin container flow.
+ */
+public fun <T0, T1, T2, R> Flow<Container<T0>>.containerCombineWith(
+    flow1: Flow<T1>,
+    flow2: Flow<T2>,
+    transform: suspend CombineContainerFlowScope.(T0, T1, T2) -> R
+): Flow<Container<R>> {
+    return containerCombineWith(
+        flows = listOf(flow1, flow2),
+        transform = { input ->
+            @Suppress("UNCHECKED_CAST")
+            transform(this, input[0] as T0, input[1] as T1, input[2] as T2)
+        },
+    )
+}
+
+/**
+ * Combine [this] container flow with 3 other non-container flows. The result flow has
+ * the same status (pending, error, or success) as origin container flow.
+ */
+public fun <T0, T1, T2, T3, R> Flow<Container<T0>>.containerCombineWith(
+    flow1: Flow<T1>,
+    flow2: Flow<T2>,
+    flow3: Flow<T3>,
+    transform: suspend CombineContainerFlowScope.(T0, T1, T2, T3) -> R
+): Flow<Container<R>> {
+    return containerCombineWith(
+        flows = listOf(flow1, flow2, flow3),
+        transform = { input ->
+            @Suppress("UNCHECKED_CAST")
+            transform(this, input[0] as T0, input[1] as T1, input[2] as T2, input[3] as T3)
+        },
+    )
+}
+
+/**
+ * Combine [this] container flow with other non-container flows. The result flow has
+ * the same status (pending, error, or success) as origin container flow.
+ */
+public fun <T, R> Flow<Container<T>>.containerCombineWith(
+    flows: Iterable<Flow<*>>,
+    transform: suspend CombineContainerFlowScope.(List<*>) -> R
+): Flow<Container<R>> {
+    val allFlows = listOf(this) + flows
+    return combine(allFlows) { items ->
+        val itemList = items.toList()
+        @Suppress("UNCHECKED_CAST")
+        val container = itemList[0] as Container<T>
+        val scope = CombineContainerWithFlowScopeImpl(container)
+        container
+            .map { containerValue ->
+                val values = listOf(containerValue) + itemList.subList(fromIndex = 1, toIndex = itemList.size)
+                scope.transform(values)
+            }
+            .update(scope.sourceType, scope.reloadFunction, scope.isLoadingInBackground)
+    }
+}
+
 private fun Array<Container<*>>.mergeReloadFunctions(): ReloadFunction {
     val reloadFunctions = map { container ->
         container.foldDefault(
@@ -139,4 +216,12 @@ internal class CombineContainerFlowScopeImpl(
 
     override var reloadFunction: ReloadFunction = containers.mergeReloadFunctions()
 
+}
+
+internal class CombineContainerWithFlowScopeImpl(
+    container: Container<*>,
+) : CombineContainerFlowScope {
+    override var sourceType = (container as? Container.Completed)?.source ?: UnknownSourceType
+    override var isLoadingInBackground = (container as? Container.Completed)?.isLoadingInBackground ?: true
+    override var reloadFunction = (container as? Container.Completed)?.reloadFunction ?: EmptyReloadFunction
 }

@@ -98,6 +98,17 @@ public fun <T> Flow<Container<T>>.containerUpdate(
 }
 
 /**
+ * Update additional data in all containers emitted by the flow.
+ */
+public fun <T> Flow<Container<T>>.containerUpdate(
+    block: ContainerUpdater.() -> Unit,
+): Flow<Container<T>> {
+    return map { container ->
+        container.update(block)
+    }
+}
+
+/**
  * Fold containers emitted by the flow.
  *
  * @see Container.fold

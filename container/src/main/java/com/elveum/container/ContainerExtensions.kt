@@ -91,8 +91,35 @@ public fun <T> Container<T>.update(
     reloadFunction: ReloadFunction? = null,
     isLoadingInBackground: Boolean? = null,
 ): Container<T> {
+    return update {
+        this.source = source ?: this.source
+        this.reloadFunction = reloadFunction ?: this.reloadFunction
+        this.isLoadingInBackground = isLoadingInBackground ?: this.isLoadingInBackground
+    }
+}
+
+/**
+ * Update additional data in the container.
+ */
+public fun <T> Container<T>.update(
+    block: ContainerUpdater.() -> Unit,
+): Container<T> {
     return transform(
-        onSuccess = { value -> successContainer(value, source, isLoadingInBackground, reloadFunction) },
-        onError = { exception -> errorContainer(exception, source, isLoadingInBackground, reloadFunction) }
+        onSuccess = { value ->
+            with(applyUpdater(block)) {
+                successContainer(value, source, isLoadingInBackground, reloadFunction)
+            }
+        },
+        onError = { exception ->
+            with(applyUpdater(block)) {
+                errorContainer(exception, source, isLoadingInBackground, reloadFunction)
+            }
+        }
     )
+}
+
+private fun ContainerMapperScope.applyUpdater(block: ContainerUpdater.() -> Unit): ContainerUpdater {
+    val updater = ContainerUpdaterImpl(this)
+    updater.apply(block)
+    return updater
 }

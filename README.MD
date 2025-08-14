@@ -18,7 +18,7 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta04"
+implementation "com.elveum:container:2.0.0-beta05"
 ```
 
 ## Documentation
@@ -44,7 +44,7 @@ The library contains:
   - `combineStates` function which can merge 2 or more `StateFlow<*>` instances into one `StateFlow<R>` instance
     (origin `combine` function merges flows into more generic `Flow<R>`, but not into `StateFlow<R>`)
 - `ContainerReducer` that can observe values from input flows, convert them into a state, and
-  additional it has an ability to update state manually at any time
+  additionally it has an ability to update state manually at any time
 
 ## About Container
 

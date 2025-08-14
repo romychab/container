@@ -1,10 +1,14 @@
 package com.elveum.container.reducer
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMapperScope
 import com.elveum.container.map
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 
 internal abstract class AbstractContainerReducer<State>(
     private val scope: CoroutineScope,
@@ -25,11 +29,13 @@ internal abstract class AbstractContainerReducer<State>(
     ): Container<State>
 
     override fun updateContainer(transform: suspend (Container<State>) -> Container<State>) {
-        stateFlow.update { transform(it) }
+        scope.launch(start = CoroutineStart.UNDISPATCHED) {
+            stateFlow.update { transform(it) }
+        }
     }
 
-    override fun updateValue(transform: suspend State.() -> State) {
-        stateFlow.update { container ->
+    override fun updateState(transform: suspend ContainerMapperScope.(State) -> State) {
+        updateContainer { container ->
             container.map { transform(it) }
         }
     }

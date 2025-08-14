@@ -55,7 +55,7 @@ class MapperContainerReducerTest {
         )
 
         // update item manually
-        reducer.updateValue { copy(otherValue = "updated") }
+        reducer.updateState { it.copy(otherValue = "updated") }
         assertEquals(
             successContainer(State("t2", 1, "updated")),
             collector.lastItem,

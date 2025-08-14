@@ -36,6 +36,19 @@ public inline fun <T> StateFlow<T>.tryUpdate(updater: (T) -> T) {
 }
 
 /**
+ * Calculate a new value for [Container.Success] container by
+ * using [updater] lambda function if this [StateFlow] is [MutableStateFlow].
+ * Otherwise, do nothing.
+ */
+public inline fun <T> StateFlow<Container<T>>.tryUpdateValue(
+    updater: ContainerMapperScope.(T) -> T
+) {
+    tryUpdate { container ->
+        container.map { value -> updater(value) }
+    }
+}
+
+/**
  * Almost the same operator as [Flow.map] but it returns [StateFlow] instance
  * instead of [Flow].
  */

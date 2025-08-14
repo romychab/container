@@ -40,7 +40,7 @@ class CombineToReducerTest {
         )
 
         // updated state manually
-        reducer.updateValue { copy(other = "updated") }
+        reducer.updateState { it.copy(other = "updated") }
         assertEquals(
             successContainer(State2("a1", "b1", "updated")),
             collector.lastItem
@@ -92,7 +92,7 @@ class CombineToReducerTest {
         )
 
         // updated state manually
-        reducer.updateValue { copy(other = "updated") }
+        reducer.updateState { it.copy(other = "updated") }
         assertEquals(
             successContainer(State3("a1", "b1", "c1", "updated")),
             collector.lastItem
@@ -151,7 +151,7 @@ class CombineToReducerTest {
         )
 
         // updated state manually
-        reducer.updateValue { copy(other = "updated") }
+        reducer.updateState { it.copy(other = "updated") }
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d1", "updated")),
             collector.lastItem
@@ -217,7 +217,7 @@ class CombineToReducerTest {
         )
 
         // updated state manually
-        reducer.updateValue { copy(other = "updated") }
+        reducer.updateState { it.copy(other = "updated") }
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e1", "updated")),
             collector.lastItem
@@ -265,7 +265,7 @@ class CombineToReducerTest {
         )
 
         // updated state manually
-        reducer.updateValue { copy(other = "updated") }
+        reducer.updateState { it.copy(other = "updated") }
         assertEquals(
             successContainer(State2("a1", "b1", "updated")),
             collector.lastItem

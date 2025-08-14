@@ -45,6 +45,29 @@ class ContainerReducerTest {
     }
 
     @Test
+    fun `test toReducer without mapping`() = runFlowTest {
+        val inputFlow = MutableSharedFlow<String>()
+
+        val reducer = inputFlow.toReducer(
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+
+        // initial state
+        assertEquals(pendingContainer(), collector.lastItem)
+
+        inputFlow.emit("1")
+        runCurrent()
+        assertEquals(successContainer("1"), collector.lastItem)
+
+        inputFlow.emit("2")
+        runCurrent()
+        assertEquals(successContainer("2"), collector.lastItem)
+    }
+
+    @Test
     fun `test containerToReducer`() = runFlowTest {
         val inputFlow = MutableSharedFlow<Container<Int>>()
         val reducer = inputFlow.containerToReducer(

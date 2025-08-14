@@ -38,7 +38,7 @@ class SimpleContainerReducerTest {
         assertEquals(errorContainer, collector.lastItem)
 
         // update item for non-success container -> nothing happens
-        reducer.updateValue { "test-ignored" }
+        reducer.updateState { "test-ignored" }
         assertEquals(errorContainer, collector.lastItem)
 
         // update to success container
@@ -46,7 +46,7 @@ class SimpleContainerReducerTest {
         assertEquals(successContainer("test-v2"), collector.lastItem)
 
         // update item for success container
-        reducer.updateValue { "$this-updated" }
+        reducer.updateState { "$it-updated" }
         assertEquals(successContainer("test-v2-updated"), collector.lastItem)
     }
 

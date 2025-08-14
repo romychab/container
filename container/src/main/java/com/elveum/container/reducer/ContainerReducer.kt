@@ -1,6 +1,7 @@
 package com.elveum.container.reducer
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMapperScope
 import com.elveum.container.successContainer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.map
 /**
  * A reducer that manages a reactive state. State values can be observed
  * by using [stateFlow] property. Also, the current state can be updated
- * via either [updateValue] method or [updateContainer] method.
+ * via either [updateState] method or [updateContainer] method.
  */
 public interface ContainerReducer<State> {
 
@@ -24,7 +25,7 @@ public interface ContainerReducer<State> {
      * Update the state value held by [stateFlow]. The state is updated only
      * if the current container is [Container.Success].
      */
-    public fun updateValue(transform: suspend State.() -> State)
+    public fun updateState(transform: suspend ContainerMapperScope.(State) -> State)
 
     /**
      * Update the whole container held by [stateFlow].
@@ -40,7 +41,28 @@ public interface ContainerReducer<State> {
  * be observed via [ContainerReducer.stateFlow] property.
  *
  * Additionally, values in the [ContainerReducer.stateFlow] can be updated by using
- * [ContainerReducer.updateContainer] or [ContainerReducer.updateValue] methods.
+ * [ContainerReducer.updateContainer] or [ContainerReducer.updateState] methods.
+ */
+public fun <State> Flow<State>.toReducer(
+    scope: CoroutineScope,
+    started: SharingStarted,
+): ContainerReducer<State> {
+    @Suppress("UNCHECKED_CAST")
+    return SimpleContainerReducer(
+        scope = scope,
+        started = started,
+        inputFlow = map(::successContainer)
+    )
+}
+
+/**
+ * Create a [ContainerReducer] from the origin flow.
+ *
+ * A [ContainerReducer] converts the origin flow into a [StateFlow] that can
+ * be observed via [ContainerReducer.stateFlow] property.
+ *
+ * Additionally, values in the [ContainerReducer.stateFlow] can be updated by using
+ * [ContainerReducer.updateContainer] or [ContainerReducer.updateState] methods.
  */
 public fun <T, State> Flow<T>.toReducer(
     initialState: suspend (T) -> State,
@@ -51,9 +73,7 @@ public fun <T, State> Flow<T>.toReducer(
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
         scope = scope,
-        inputFlows = listOf(
-            this.map { successContainer(it) }
-        ),
+        inputFlows = listOf(map(::successContainer)),
         initialValue = { initialState(it.first() as T) },
         nextValue = { state, list -> nextState(state, list.first() as T) },
         started = started,
@@ -67,7 +87,7 @@ public fun <T, State> Flow<T>.toReducer(
  * be observed via [ContainerReducer.stateFlow] property.
  *
  * Additionally, values in the [ContainerReducer.stateFlow] can be updated by using
- * [ContainerReducer.updateContainer] or [ContainerReducer.updateValue] methods.
+ * [ContainerReducer.updateContainer] or [ContainerReducer.updateState] methods.
  */
 public fun <State> Flow<Container<State>>.containerToReducer(
     scope: CoroutineScope,
@@ -87,7 +107,7 @@ public fun <State> Flow<Container<State>>.containerToReducer(
  * be observed via [ContainerReducer.stateFlow] property.
  *
  * Additionally, values in the [ContainerReducer.stateFlow] can be updated by using
- * [ContainerReducer.updateContainer] or [ContainerReducer.updateValue] methods.
+ * [ContainerReducer.updateContainer] or [ContainerReducer.updateState] methods.
  */
 public fun <T, State> Flow<Container<T>>.containerToReducer(
     initialState: suspend (T) -> State,

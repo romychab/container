@@ -149,7 +149,7 @@ val reducer = userRepository.getUser().containerToReducer(
 // observe final state:
 val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
 // update state manually if needed:
-reducer.updateValue { copy(otherData = "otherData") }
+reducer.updateState { copy(otherData = "otherData") }
 ```
 
 Example #3: convert 2 or more input flows into a state class.
@@ -177,7 +177,7 @@ val reducer = combineContainersToReducer(
 // observe a final state via StateFlow:
 val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
 // update the state manually if needed:
-reducer.updateValue { copy(otherData = "updated-data") }
+reducer.updateState { copy(otherData = "updated-data") }
 ```
 
 ## Subjects

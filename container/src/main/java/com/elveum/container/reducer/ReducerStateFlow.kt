@@ -9,20 +9,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingCommand
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
+@PublishedApi
 internal class ReducerStateFlow<R>(
     private val originFlows: Iterable<Flow<Container<*>>>,
-    private val scope: CoroutineScope,
+    scope: CoroutineScope,
     private val started: SharingStarted,
     private val transform: suspend (Container<R>, Container<List<*>>) -> Container<R>,
-    private val outputFlow: MutableStateFlow<Container<R>> = MutableStateFlow(pendingContainer()),
-) : StateFlow<Container<R>> by outputFlow {
+    @PublishedApi internal val outputFlow: MutableStateFlow<Container<R>> = MutableStateFlow(pendingContainer()),
+) : MutableStateFlow<Container<R>> by outputFlow {
 
     init {
         val start = if (started == SharingStarted.Eagerly) {
@@ -32,12 +32,6 @@ internal class ReducerStateFlow<R>(
         }
         scope.launch(start = start) {
            setupStateFlow()
-        }
-    }
-
-    fun update(transform: suspend (Container<R>) -> Container<R>) {
-        scope.launch(start = CoroutineStart.UNDISPATCHED) {
-            outputFlow.update { transform(it) }
         }
     }
 

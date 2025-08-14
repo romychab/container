@@ -18,7 +18,7 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta03"
+implementation "com.elveum:container:2.0.0-beta04"
 ```
 
 ## Documentation
@@ -43,6 +43,8 @@ The library contains:
     converts `StateFlow<T>` into more generic `Flow<R>`)
   - `combineStates` function which can merge 2 or more `StateFlow<*>` instances into one `StateFlow<R>` instance
     (origin `combine` function merges flows into more generic `Flow<R>`, but not into `StateFlow<R>`)
+- `ContainerReducer` that can observe values from input flows, convert them into a state, and
+  additional it has an ability to update state manually at any time
 
 ## About Container
 
@@ -105,6 +107,77 @@ val combinedFlow: Flow<Container<String>> = flow1
     .containerCombineWith(flow2) { string, number ->
         "$string,$number"
     }
+```
+
+## Container Reducers
+
+Container Reducers allow you to transform input flows into a StateFlow with ability to
+update state manually.
+
+Simple example (1 flow, without converting into another state class).
+
+```kotlin
+interface UserRepository {
+    fun getUser(): Flow<Container<User>>
+}
+
+// create a reducer
+val reducer = userRepository.getUser().containerToReducer(
+    scope = viewModelScope,
+    started = SharingStarted.Lazily,
+)
+// observe users via StateFlow:
+val stateFlow: StateFlow<Container<User>> = reducer.stateFlow
+// update manually if needed:
+reducer.updateValue { copy(username = "new-username") }
+```
+
+Example #2: convert input data into a state class.
+
+```kotlin
+data class State(
+    val user: User,
+    val otherData: String = "",
+)
+
+val reducer = userRepository.getUser().containerToReducer(
+    initialState = ::State,
+    nextState = State::copy,
+    scope = viewModelScope,
+    started = SharingStarted.Lazily,
+)
+// observe final state:
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+// update state manually if needed:
+reducer.updateValue { copy(otherData = "otherData") }
+```
+
+Example #3: convert 2 or more input flows into a state class.
+
+```kotlin
+interface Repository {
+    fun getUser(): Flow<Container<User>>
+    fun getSettings(): Flow<Container<Settings>>
+}
+
+data class State(
+    val user: User,
+    val settings: Settings,
+    val otherData: String = "",
+)
+
+val reducer = combineContainersToReducer(
+    repository.getUser(),
+    repository.getSettings(),
+    initialState = ::State,
+    nextState = State::copy,
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000)
+)
+// observe a final state via StateFlow:
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+// update the state manually if needed:
+reducer.updateValue { copy(otherData = "updated-data") }
 ```
 
 ## Subjects

@@ -376,13 +376,60 @@ class ContainerExtensionsTest {
 
     @Test
     fun getOrNull_forPendingContainer_returnsNull() {
-        val pendingContainer = errorContainer(Exception())
+        val pendingContainer = pendingContainer()
 
         val data = pendingContainer.getOrNull()
 
         assertNull(data)
     }
 
+    @Test
+    fun unwrap_forPendingContainer_throwsLoadNotFinishedException() {
+        val container = pendingContainer()
+
+        val exception = runCatching { container.unwrap() }
+            .exceptionOrNull()
+
+        assertTrue(exception is LoadNotFinishedException)
+    }
+
+    @Test
+    fun unwrap_forErrorContainer_throwsEncapsulatedException() {
+        val expectedException = IllegalArgumentException()
+        val container = errorContainer(expectedException)
+
+        val exception = runCatching { container.unwrap() }
+            .exceptionOrNull()
+
+        assertSame(expectedException, exception)
+    }
+
+    @Test
+    fun unwrap_forSuccessContainer_returnsValue() {
+        val expectedValue = "value"
+        val container = successContainer(expectedValue)
+
+        val value = runCatching { container.unwrap() }.getOrNull()
+
+        assertSame(expectedValue, value)
+    }
+
+    @Test
+    fun unwrapContainerValue_forSuccessContainer_returnsValue() {
+        val expectedValue = "value"
+        val expectedSource = LocalSourceType
+        val expectedIsLoadingInBackground = true
+        val expectedReloadFunction = mockk<ReloadFunction>()
+        val container = successContainer(expectedValue, expectedSource,
+            expectedIsLoadingInBackground, expectedReloadFunction)
+
+        val value = container.unwrapContainerValue()
+
+        assertEquals(expectedSource, value.source)
+        assertEquals(expectedIsLoadingInBackground, value.isLoadingInBackground)
+        assertSame(expectedReloadFunction, value.reloadFunction)
+        assertEquals(expectedValue, value.value)
+    }
 
     @Test
     fun test_getContainerValueOrNull() {

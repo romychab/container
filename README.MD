@@ -18,7 +18,7 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta05"
+implementation "com.elveum:container:2.0.0-beta06"
 ```
 
 ## Documentation
@@ -62,7 +62,7 @@ statuses:
 - `transform`
 - `map`, `mapException`
 - `catch`, `catchAll`
-- `getOrNull`, `exceptionOrNull`
+- `getOrNull`, `exceptionOrNull`, `unwrap`
 
 ## Integration with Kotlin Flows
 
@@ -320,6 +320,39 @@ subject.listen()
     }
 ```
 
+#### Build-In Reload Function
+
+All success and error containers have an additional property named `reloadFunction`.
+By default, it is empty, but optionally you can configure the `LazyFlowSubject.listen()`
+call with additional `ContainerConfiguration(emitReloadFunction = true)` argument. In this
+case, calling `reloadFunction` causes a full reload of the corresponding `LazeFlowSubject`
+instance (similar to call of `LazyFlowSubject.reloadAsync()`).
+
+You can re-assign the reloading function by:
+
+- creating a new container: `successContainer(value, reloadFunction = customReloadFunction)`
+
+- mapping an existing container using `update` function:
+  
+  ```kotlin
+  Container<T>.update { 
+      reloadFunction = { 
+          println("Reloading...")
+          reloadFunction(it)  // call origin reload function if needed
+      } 
+  }
+  ```
+- mapping an existing container in a Kotlin Flow:
+
+  ```kotlin
+  val flow: Flow<Container<String>> = getFlow()
+  return flow
+      .containerUpdate {
+          println("Reloading...")
+          reloadFunction(it)  // call origin reload function if needed
+      }
+  ```
+  
 ## Lazy Cache
 
 `LazyCache` is a store of multiple `LazyFlowSubject` instances. It allows you

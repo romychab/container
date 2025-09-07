@@ -84,6 +84,30 @@ public fun <T> Container<T>.getOrNull(): T? {
 }
 
 /**
+ * Return the value encapsulated by the container if it is [Container.Success].
+ * Otherwise, an exception is thrown:
+ * - unwrapping a [Container.Error] throws the exception encapsulated by the container
+ * - unwrapping a [Container.Pending] throws [LoadNotFinishedException]
+ */
+public fun <T> Container<T>.unwrap(): T {
+    return unwrapContainerValue().value
+}
+
+/**
+ * Return the container value encapsulated by the container if it is [Container.Success].
+ * Otherwise, an exception is thrown:
+ * - unwrapping a [Container.Error] throws the exception encapsulated by the container
+ * - unwrapping a [Container.Pending] throws [LoadNotFinishedException]
+ */
+public fun <T> Container<T>.unwrapContainerValue(): ContainerValue<T> {
+    return fold(
+        onPending = { throw LoadNotFinishedException() },
+        onError = { throw it },
+        onSuccess = { ContainerValue(it, source, isLoadingInBackground, reloadFunction) }
+    )
+}
+
+/**
  * Update additional data in the container.
  */
 public fun <T> Container<T>.update(

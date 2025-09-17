@@ -168,4 +168,57 @@ class ContainerTest {
         assertEquals(successContainer(1), transformed)
     }
 
+
+    @Test
+    fun test_fold_forCompletedSuccess() {
+        val source = RemoteSourceType
+        val reloadFunction = mockk<ReloadFunction>()
+        val isLoading = true
+        val origin = successContainer(
+            value = 1,
+            source = source,
+            isLoadingInBackground = isLoading,
+            reloadFunction = reloadFunction
+        )
+
+        val transformed = origin.fold(
+            onSuccess = { successContainer(it * 10) },
+            onError = { pendingContainer() },
+        )
+        val containerValue = transformed.getContainerValueOrNull()
+
+        assertEquals(10, containerValue?.value)
+        assertEquals(source, containerValue?.source)
+        assertEquals(isLoading, containerValue?.isLoadingInBackground)
+        assertSame(reloadFunction, containerValue?.reloadFunction)
+    }
+
+    @Test
+    fun test_fold_forCompletedError() {
+        val exception = IllegalStateException()
+        val source = RemoteSourceType
+        val reloadFunction = mockk<ReloadFunction>()
+        val isLoading = true
+        val origin = errorContainer(
+            exception = exception,
+            source = source,
+            isLoadingInBackground = isLoading,
+            reloadFunction = reloadFunction
+        )
+
+        val transformed = origin.fold(
+            onError = {
+                errorContainer(Exception("test", it))
+            },
+            onSuccess = { pendingContainer() },
+        )
+        val containerValue = transformed.getContainerExceptionOrNull()
+
+        assertEquals("test", containerValue?.value?.message)
+        assertSame(exception, containerValue?.value?.cause)
+        assertEquals(source, containerValue?.source)
+        assertEquals(isLoading, containerValue?.isLoadingInBackground)
+        assertSame(reloadFunction, containerValue?.reloadFunction)
+    }
+
 }

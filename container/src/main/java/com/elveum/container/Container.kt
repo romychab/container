@@ -44,6 +44,19 @@ public sealed class Container<out T> {
          */
         public abstract override val isLoadingInBackground: Boolean
 
+        /**
+         * - Returns the result of onSuccess() function if this instance is [Container.Success].
+         * - Returns the result of onError() function if this instance is [Container.Error].
+         */
+        public inline fun <R> fold(
+            onError: ContainerMapperScope.(Exception) -> R,
+            onSuccess: ContainerMapperScope.(T) -> R,
+        ): R {
+            return when (this) {
+                is Success<T> -> onSuccess(this, value)
+                is Error -> onError(this, exception)
+            }
+        }
     }
 
     /**

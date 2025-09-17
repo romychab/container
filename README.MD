@@ -10,15 +10,18 @@ Kotlin Flow and for converting async data loaders into reactive Flows.
 
 `Container` is a simple class that represents the status of async operation:
 - `Container.Pending` - data is loading
-- `Container.Success` - data has been loaded successfully
-- `Container.Error` - loading has been failed with error
+- `Container.Completed` - data loading is finished:
+   - `Container.Success` - data has been loaded successfully
+   - `Container.Error` - loading has been failed with error
+
+Both `Container.Success` and `Container.Error` extends `Container.Completed`.
 
 ## Installation
 
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta06"
+implementation "com.elveum:container:2.0.0-beta07"
 ```
 
 ## Documentation

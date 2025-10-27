@@ -13,9 +13,11 @@ public fun <State, T1, T2> combineContainersToReducer(
     flow1: Flow<Container<T1>>,
     flow2: Flow<Container<T2>>,
     initialState: suspend (T1, T2) -> State,
-    nextState: suspend (State, T1, T2) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T1, T2) -> State = { _, v1, v2 ->
+        initialState(v1, v2)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
@@ -40,9 +42,11 @@ public fun <State, T1, T2, T3> combineContainersToReducer(
     flow2: Flow<Container<T2>>,
     flow3: Flow<Container<T3>>,
     initialState: suspend (T1, T2, T3) -> State,
-    nextState: suspend (State, T1, T2, T3) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T1, T2, T3) -> State = { _, v1, v2, v3 ->
+        initialState(v1, v2, v3)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
@@ -68,9 +72,11 @@ public fun <State, T1, T2, T3, T4> combineContainersToReducer(
     flow3: Flow<Container<T3>>,
     flow4: Flow<Container<T4>>,
     initialState: suspend (T1, T2, T3, T4) -> State,
-    nextState: suspend (State, T1, T2, T3, T4) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T1, T2, T3, T4) -> State = { _, v1, v2, v3, v4 ->
+        initialState(v1, v2, v3, v4)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
@@ -97,9 +103,11 @@ public fun <State, T1, T2, T3, T4, T5> combineContainersToReducer(
     flow4: Flow<Container<T4>>,
     flow5: Flow<Container<T5>>,
     initialState: suspend (T1, T2, T3, T4, T5) -> State,
-    nextState: suspend (State, T1, T2, T3, T4, T5) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T1, T2, T3, T4, T5) -> State = { _, v1, v2, v3, v4, v5 ->
+        initialState(v1, v2, v3, v4, v5)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
@@ -122,9 +130,11 @@ public fun <State, T1, T2, T3, T4, T5> combineContainersToReducer(
 public fun <State> combineContainersToReducer(
     flows: Iterable<Flow<Container<*>>>,
     initialState: suspend (List<*>) -> State,
-    nextState: suspend (State, List<*>) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, List<*>) -> State = { _, values ->
+        initialState(values)
+    },
 ): ContainerReducer<State> {
     return MapperContainerReducer(
         inputFlows = flows,

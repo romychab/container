@@ -66,9 +66,11 @@ public fun <State> Flow<State>.toReducer(
  */
 public fun <T, State> Flow<T>.toReducer(
     initialState: suspend (T) -> State,
-    nextState: suspend (State, T) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T) -> State = { _, value ->
+        initialState(value)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(
@@ -111,9 +113,11 @@ public fun <State> Flow<Container<State>>.containerToReducer(
  */
 public fun <T, State> Flow<Container<T>>.containerToReducer(
     initialState: suspend (T) -> State,
-    nextState: suspend (State, T) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
+    nextState: suspend (State, T) -> State = { _, value ->
+        initialState(value)
+    },
 ): ContainerReducer<State> {
     @Suppress("UNCHECKED_CAST")
     return MapperContainerReducer(

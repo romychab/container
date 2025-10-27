@@ -8,7 +8,7 @@ plugins {
 
 ext {
     PUBLISH_GROUP_ID = 'com.elveum'
-    PUBLISH_VERSION = '2.0.0-beta07'
+    PUBLISH_VERSION = '2.0.0-beta08'
     PUBLISH_ARTIFACT_ID = 'container'
 }
 
@@ -21,6 +21,7 @@ java {
 kotlin {
     compilerOptions {
         jvmTarget = JvmTarget.JVM_1_8
+        freeCompilerArgs.add("-Xcontext-parameters")
     }
     explicitApi()
     jvmToolchain(17)

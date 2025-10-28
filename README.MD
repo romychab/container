@@ -21,7 +21,7 @@ Both `Container.Success` and `Container.Error` extends `Container.Completed`.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta07"
+implementation "com.elveum:container:2.0.0-beta09"
 ```
 
 ## Documentation

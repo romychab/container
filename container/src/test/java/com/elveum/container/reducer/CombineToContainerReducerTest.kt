@@ -1,6 +1,5 @@
 package com.elveum.container.reducer
 
-import com.elveum.container.Container
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
 import com.uandcode.flowtest.runFlowTest
@@ -9,13 +8,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
-class CombineContainersToReducerTest {
+class CombineToContainerReducerTest {
 
     @Test
-    fun `test combineContainersToReducer with 2 input flows`() = runFlowTest {
-        val flowA = MutableSharedFlow<Container<String>>()
-        val flowB = MutableSharedFlow<Container<String>>()
-        val reducer = combineContainersToReducer(
+    fun `test combineToContainerReducer with 2 input flows`() = runFlowTest {
+        val flowA = MutableSharedFlow<String>()
+        val flowB = MutableSharedFlow<String>()
+        val reducer = combineToContainerReducer(
             flowA,
             flowB,
             initialState = ::State2,
@@ -28,12 +27,12 @@ class CombineContainersToReducerTest {
         runCurrent()
 
         // initial state
-        flowA.emit(successContainer("a1"))
+        flowA.emit("a1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // new state
-        flowB.emit(successContainer("b1"))
+        flowB.emit("b1")
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1")),
@@ -49,7 +48,7 @@ class CombineContainersToReducerTest {
         )
 
         // update state by emitted value
-        flowB.emit(successContainer("b2"))
+        flowB.emit("b2")
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b2", "updated")),
@@ -58,11 +57,11 @@ class CombineContainersToReducerTest {
     }
 
     @Test
-    fun `test combineContainersToReducer with 3 input flows`() = runFlowTest {
-        val flowA = MutableSharedFlow<Container<String>>()
-        val flowB = MutableSharedFlow<Container<String>>()
-        val flowC = MutableSharedFlow<Container<String>>()
-        val reducer = combineContainersToReducer(
+    fun `test combineToContainerReducer with 3 input flows`() = runFlowTest {
+        val flowA = MutableSharedFlow<String>()
+        val flowB = MutableSharedFlow<String>()
+        val flowC = MutableSharedFlow<String>()
+        val reducer = combineToContainerReducer(
             flowA,
             flowB,
             flowC,
@@ -76,17 +75,17 @@ class CombineContainersToReducerTest {
         runCurrent()
 
         // initial state
-        flowA.emit(successContainer("a1"))
+        flowA.emit("a1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowB.emit(successContainer("b1"))
+        flowB.emit("b1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // new state
-        flowC.emit(successContainer("c1"))
+        flowC.emit("c1")
         runCurrent()
         assertEquals(
             successContainer(State3("a1", "b1", "c1")),
@@ -102,7 +101,7 @@ class CombineContainersToReducerTest {
         )
 
         // update state by emitted value
-        flowC.emit(successContainer("c2"))
+        flowC.emit("c2")
         runCurrent()
         assertEquals(
             successContainer(State3("a1", "b1", "c2", "updated")),
@@ -111,12 +110,12 @@ class CombineContainersToReducerTest {
     }
 
     @Test
-    fun `test combineContainersToReducer with 4 input flows`() = runFlowTest {
-        val flowA = MutableSharedFlow<Container<String>>()
-        val flowB = MutableSharedFlow<Container<String>>()
-        val flowC = MutableSharedFlow<Container<String>>()
-        val flowD = MutableSharedFlow<Container<String>>()
-        val reducer = combineContainersToReducer(
+    fun `test combineToContainerReducer with 4 input flows`() = runFlowTest {
+        val flowA = MutableSharedFlow<String>()
+        val flowB = MutableSharedFlow<String>()
+        val flowC = MutableSharedFlow<String>()
+        val flowD = MutableSharedFlow<String>()
+        val reducer = combineToContainerReducer(
             flowA,
             flowB,
             flowC,
@@ -131,22 +130,22 @@ class CombineContainersToReducerTest {
         runCurrent()
 
         // initial state
-        flowA.emit(successContainer("a1"))
+        flowA.emit("a1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowB.emit(successContainer("b1"))
+        flowB.emit("b1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowC.emit(successContainer("c1"))
+        flowC.emit("c1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // new state
-        flowD.emit(successContainer("d1"))
+        flowD.emit("d1")
         runCurrent()
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d1")),
@@ -162,7 +161,7 @@ class CombineContainersToReducerTest {
         )
 
         // update state by emitted value
-        flowD.emit(successContainer("d2"))
+        flowD.emit("d2")
         runCurrent()
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d2", "updated")),
@@ -171,13 +170,13 @@ class CombineContainersToReducerTest {
     }
 
     @Test
-    fun `test combineContainersToReducer with 5 input flows`() = runFlowTest {
-        val flowA = MutableSharedFlow<Container<String>>()
-        val flowB = MutableSharedFlow<Container<String>>()
-        val flowC = MutableSharedFlow<Container<String>>()
-        val flowD = MutableSharedFlow<Container<String>>()
-        val flowE = MutableSharedFlow<Container<String>>()
-        val reducer = combineContainersToReducer(
+    fun `test combineToContainerReducer with 5 input flows`() = runFlowTest {
+        val flowA = MutableSharedFlow<String>()
+        val flowB = MutableSharedFlow<String>()
+        val flowC = MutableSharedFlow<String>()
+        val flowD = MutableSharedFlow<String>()
+        val flowE = MutableSharedFlow<String>()
+        val reducer = combineToContainerReducer(
             flowA,
             flowB,
             flowC,
@@ -193,27 +192,27 @@ class CombineContainersToReducerTest {
         runCurrent()
 
         // initial state
-        flowA.emit(successContainer("a1"))
+        flowA.emit("a1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowB.emit(successContainer("b1"))
+        flowB.emit("b1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowC.emit(successContainer("c1"))
+        flowC.emit("c1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // initial state again
-        flowD.emit(successContainer("d1"))
+        flowD.emit("d1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // new state
-        flowE.emit(successContainer("e1"))
+        flowE.emit("e1")
         runCurrent()
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e1")),
@@ -229,7 +228,7 @@ class CombineContainersToReducerTest {
         )
 
         // update state by emitted value
-        flowE.emit(successContainer("e2"))
+        flowE.emit("e2")
         runCurrent()
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e2", "updated")),
@@ -238,10 +237,10 @@ class CombineContainersToReducerTest {
     }
 
     @Test
-    fun `test combineContainersToReducer with iterable collection`() = runFlowTest {
-        val flowA = MutableSharedFlow<Container<String>>()
-        val flowB = MutableSharedFlow<Container<String>>()
-        val reducer = combineContainersToReducer(
+    fun `test combineToContainerReducer with iterable collection`() = runFlowTest {
+        val flowA = MutableSharedFlow<String>()
+        val flowB = MutableSharedFlow<String>()
+        val reducer = combineToContainerReducer(
             flows = listOf(flowA, flowB),
             initialState = { list ->
                 State2(list[0] as String, list[1] as String)
@@ -257,12 +256,12 @@ class CombineContainersToReducerTest {
         runCurrent()
 
         // initial state
-        flowA.emit(successContainer("a1"))
+        flowA.emit("a1")
         runCurrent()
         assertEquals(pendingContainer(), collector.lastItem)
 
         // new state
-        flowB.emit(successContainer("b1"))
+        flowB.emit("b1")
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1")),
@@ -278,7 +277,7 @@ class CombineContainersToReducerTest {
         )
 
         // update state by emitted value
-        flowB.emit(successContainer("b2"))
+        flowB.emit("b2")
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b2", "updated")),

@@ -11,13 +11,13 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class ContainerReducerTest {
+class FlowExtensionsTest {
 
     @Test
     fun `test toReducer`() = runFlowTest {
         val inputFlow = MutableSharedFlow<Int>()
         val reducer = inputFlow.toReducer(
-            initialState = { it.toString() },
+            initialState = "",
             nextState = { state, value -> "$state:$value" },
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -27,19 +27,19 @@ class ContainerReducerTest {
         runCurrent()
 
         // initial state
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals("", collector.lastItem)
 
         inputFlow.emit(1)
         runCurrent()
         assertEquals(
-            successContainer("1"),
+            ":1",
             collector.lastItem
         )
 
         inputFlow.emit(2)
         runCurrent()
         assertEquals(
-            successContainer("1:2"),
+            ":1:2",
             collector.lastItem
         )
     }
@@ -49,6 +49,7 @@ class ContainerReducerTest {
         val inputFlow = MutableSharedFlow<String>()
 
         val reducer = inputFlow.toReducer(
+            initialState = "",
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
         )
@@ -56,15 +57,15 @@ class ContainerReducerTest {
         runCurrent()
 
         // initial state
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals("", collector.lastItem)
 
         inputFlow.emit("1")
         runCurrent()
-        assertEquals(successContainer("1"), collector.lastItem)
+        assertEquals("1", collector.lastItem)
 
         inputFlow.emit("2")
         runCurrent()
-        assertEquals(successContainer("2"), collector.lastItem)
+        assertEquals("2", collector.lastItem)
     }
 
     @Test
@@ -100,7 +101,7 @@ class ContainerReducerTest {
         )
 
         // error -> replace existing state by error
-        reducer.updateContainer { errorContainer(IllegalStateException()) }
+        reducer.update { errorContainer(IllegalStateException()) }
         runCurrent()
         assertTrue(collector.lastItem is Container.Error)
 

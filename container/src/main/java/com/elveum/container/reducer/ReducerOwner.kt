@@ -1,21 +1,20 @@
-package com.elveum.container.reducer.owner
+package com.elveum.container.reducer
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.SharingStarted
 
 /**
  * This interface simplifies creating of new reducers by providing
- * predefined [reducerScope] and [sharingStarted] values. As a result,
- * all functions like `combineToReducer`, `combineContainersToReducer`,
- * `toReducer` can be called without specifying [reducerScope] and/or
- * [sharingStarted].
+ * predefined [reducerCoroutineScope] and [reducerSharingStarted] values. As a result,
+ * all functions like `stateIn`, `shareIn`, `toReducer`, `toContainerReducer` can be called
+ * without specifying [reducerCoroutineScope] and/or [reducerSharingStarted].
  *
  * Usage example:
  *
  * ```
  * abstract class AbstractViewModel : ViewModel(), ReducerOwner {
- *     override val reducerScope: CoroutineScope = viewModelScope
- *     override val sharingStarted: SharingStarted = SharingStarted.Lazily
+ *     override val reducerCoroutineScope: CoroutineScope = viewModelScope
+ *     override val reducerSharingStarted: SharingStarted = SharingStarted.Lazily
  * }
  *
  * class MyViewModel(
@@ -34,9 +33,6 @@ import kotlinx.coroutines.flow.SharingStarted
  * ```
  */
 public interface ReducerOwner {
-
-    public val reducerScope: CoroutineScope
-
-    public val sharingStarted: SharingStarted
-
+    public val reducerCoroutineScope: CoroutineScope
+    public val reducerSharingStarted: SharingStarted
 }

@@ -1,4 +1,4 @@
-package com.elveum.container.reducer.owner
+package com.elveum.container.reducer
 
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -15,8 +15,8 @@ import kotlinx.coroutines.flow.stateIn
 context(owner: ReducerOwner)
 public fun <T> Flow<T>.stateIn(initialValue: T): StateFlow<T> {
     return stateIn(
-        scope = owner.reducerScope,
-        started = owner.sharingStarted,
+        scope = owner.reducerCoroutineScope,
+        started = owner.reducerSharingStarted,
         initialValue = initialValue,
     )
 }
@@ -28,8 +28,8 @@ public fun <T> Flow<T>.stateIn(initialValue: T): StateFlow<T> {
 context(owner: ReducerOwner)
 public fun <T> Flow<T>.shareIn(replay: Int = 0): SharedFlow<T> {
     return shareIn(
-        scope = owner.reducerScope,
-        started = owner.sharingStarted,
+        scope = owner.reducerCoroutineScope,
+        started = owner.reducerSharingStarted,
         replay = replay,
     )
 }

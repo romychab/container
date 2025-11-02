@@ -1,8 +1,6 @@
-package com.elveum.container.reducer
+package com.elveum.container.reducer.impl
 
-import com.elveum.container.Container
-import com.elveum.container.combineContainerFlows
-import com.elveum.container.pendingContainer
+import com.elveum.container.reducer.Reducer
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.flow.Flow
@@ -15,14 +13,15 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
-@PublishedApi
-internal class ReducerStateFlow<R>(
-    private val originFlows: Iterable<Flow<Container<*>>>,
-    scope: CoroutineScope,
+internal class ReducerImpl<T, State>(
+    private val initialState: State,
+    private val originFlow: Flow<T>,
+    private val combiner: suspend (State, T) -> State,
+    private val scope: CoroutineScope,
     private val started: SharingStarted,
-    private val transform: suspend (Container<R>, Container<List<*>>) -> Container<R>,
-    @PublishedApi internal val outputFlow: MutableStateFlow<Container<R>> = MutableStateFlow(pendingContainer()),
-) : MutableStateFlow<Container<R>> by outputFlow {
+) : Reducer<State> {
+
+    override val stateFlow = MutableStateFlow(initialState)
 
     init {
         val start = if (started == SharingStarted.Eagerly) {
@@ -31,7 +30,15 @@ internal class ReducerStateFlow<R>(
             CoroutineStart.UNDISPATCHED
         }
         scope.launch(start = start) {
-           setupStateFlow()
+            setupStateFlow()
+        }
+    }
+
+    override fun update(transform: suspend State.() -> State) {
+        scope.launch {
+            stateFlow.update { oldState ->
+                oldState.transform()
+            }
         }
     }
 
@@ -39,18 +46,18 @@ internal class ReducerStateFlow<R>(
         if (started === SharingStarted.Eagerly) {
             startCollecting()
         } else if (started === SharingStarted.Lazily) {
-            outputFlow.subscriptionCount.first { it > 0 }
+            stateFlow.subscriptionCount.first { it > 0 }
             startCollecting()
         } else {
             started
-                .command(outputFlow.subscriptionCount)
+                .command(stateFlow.subscriptionCount)
                 .distinctUntilChanged()
                 .collectLatest { command ->
                     when (command) {
                         SharingCommand.START -> startCollecting()
                         SharingCommand.STOP -> { /* do nothing, auto-cancelled */ }
                         SharingCommand.STOP_AND_RESET_REPLAY_CACHE -> {
-                            outputFlow.value = pendingContainer()
+                            stateFlow.value = initialState
                         }
                     }
                 }
@@ -58,15 +65,9 @@ internal class ReducerStateFlow<R>(
     }
 
     private suspend fun startCollecting() {
-        val combinedFlow = combineContainerFlows(
-            flows = originFlows,
-            transform = { values ->
-                values
-            }
-        )
-        combinedFlow.collect { newOriginContainers ->
-            outputFlow.update { oldResultContainer ->
-                transform(oldResultContainer, newOriginContainers)
+        originFlow.collect { newOriginValue ->
+            stateFlow.update { oldState ->
+                combiner(oldState, newOriginValue)
             }
         }
     }

@@ -1,7 +1,5 @@
 package com.elveum.container.reducer
 
-import com.elveum.container.pendingContainer
-import com.elveum.container.successContainer
 import com.uandcode.flowtest.runFlowTest
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -14,10 +12,11 @@ class CombineToReducerTest {
     fun `test combineToReducer with 2 input flows`() = runFlowTest {
         val flowA = MutableSharedFlow<String>()
         val flowB = MutableSharedFlow<String>()
+        val initialState = State2()
         val reducer = combineToReducer(
             flowA,
             flowB,
-            initialState = ::State2,
+            initialState = initialState,
             nextState = State2::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -29,20 +28,21 @@ class CombineToReducerTest {
         // initial state
         flowA.emit("a1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // new state
         flowB.emit("b1")
         runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b1")),
+            State2("a1", "b1"),
             collector.lastItem
         )
 
         // updated state manually
-        reducer.updateState { it.copy(other = "updated") }
+        reducer.update { it.copy(other = "updated") }
+        runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b1", "updated")),
+            State2("a1", "b1", "updated"),
             collector.lastItem
         )
 
@@ -50,7 +50,7 @@ class CombineToReducerTest {
         flowB.emit("b2")
         runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b2", "updated")),
+            State2("a1", "b2", "updated"),
             collector.lastItem
         )
     }
@@ -60,11 +60,12 @@ class CombineToReducerTest {
         val flowA = MutableSharedFlow<String>()
         val flowB = MutableSharedFlow<String>()
         val flowC = MutableSharedFlow<String>()
+        val initialState = State3()
         val reducer = combineToReducer(
             flowA,
             flowB,
             flowC,
-            initialState = ::State3,
+            initialState = initialState,
             nextState = State3::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -76,25 +77,26 @@ class CombineToReducerTest {
         // initial state
         flowA.emit("a1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowB.emit("b1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // new state
         flowC.emit("c1")
         runCurrent()
         assertEquals(
-            successContainer(State3("a1", "b1", "c1")),
+            State3("a1", "b1", "c1"),
             collector.lastItem
         )
 
         // updated state manually
-        reducer.updateState { it.copy(other = "updated") }
+        reducer.update { it.copy(other = "updated") }
+        runCurrent()
         assertEquals(
-            successContainer(State3("a1", "b1", "c1", "updated")),
+            State3("a1", "b1", "c1", "updated"),
             collector.lastItem
         )
 
@@ -102,7 +104,7 @@ class CombineToReducerTest {
         flowC.emit("c2")
         runCurrent()
         assertEquals(
-            successContainer(State3("a1", "b1", "c2", "updated")),
+            State3("a1", "b1", "c2", "updated"),
             collector.lastItem
         )
     }
@@ -113,12 +115,13 @@ class CombineToReducerTest {
         val flowB = MutableSharedFlow<String>()
         val flowC = MutableSharedFlow<String>()
         val flowD = MutableSharedFlow<String>()
+        val initialState = State4()
         val reducer = combineToReducer(
             flowA,
             flowB,
             flowC,
             flowD,
-            initialState = ::State4,
+            initialState = initialState,
             nextState = State4::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -130,30 +133,31 @@ class CombineToReducerTest {
         // initial state
         flowA.emit("a1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowB.emit("b1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowC.emit("c1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // new state
         flowD.emit("d1")
         runCurrent()
         assertEquals(
-            successContainer(State4("a1", "b1", "c1", "d1")),
+            State4("a1", "b1", "c1", "d1"),
             collector.lastItem
         )
 
         // updated state manually
-        reducer.updateState { it.copy(other = "updated") }
+        reducer.update { it.copy(other = "updated") }
+        runCurrent()
         assertEquals(
-            successContainer(State4("a1", "b1", "c1", "d1", "updated")),
+            State4("a1", "b1", "c1", "d1", "updated"),
             collector.lastItem
         )
 
@@ -161,7 +165,7 @@ class CombineToReducerTest {
         flowD.emit("d2")
         runCurrent()
         assertEquals(
-            successContainer(State4("a1", "b1", "c1", "d2", "updated")),
+            State4("a1", "b1", "c1", "d2", "updated"),
             collector.lastItem
         )
     }
@@ -173,13 +177,14 @@ class CombineToReducerTest {
         val flowC = MutableSharedFlow<String>()
         val flowD = MutableSharedFlow<String>()
         val flowE = MutableSharedFlow<String>()
+        val initialState = State5()
         val reducer = combineToReducer(
             flowA,
             flowB,
             flowC,
             flowD,
             flowE,
-            initialState = ::State5,
+            initialState = initialState,
             nextState = State5::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -191,35 +196,36 @@ class CombineToReducerTest {
         // initial state
         flowA.emit("a1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowB.emit("b1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowC.emit("c1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // initial state again
         flowD.emit("d1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // new state
         flowE.emit("e1")
         runCurrent()
         assertEquals(
-            successContainer(State5("a1", "b1", "c1", "d1", "e1")),
+            State5("a1", "b1", "c1", "d1", "e1"),
             collector.lastItem
         )
 
         // updated state manually
-        reducer.updateState { it.copy(other = "updated") }
+        reducer.update { it.copy(other = "updated") }
+        runCurrent()
         assertEquals(
-            successContainer(State5("a1", "b1", "c1", "d1", "e1", "updated")),
+            State5("a1", "b1", "c1", "d1", "e1", "updated"),
             collector.lastItem
         )
 
@@ -227,7 +233,7 @@ class CombineToReducerTest {
         flowE.emit("e2")
         runCurrent()
         assertEquals(
-            successContainer(State5("a1", "b1", "c1", "d1", "e2", "updated")),
+            State5("a1", "b1", "c1", "d1", "e2", "updated"),
             collector.lastItem
         )
     }
@@ -236,11 +242,10 @@ class CombineToReducerTest {
     fun `test combineToReducer with iterable collection`() = runFlowTest {
         val flowA = MutableSharedFlow<String>()
         val flowB = MutableSharedFlow<String>()
+        val initialState = State2()
         val reducer = combineToReducer(
             flows = listOf(flowA, flowB),
-            initialState = { list ->
-                State2(list[0] as String, list[1] as String)
-            },
+            initialState = initialState,
             nextState = { state, list ->
                 state.copy(list[0] as String, list[1] as String)
             },
@@ -254,20 +259,21 @@ class CombineToReducerTest {
         // initial state
         flowA.emit("a1")
         runCurrent()
-        assertEquals(pendingContainer(), collector.lastItem)
+        assertEquals(initialState, collector.lastItem)
 
         // new state
         flowB.emit("b1")
         runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b1")),
+            State2("a1", "b1"),
             collector.lastItem
         )
 
         // updated state manually
-        reducer.updateState { it.copy(other = "updated") }
+        reducer.update { it.copy(other = "updated") }
+        runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b1", "updated")),
+            State2("a1", "b1", "updated"),
             collector.lastItem
         )
 
@@ -275,38 +281,38 @@ class CombineToReducerTest {
         flowB.emit("b2")
         runCurrent()
         assertEquals(
-            successContainer(State2("a1", "b2", "updated")),
+            State2("a1", "b2", "updated"),
             collector.lastItem
         )
     }
 
     private data class State2(
-        val a: String,
-        val b: String,
+        val a: String = "",
+        val b: String = "",
         val other: String = "",
     )
 
     private data class State3(
-        val a: String,
-        val b: String,
-        val c: String,
+        val a: String = "",
+        val b: String = "",
+        val c: String = "",
         val other: String = "",
     )
 
     private data class State4(
-        val a: String,
-        val b: String,
-        val c: String,
-        val d: String,
+        val a: String = "",
+        val b: String = "",
+        val c: String = "",
+        val d: String = "",
         val other: String = "",
     )
 
     private data class State5(
-        val a: String,
-        val b: String,
-        val c: String,
-        val d: String,
-        val e: String,
+        val a: String = "",
+        val b: String = "",
+        val c: String = "",
+        val d: String = "",
+        val e: String = "",
         val other: String = "",
     )
 

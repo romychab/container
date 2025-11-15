@@ -4,17 +4,8 @@
 ![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
 [![License: Apache 2](https://img.shields.io/github/license/romychab/container)](LICENSE)
 
-Pure Kotlin Library which adds one sealed class
-named `Container` and a couple of helper methods and classes for
-Kotlin Flow and for converting async data loaders into reactive Flows.
-
-`Container` is a simple class that represents the status of async operation:
-- `Container.Pending` - data is loading
-- `Container.Completed` - data loading is finished:
-   - `Container.Success` - data has been loaded successfully
-   - `Container.Error` - loading has been failed with error
-
-Both `Container.Success` and `Container.Error` extends `Container.Completed`.
+Container is a library for simplifying state management and data loading in
+android applications.
 
 ## Installation
 
@@ -28,54 +19,356 @@ implementation "com.elveum:container:2.0.0-beta10"
 
 Click [here](https://docs.uandcode.com/container/).
 
-## Short Description
+## Container Type
 
-The library contains:
-- `Container<T>` class - represents the status of async operation (`Pending`, `Error`, `Success`)
-- A couple of helper extension methods for easier working (mapping, filtering, etc.) with
-  Kotlin Flows containing `Container<T>` instances
-- Two subjects:
-  - `FlowSubject` - represents a simple __finite__ flow which emissions can be controlled
-    outside
-  - `LazyFlowSubject` - provides a convenient way of transforming suspend functions
-    into Kotlin Flow with the possibility to update values, replace loaders, load multiple
-    values, cache latest loaded value and with loading values only on demand
-- `LazyCache` which can hold multiple instances of `LazyFlowSubject`
-- `StateFlow` extensions:
-  - `stateMap` function which can convert `StateFlow<T>` into `StateFlow<R>` (origin `map` function
-    converts `StateFlow<T>` into more generic `Flow<R>`)
-  - `combineStates` function which can merge 2 or more `StateFlow<*>` instances into one `StateFlow<R>` instance
-    (origin `combine` function merges flows into more generic `Flow<R>`, but not into `StateFlow<R>`)
-- `ContainerReducer` that can observe values from input flows, convert them into a state, and
-  additionally it has an ability to update state manually at any time
-
-## About Container
-
-`Container` is a simple class which represents the status of async operation:
+`Container` type representing the status of async/load operation:
 - `Container.Pending` - data is loading
-- `Container.Success` - data has been loaded successfully
-- `Container.Error` - loading has been failed with error
+- `Container.Completed` - data loading is finished:
+  - `Container.Success` - data has been loaded successfully
+  - `Container.Error` - loading has been failed with error
 
-You can instantiate all these subtypes by using `pendingContainer()`, `successContainer()`,
-and `errorContainer()` functions.
+Both `Container.Success` and `Container.Error` extends `Container.Completed`.
 
-There are a couple of methods which can simplify code working with such
-statuses:
+You can create containers by using the following functions:
+- `successContainer(value)`
+- `errorContainer(exception)`
+- `pendingContainer()`
+
+## Reducer Pattern
+
+Reducers make state management very easy to implement in your app. The main difference
+from `MutableStateFlow` is the possibility to update values from multiple
+sources: from input Kotlin Flows, along with manual updates if needed. 
+
+Reducers can be created by using:
+
+- extension functions on any Kotlin Flow, such as `Flow<T>.toReducer()`
+- combine functions, e.g. `combineToReducer`
+
+These functions works very similar to `stateIn` and/or `shareIn` operators, since
+they accept a `CoroutineScope` instance and `SharingStarted` strategy. And at the same
+time, the returned type (`Reducer`) gives you an `update()` call, in contrast to 
+`stateIn` operator, which returns non-mutable `StateFlow`.
+
+So, any existing Kotlin Flow can be converted into Reducer:
+
+  ```kotlin
+
+  interface GetItemsUseCase {
+      operator fun invoke(): Flow<List<String>>
+  }
+
+  @HiltViewModel
+  class MyViewModel @Inject constructor(
+      private val getItems: GetItemsUseCase,
+  ) : ViewModel() {
+  
+      data class State(
+          val items: List<String> = emptyList(),
+      )
+  
+      private val reducer = getItems() // Flow<List<String>>
+          .toReducer(
+              initialState = State(),
+              nextState = State::copy,
+              scope = viewModelScope,
+              started = SharingStarted.Lazily,
+          ) // Reducer<State>
+      val stateFlow: StateFlow<State> = reducer.stateFlow
+  }
+  ```
+
+You can even simplify the creation of any reducer if you enable Kotlin Context
+Parameters feature. For example:
+
+1) Modify your `build.gradle` file:
+
+   ```kotlin
+   kotlin {
+       compilerOptions {
+           freeCompilerArgs.add("-Xcontext-parameters")
+       }
+   }
+   ```
+
+2) Create an abstract ViewModel implementing `ReducerOwner` interface:
+
+   ```kotlin
+   abstract class AbstractViewModel : ViewModel(), ReducerOwner {
+       override val reducerCoroutineScope: CoroutineScope
+           get() = viewModelScope
+       override val reducerSharingStarted: SharingStarted
+           get() = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000)
+   }
+   ```
+
+3) Now, you can create reducers without specifying `CoroutineScope` and `SharingStarted`
+   values in child view-models:
+
+   ```kotlin
+   class MyViewModel : AbstractViewModel() { // <-- extend abstract view-model
+       private val reducer: Reducer<State> = getItems()
+           .toReducer(
+               initialState = State(),
+               nextState = State::copy,
+           )
+       val stateFlow: StateFlow<State> = reducer.stateFlow
+   }
+   ```
+
+As a result, you have a public `stateFlow: StateFlow<State>` property, which is
+automatically updated any time when a new value comes from the Flow returned by
+`GetItemsUseCase`. Additionally, you can update state manually:
+
+```kotlin
+reducer.update { oldState ->
+    oldState.copy(items = emptyList())
+}
+```
+
+Another one feature is the possibility to split your state class into public
+interface and private implementation without mappings. For example, let's add
+an additional property which defines how string items must be displayed:
+
+```kotlin
+// private state:
+private data class StateImpl(
+    val originItems: List<String> = emptyList(),
+    // when enabled, all strings must be uppercased:
+    val isUppercase: Boolean = false,
+)
+```
+
+Next, define a public state interface:
+
+```kotlin
+interface State {
+    val items: List<String>
+}
+```
+
+Implement the interface in your private state:
+
+```kotlin
+private data class StateImpl(
+    val originItems: List<String> = emptyList(),
+    val isUppercase: Boolean = false,
+) : State {
+    override val items = if (isUppercase) {
+        originItems.map { it.uppercase() }
+    } else {
+        originItems
+    }
+}
+```
+
+And the last step - create a reducer of private state:
+
+```kotlin
+// Reducer with private StateImpl:
+private val reducer: Reducer<StateImpl> = getItems()
+    .toReducer(
+        initialState = StateImpl(),
+        nextState = StateImpl::copy,
+    )
+
+// Output StateFlow with public State:
+val stateFlow: StateFlow<State> = reducer.stateFlow
+```
+
+All examples above leveraged the usage of `Reducer<T>` type. Now let's consider
+all ways how reducers can be created. Here is the list of converter functions:
+
+- `Flow<T>.toReducer()` - creates a simple `Reducer<T>`
+- `Flow<T>.toContainerReducer()` - creates a `ContainerReducer<T>`
+- `Flow<Container<T>>.containerToReducer()` - creates a `ContainerReducer<T>` with
+  automatic management of containers coming from origin flow
+
+Also, you can combine 2 or more Kotlin Flows into one Reducer by using:
+- `combineToReducer(): Reducer<State>`
+- `combineToContainerReducer(): ContainerReducer<State>`
+- `combineContainersToReducer(): ContainerReducer<State>`
+
+### Reducer vs ContainerReducer
+As you see, the library has 2 types of reducers:
+- `Reducer` - provides `StateFlow<T>` for observing state, and `update()` method
+  for updating values
+- `ContainerReducer` - provides `StateFlow<Container<T>>` for observing state wrapped
+  into `Container` along with 2 methods for updating: `update()` and `updateState()`. The
+  `updateState()` method allows you to modify values directly in the container.
+
+Effectively, `ContainerReducer<T>` is a `Reducer<Container<T>>`
+
+### Combining flows into Reducer
+
+Let's look at the example of combining flows into Reducer:
+
+```kotlin
+data class State(
+    // collected from getNumberFlow(): Flow<Int>:
+    val number: Int = 0,
+    // collected from getTextFlow(): Flow<String>:
+    val text: String = "",  
+    // updated manually:
+    val other: Boolean = false,
+)
+
+// combine flows to Reducer:
+private val reducer: Reducer<State> = combineToReducer(
+    flow1 = getNumberFlow(), // Flow<Int>
+    flow2 = getTextFlow(),   // Flow<String>
+    initialState = State(),
+    nextState = State::copy,
+    
+    // 'scope' and 'started' can be omitted within ReducerOwner:
+    scope = viewModelScope,
+    started = SharingStarted.Lazily,
+)
+val stateFlow: StateFlow<State> = reducer.stateFlow
+```
+
+State is updated automatically whenever new values come from input flows using
+implicit `copy()` method from data class in this case. Also, you can update your
+state manually:
+
+```kotlin
+reducer.update { oldState ->
+  oldState.copy(other = true)
+}
+```
+
+### Combining flows into ContainerReducer
+
+Sometimes you may need to wrap resulting State class into container to 
+indicate loading status in your screen. For a such purposes, you can
+convert Flows into ContainerReducer.
+
+Example of using `combineToContainerReducer`:
+
+```kotlin
+data class State(
+    val number: Int = 0, // from flow1
+    val text: String = "", // from flow2
+    val other: Boolean = false,
+)
+
+private val reducer: ContainerReducer<State> = combineToContainerReducer(
+    flow1 = getIntFlow(), // Flow<Int>
+    flow2 = getStringFlow(), // Flow<String>
+    initialState = ::State,
+    nextState = State::copy,
+    scope = viewModelScope,
+    started = SharingStarted.Lazily,
+)
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+```
+
+Example of simple converting of one origin flow:
+
+```kotlin
+data class State(
+    val number: Int = 0,
+    val other: Boolean = false,
+)
+
+private val reducer: ContainerReducer<State> = getIntFlow() // Flow<Int>
+    .toContainerReducer(
+        initialState = ::State,
+        nextState = State::copy,
+        scope = viewModelScope,
+        started = SharingStarted.Lazily,
+    )
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+```
+
+By the way, `nextState` arg is optional upon creating a `ContainerReducer` instance, 
+if you don't need to update your state class manually. Also, as mentioned above,
+`scope` and `started` args may be also omitted within `ReducerOwner` implementations:
+
+```kotlin
+data class State(
+    val number: Int = 0,
+)
+
+private val reducer: ContainerReducer<State> = getIntFlow() // Flow<Int>
+    .toContainerReducer(initialState = ::State)
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+```
+
+### Container Flows to Container Reducers
+
+If your input flows have a type `Flow<Container<T>>`, you can use another two
+functions for creating `ContainerReducers` that will mirror container status
+from origin flows:
+
+```kotlin
+data class State(
+    val number: Int = 0,
+)
+
+private val reducer: ContainerReducer<State> = getContainerIntFlow() // Flow<Container<Int>>
+    .containerToReducer(initialState = ::State)
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+```
+
+Or:
+
+```kotlin
+data class State(
+    val number: Int = 0, // from flow1
+    val text: String = "", // from flow2
+)
+
+private val reducer: ContainerReducer<State> = combineContainersToReducer(
+    flow1 = getContainerIntFlow(), // Flow<Container<Int>>
+    flow2 = getContainerStringFlow(), // Flow<Container<String>>
+    initialState = ::State,
+)
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+```
+
+In case if you need to add additional properties to your state which are
+not updated by input flows, you need to provide `nextState` arg:
+
+```kotlin
+data class State(
+    val number: Int = 0, // from flow1
+    val text: String = "", // from flow2
+    val manuallyUpdatedProperty: Boolean = false,
+)
+
+private val reducer: ContainerReducer<State> = combineContainersToReducer(
+    flow1 = getContainerIntFlow(), // Flow<Container<Int>>
+    flow2 = getContainerStringFlow(), // Flow<Container<String>>
+    initialState = ::State,
+    nextState = State::copy,
+)
+val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
+
+reducer.updateState { oldState ->
+    oldState.copy(manuallyUpdatedProperty = true)
+}
+```
+
+## Extension functions for Container types
+
+There are a couple of extension functions which can simplify code working 
+with `Container<T>` instances:
 - `fold`, `foldDefault`, `foldNullable`
 - `transform`
 - `map`, `mapException`
 - `catch`, `catchAll`
 - `getOrNull`, `exceptionOrNull`, `unwrap`
 
-## Integration with Kotlin Flows
+And ready-to-use integration with Kotlin Flows is available out of the box:
 
 - `Flow<Container<T>>.containerMap()` converts the flow of type `Container<T>` into a flow
   of type `Container<R>`
-- `StateFlow<Container<T>>.containerStateMap()` converts StateFlow of type `Container<T>` into a 
-  flow of type `Container<R>`
+- `StateFlow<Container<T>>.containerStateMap()` converts StateFlow of type `Container<T>` into a
+  StateFlow of type `Container<R>`
 - `Flow<Container<T>>.containerFilter()` filters all `Container.Success<T>` values by a given predicate
 
-Other extension functions: 
+Other extension functions:
 - `Flow<Container<T>>.containerFilterNot`
 - `Flow<Container<T>>.containerMapLatest`
 - `Flow<Container<T>>.containerFold`
@@ -112,77 +405,6 @@ val combinedFlow: Flow<Container<String>> = flow1
     }
 ```
 
-## Container Reducers
-
-Container Reducers allow you to transform input flows into a StateFlow with ability to
-update state manually.
-
-Simple example (1 flow, without converting into another state class).
-
-```kotlin
-interface UserRepository {
-    fun getUser(): Flow<Container<User>>
-}
-
-// create a reducer
-val reducer = userRepository.getUser().containerToReducer(
-    scope = viewModelScope,
-    started = SharingStarted.Lazily,
-)
-// observe users via StateFlow:
-val stateFlow: StateFlow<Container<User>> = reducer.stateFlow
-// update manually if needed:
-reducer.updateValue { copy(username = "new-username") }
-```
-
-Example #2: convert input data into a state class.
-
-```kotlin
-data class State(
-    val user: User,
-    val otherData: String = "",
-)
-
-val reducer = userRepository.getUser().containerToReducer(
-    initialState = ::State,
-    nextState = State::copy,
-    scope = viewModelScope,
-    started = SharingStarted.Lazily,
-)
-// observe final state:
-val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
-// update state manually if needed:
-reducer.updateState { copy(otherData = "otherData") }
-```
-
-Example #3: convert 2 or more input flows into a state class.
-
-```kotlin
-interface Repository {
-    fun getUser(): Flow<Container<User>>
-    fun getSettings(): Flow<Container<Settings>>
-}
-
-data class State(
-    val user: User,
-    val settings: Settings,
-    val otherData: String = "",
-)
-
-val reducer = combineContainersToReducer(
-    repository.getUser(),
-    repository.getSettings(),
-    initialState = ::State,
-    nextState = State::copy,
-    scope = viewModelScope,
-    started = SharingStarted.WhileSubscribed(stopTimeoutMillis = 5000)
-)
-// observe a final state via StateFlow:
-val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
-// update the state manually if needed:
-reducer.updateState { copy(otherData = "updated-data") }
-```
-
 ## Subjects
 
 Subjects are classes controlling flow emissions (name is taken from Reactive Streams)
@@ -216,19 +438,16 @@ function into a `Flow<Container<T>>`.
 
 Features:
 
-1. The load function is usually executed only once (except #6 and #8)
-2. The load function is executed only when at least one subscriber
-   starts collecting the flow
-3. The load function can emit more than one value
-4. The load function is cancelled when the last subscriber stops
-   collecting the flow after timeout (default timeout = 1sec)
-5. The latest result is cached, so any new subscriber can receive the
+1. The load function is executed only when at least one subscriber starts collecting the flow
+2. The load function can emit more than one value
+3. The load function is cancelled when the last subscriber stops collecting the flow after timeout (default timeout = 1sec)
+4. The latest result is cached, so any new subscriber can receive the
    most actual loaded value without triggering the load function again and again
-6. There is a timeout (default value is 1sec) after the last subscriber
+5. There is a timeout (default value is 1sec) after the last subscriber
    stops collecting the flow. When timeout expires, the cached value is
    cleared so any further subscribers will execute the load function again
-7. The flow can be collected by using `listen()` method
-8. You can replace the load function at any time by using the following methods:
+6. The flow can be collected by using `listen()` method
+7. You can replace the load function at any time by using the following methods:
    - `newLoad` - assign a new load function which can emit more than one value.
      This method also returns a separate flow which differs from the flow returned by `listen()`:
      it emits only values emitted by a new load function and completes as soon
@@ -239,7 +458,7 @@ Features:
      returns its result (or throws an exception)
    - `newSimpleAsyncLoad` - the same as `newSimpleLoad` but it doesn't wait for load
      results and returns immediately
-9. Also you can use `updateWith` method in order to cancel any active loader
+8. Also you can use `updateWith` method in order to cancel any active loader
    and place your own value immediately to the subject. The previous loader function
    will be used again if you call `reload()` or if cache has been expired.
 

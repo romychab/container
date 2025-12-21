@@ -622,6 +622,157 @@ class ContainerMapExtensionsTest {
         assertTrue(container.exceptionOrNull() is CustomException)
     }
 
+    @Test
+    fun recover_forCompletedSuccess_returnsCompletedSuccessWithOriginValues() {
+        val inputContainer: Container.Completed<Int> = successContainer(
+            value = 1,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = mockk(),
+        )
+
+        val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(inputContainer, container)
+    }
+
+    @Test
+    fun recover_forCompletedMatchedError_returnsCompletedMappedSuccess() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container.Completed<Int> = errorContainer(
+            exception = IOException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+        val expectedOutputContainer: Container.Completed<Int> = successContainer(
+            value = 2,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(expectedOutputContainer, container)
+    }
+
+    @Test
+    fun recover_forCompletedMatchedChildError_returnsCompletedMappedSuccess() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container.Completed<Int> = errorContainer(
+            exception = FileNotFoundException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+        val expectedOutputContainer: Container.Completed<Int> = successContainer(
+            value = 2,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(expectedOutputContainer, container)
+    }
+
+    @Test
+    fun recover_forCompletedNonMatchedError_returnsCompletedError() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container.Completed<Int> = errorContainer(
+            exception = FileNotFoundException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container: Container.Completed<Int> = inputContainer.recover(IllegalArgumentException::class) { 2 }
+
+        assertEquals(inputContainer, container)
+    }
+
+    @Test
+    fun recover_forSuccess_returnsSuccessWithOriginValues() {
+        val inputContainer: Container<Int> = successContainer(
+            value = 1,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = mockk(),
+        )
+
+        val container = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(inputContainer, container)
+    }
+
+    @Test
+    fun recover_forPending_returnsPending() {
+        val inputContainer: Container<Int> = pendingContainer()
+
+        val container = inputContainer.recover(IOException::class) { 2 }
+
+        assertSame(inputContainer, container)
+    }
+
+    @Test
+    fun recover_forMatchedError_returnsMappedSuccess() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container<Int> = errorContainer(
+            exception = IOException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+        val expectedOutputContainer = successContainer(
+            value = 2,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(expectedOutputContainer, container)
+    }
+
+    @Test
+    fun recover_forMatchedChildError_returnsMappedSuccess() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container<Int> = errorContainer(
+            exception = FileNotFoundException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+        val expectedOutputContainer = successContainer(
+            value = 2,
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container = inputContainer.recover(IOException::class) { 2 }
+
+        assertEquals(expectedOutputContainer, container)
+    }
+
+    @Test
+    fun recover_forNonMatchedError_returnsError() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val inputContainer: Container<Int> = errorContainer(
+            exception = FileNotFoundException(),
+            source = LocalSourceType,
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        val container = inputContainer.recover(IllegalArgumentException::class) { 2 }
+
+        assertEquals(inputContainer, container)
+    }
+
     private class CustomException(cause: Throwable) : Exception(cause)
 
 }

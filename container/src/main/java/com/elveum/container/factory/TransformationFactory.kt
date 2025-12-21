@@ -5,8 +5,8 @@ import com.elveum.container.subject.transformation.EmptyContainerTransformation
 
 /**
  * Factory for creating new container flow transformations. It is
- * used by [DefaultContainerFactory] upon calling
- * [ContainerFactory.createSubject] and [ContainerFactory.createCache] if you
+ * used by [DefaultSubjectFactory] upon calling
+ * [SubjectFactory.createSubject] and [SubjectFactory.createCache] if you
  * don't specify your custom transformation function in args.
  */
 public interface TransformationFactory {

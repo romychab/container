@@ -187,3 +187,27 @@ public inline fun <T, E : Exception> Container.Completed<T>.mapException(
         errorContainer(mapper(exception))
     }
 }
+
+/**
+ * Recover all encapsulated exceptions of type [E] by using [mapper] function.
+ */
+public inline fun <T, E : Exception> Container<T>.recover(
+    clazz: KClass<E>,
+    mapper: (E) -> T,
+): Container<T> {
+    return catch(clazz) { exception ->
+        successContainer(mapper(exception))
+    }
+}
+
+/**
+ * Recover all encapsulated exceptions of type [E] by using [mapper] function.
+ */
+public inline fun <T, E : Exception> Container.Completed<T>.recover(
+    clazz: KClass<E>,
+    mapper: (E) -> T,
+): Container.Completed<T> {
+    return catch(clazz) { exception ->
+        successContainer(mapper(exception))
+    }
+}

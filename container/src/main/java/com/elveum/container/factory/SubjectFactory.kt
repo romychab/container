@@ -11,7 +11,7 @@ public const val DefaultCacheTimeoutMillis: Long = 1000L
 /**
  * Factory that can create [LazyFlowSubject] and [LazyCache] instances.
  */
-public interface ContainerFactory {
+public interface SubjectFactory {
 
     /**
      * Create a new [LazyFlowSubject] instance which loads
@@ -35,9 +35,9 @@ public interface ContainerFactory {
         valueLoader: CacheValueLoader<Arg, T>,
     ): LazyCache<Arg, T>
 
-    public companion object : ContainerFactory {
+    public companion object : SubjectFactory {
 
-        private var instance: ContainerFactory = DefaultContainerFactory()
+        private var instance: SubjectFactory = DefaultSubjectFactory()
 
         override fun <T> createSubject(
             cacheTimeoutMillis: Long?,
@@ -60,7 +60,7 @@ public interface ContainerFactory {
         /**
          * Replace the default factory by the custom one.
          */
-        public fun setFactory(factory: ContainerFactory) {
+        public fun setFactory(factory: SubjectFactory) {
             instance = factory
         }
 
@@ -68,7 +68,7 @@ public interface ContainerFactory {
          * Restore the default factory.
          */
         public fun resetFactory() {
-            instance = DefaultContainerFactory()
+            instance = DefaultSubjectFactory()
         }
 
     }

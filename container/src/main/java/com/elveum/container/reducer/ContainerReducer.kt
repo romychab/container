@@ -1,10 +1,17 @@
 package com.elveum.container.reducer
 
 import com.elveum.container.Container
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * A reducer that manages a reactive state and wraps it into [Container].
+ *
+ * [ContainerReducer] instances can be created by:
+ * - [combineToContainerReducer]
+ * - [combineContainersToReducer]
+ * - [Flow.toContainerReducer]
+ * - [Flow.containerToReducer]
  *
  * @see Reducer
  * @see Container

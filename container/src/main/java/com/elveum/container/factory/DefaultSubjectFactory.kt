@@ -6,11 +6,11 @@ import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 
-public open class DefaultContainerFactory(
+public open class DefaultSubjectFactory(
     private val cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
     private val coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
     private val transformationFactory: TransformationFactory = TransformationFactory,
-) : ContainerFactory {
+) : SubjectFactory {
 
     override fun <T> createSubject(
         cacheTimeoutMillis: Long?,

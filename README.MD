@@ -12,7 +12,7 @@ android applications.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta10"
+implementation "com.elveum:container:2.0.0-beta11"
 ```
 
 ## Documentation
@@ -357,7 +357,7 @@ with `Container<T>` instances:
 - `fold`, `foldDefault`, `foldNullable`
 - `transform`
 - `map`, `mapException`
-- `catch`, `catchAll`
+- `catch`, `catchAll`, `recover`
 - `getOrNull`, `exceptionOrNull`, `unwrap`
 
 And ready-to-use integration with Kotlin Flows is available out of the box:
@@ -377,6 +377,7 @@ Other extension functions:
 - `Flow<Container<T>>.containerTransform`
 - `Flow<Container<T>>.containerCatch`
 - `Flow<Container<T>>.containerCatchAll`
+- `Flow<Container<T>>.containerRecover`
 
 Also, there are the following type aliases:
 - `ListContainer<T>` = `Container<List<T>>`

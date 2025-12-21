@@ -23,7 +23,7 @@ import kotlinx.coroutines.flow.SharingStarted
  *
  *     private val reducer = getReelsUseCase
  *         .invoke() // Flow<List<Reel>>
- *         .toReducer(::State)
+ *         .toContainerReducer()
  *     val stateFlow: StateFlow<Container<State>> = reducer.stateFlow
  *
  *     data class State(

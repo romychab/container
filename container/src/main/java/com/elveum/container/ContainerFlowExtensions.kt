@@ -217,3 +217,19 @@ public inline fun <T, E : Exception> Flow<Container<T>>.containerMapException(
         container.mapException(clazz) { mapper(it) }
     }
 }
+
+
+/**
+ * Recover encapsulated [Container.Error] instances with [clazz] exception emitted by
+ * the flow, and transform them into success containers using the [mapper] function.
+ *
+ * @see Container.catch
+ */
+public inline fun <T, E : Exception> Flow<Container<T>>.containerRecover(
+    clazz: KClass<E>,
+    crossinline mapper: suspend (E) -> T,
+): Flow<Container<T>> {
+    return mapLatest { container ->
+        container.recover(clazz) { mapper(it) }
+    }
+}

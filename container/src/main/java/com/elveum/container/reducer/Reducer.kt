@@ -1,11 +1,16 @@
 package com.elveum.container.reducer
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
  * A reducer that manages a reactive state. State values can be observed
  * by using [stateFlow] property. Also, the current state can be updated
  * via [update] method.
+ *
+ * Reducer instances can be created by:
+ * - [combineToReducer] function
+ * - [Flow.toReducer] extension function
  */
 public interface Reducer<State> {
 

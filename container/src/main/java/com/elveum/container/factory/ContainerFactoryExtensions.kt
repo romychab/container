@@ -16,7 +16,7 @@ import kotlinx.coroutines.flow.Flow
  * Execute and cache [valueLoader] lazily when at least 1 subscriber
  * starts collecting a flow.
  */
-public fun <T> ContainerFactory.createFlow(
+public fun <T> SubjectFactory.createFlow(
     configuration: ContainerConfiguration = ContainerConfiguration(),
     cacheTimeoutMillis: Long? = null,
     coroutineScopeFactory: CoroutineScopeFactory? = null,
@@ -37,7 +37,7 @@ public fun <T> ContainerFactory.createFlow(
  *
  * Each emitted [Container] instance will have a valid reload function by default.
  */
-public fun <T> ContainerFactory.createReloadableFlow(
+public fun <T> SubjectFactory.createReloadableFlow(
     emitBackgroundLoads: Boolean = true,
     emitReloadFunction: Boolean = true,
     cacheTimeoutMillis: Long? = null,
@@ -62,7 +62,7 @@ public fun <T> ContainerFactory.createReloadableFlow(
  * Execute and cache [valueLoader] lazily when at least 1 subscriber
  * starts collecting a flow.
  */
-public fun <T> ContainerFactory.createSimpleSubject(
+public fun <T> SubjectFactory.createSimpleSubject(
     sourceType: SourceType = UnknownSourceType,
     valueLoader: SimpleValueLoader<T>,
 ): LazyFlowSubject<T> {
@@ -75,7 +75,7 @@ public fun <T> ContainerFactory.createSimpleSubject(
  * Execute and cache [valueLoader] lazily when at least 1 subscriber
  * starts collecting a flow.
  */
-public fun <T> ContainerFactory.createSimpleFlow(
+public fun <T> SubjectFactory.createSimpleFlow(
     sourceType: SourceType = UnknownSourceType,
     valueLoader: SimpleValueLoader<T>
 ): Flow<Container<T>> {
@@ -88,7 +88,7 @@ public fun <T> ContainerFactory.createSimpleFlow(
  * Execute and cache [valueLoader] lazily when at least 1 subscriber
  * starts collecting a flow.
  */
-public fun <Arg, T> ContainerFactory.createSimpleCache(
+public fun <Arg, T> SubjectFactory.createSimpleCache(
     sourceType: SourceType = UnknownSourceType,
     valueLoader: SimpleCacheValueLoader<Arg, T>,
 ): LazyCache<Arg, T> {

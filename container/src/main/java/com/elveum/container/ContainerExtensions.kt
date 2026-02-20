@@ -52,7 +52,7 @@ public inline fun <T, R> Container<T>.foldNullable(
  */
 public fun <T> Container<T>.getContainerValueOrNull(): ContainerValue<T>? {
     return foldNullable {
-        ContainerValue(it, source, isLoadingInBackground, reloadFunction)
+        ContainerValue(it, metadata)
     }
 }
 
@@ -62,7 +62,7 @@ public fun <T> Container<T>.getContainerValueOrNull(): ContainerValue<T>? {
  */
 public fun <T> Container<T>.getContainerExceptionOrNull(): ContainerValue<Exception>? {
     return foldNullable(
-        onError = { ContainerValue(it, source, isLoadingInBackground, reloadFunction) }
+        onError = { ContainerValue(it, metadata) }
     )
 }
 
@@ -103,12 +103,12 @@ public fun <T> Container<T>.unwrapContainerValue(): ContainerValue<T> {
     return fold(
         onPending = { throw LoadNotFinishedException() },
         onError = { throw it },
-        onSuccess = { ContainerValue(it, source, isLoadingInBackground, reloadFunction) }
+        onSuccess = { ContainerValue(it, metadata) }
     )
 }
 
 /**
- * Update additional data in the container.
+ * Update additional metadata in the container.
  */
 public fun <T> Container<T>.update(
     source: SourceType? = null,
@@ -116,14 +116,14 @@ public fun <T> Container<T>.update(
     isLoadingInBackground: Boolean? = null,
 ): Container<T> {
     return update {
-        this.source = source ?: this.source
-        this.reloadFunction = reloadFunction ?: this.reloadFunction
-        this.isLoadingInBackground = isLoadingInBackground ?: this.isLoadingInBackground
+        if (source != null) this.source = source
+        if (reloadFunction != null) this.reloadFunction = reloadFunction
+        if (isLoadingInBackground != null) this.isLoadingInBackground = isLoadingInBackground
     }
 }
 
 /**
- * Update additional data in the container.
+ * Update additional metadata in the container.
  */
 public fun <T> Container<T>.update(
     block: ContainerUpdater.() -> Unit,
@@ -131,12 +131,12 @@ public fun <T> Container<T>.update(
     return transform(
         onSuccess = { value ->
             with(applyUpdater(block)) {
-                successContainer(value, source, isLoadingInBackground, reloadFunction)
+                successContainer(value, metadata)
             }
         },
         onError = { exception ->
             with(applyUpdater(block)) {
-                errorContainer(exception, source, isLoadingInBackground, reloadFunction)
+                errorContainer(exception, metadata)
             }
         }
     )

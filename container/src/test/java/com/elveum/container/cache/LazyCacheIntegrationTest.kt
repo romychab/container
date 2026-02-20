@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.successContainer
+import com.elveum.container.utils.raw
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.called
@@ -88,7 +89,7 @@ class LazyCacheIntegrationTest {
 
         assertEquals(CollectStatus.Collecting, state.collectStatus)
         assertEquals(2, state.count)
-        assertEquals(expectedContainer, state.lastItem)
+        assertEquals(expectedContainer, state.lastItem.raw())
     }
 
     @Test
@@ -105,8 +106,8 @@ class LazyCacheIntegrationTest {
         }
         assertEquals(CollectStatus.Collecting, state1.collectStatus)
         assertEquals(CollectStatus.Collecting, state2.collectStatus)
-        assertEquals(expectedContainer, state1.lastItem)
-        assertEquals(expectedContainer, state2.lastItem)
+        assertEquals(expectedContainer, state1.lastItem.raw())
+        assertEquals(expectedContainer, state2.lastItem.raw())
     }
 
     @Test
@@ -126,8 +127,8 @@ class LazyCacheIntegrationTest {
         }
         assertEquals(CollectStatus.Collecting, state1.collectStatus)
         assertEquals(CollectStatus.Collecting, state2.collectStatus)
-        assertEquals(expectedContainer1, state1.lastItem)
-        assertEquals(expectedContainer2, state2.lastItem)
+        assertEquals(expectedContainer1, state1.lastItem.raw())
+        assertEquals(expectedContainer2, state2.lastItem.raw())
     }
 
     @Test
@@ -153,7 +154,7 @@ class LazyCacheIntegrationTest {
         advanceTimeBy(timeoutMillis) // almost expired
         val state2 = lazyCache.listen(key).startCollecting()
         advanceTimeBy(1)
-        assertEquals(expectedContainer, state2.lastItem)
+        assertEquals(expectedContainer, state2.lastItem.raw())
         coVerify(exactly = 1) {
             loader(any(), key)
         }
@@ -172,7 +173,7 @@ class LazyCacheIntegrationTest {
         advanceTimeBy(1)
         assertEquals(Container.Pending, state2.lastItem)
         advanceTimeBy(loadDelay)
-        assertEquals(expectedContainer, state2.lastItem)
+        assertEquals(expectedContainer, state2.lastItem.raw())
         coVerify(exactly = 2) {
             loader(any(), key)
         }
@@ -192,8 +193,8 @@ class LazyCacheIntegrationTest {
         advanceTimeBy(1) // now cache is expired for the first key, but the second isn't
         val collectedItems1 = lazyCache.listen(key1).startCollecting().collectedItems
         val collectedItems2 = lazyCache.listen(key2).startCollecting().collectedItems
-        assertEquals(Container.Pending, collectedItems1.last())
-        assertEquals(expectedContainer2, collectedItems2.last())
+        assertEquals(Container.Pending, collectedItems1.last().raw())
+        assertEquals(expectedContainer2, collectedItems2.last().raw())
     }
 
     @Test
@@ -225,7 +226,7 @@ class LazyCacheIntegrationTest {
 
         val result = lazyCache.get(key)
 
-        assertEquals(expectedContainer, result)
+        assertEquals(expectedContainer, result.raw())
     }
 
     @Test
@@ -240,7 +241,7 @@ class LazyCacheIntegrationTest {
         advanceTimeBy(1) // now expired
         val result2 = lazyCache.get(key)
 
-        assertEquals(expectedContainer, result1)
+        assertEquals(expectedContainer, result1.raw())
         assertEquals(Container.Pending, result2)
     }
 
@@ -255,8 +256,8 @@ class LazyCacheIntegrationTest {
         val result1 = lazyCache.get(key1)
         val result2 = lazyCache.get(key2)
 
-        assertEquals(expectedContainer1, result1)
-        assertEquals(expectedContainer2, result2)
+        assertEquals(expectedContainer1, result1.raw())
+        assertEquals(expectedContainer2, result2.raw())
     }
 
     @Test
@@ -324,9 +325,9 @@ class LazyCacheIntegrationTest {
         lazyCache.reload(key, silently = false)
 
         advanceTimeBy(1)
-        assertEquals(Container.Pending, state.lastItem)
+        assertEquals(Container.Pending, state.lastItem.raw())
         advanceTimeBy(loadDelay)
-        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem.raw())
     }
 
     @Test
@@ -338,9 +339,9 @@ class LazyCacheIntegrationTest {
         lazyCache.reload(key, silently = true)
 
         advanceTimeBy(1)
-        assertEquals(successContainer(expectedLoadedValue(key, 1)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 1)), state.lastItem.raw())
         advanceTimeBy(loadDelay)
-        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem)
+        assertEquals(successContainer(expectedLoadedValue(key, 2)), state.lastItem.raw())
     }
 
     @Test
@@ -439,9 +440,9 @@ class LazyCacheIntegrationTest {
 
         assertEquals(
             listOf(Container.Pending, successContainer(expectedLoadedValue(key)), expectedContainer),
-            state.collectedItems,
+            state.collectedItems.raw(),
         )
-        assertEquals(expectedContainer, lazyCache.get(key))
+        assertEquals(expectedContainer, lazyCache.get(key).raw())
     }
 
     @Test
@@ -455,9 +456,9 @@ class LazyCacheIntegrationTest {
 
         assertEquals(
             listOf(Container.Pending, expectedContainer),
-            state.collectedItems,
+            state.collectedItems.raw(),
         )
-        assertEquals(expectedContainer, lazyCache.get(key))
+        assertEquals(expectedContainer, lazyCache.get(key).raw())
     }
 
     @Test

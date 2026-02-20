@@ -5,6 +5,7 @@ import io.mockk.verify
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -66,8 +67,7 @@ class ContainerTest {
     @Test
     fun test_isLoading_forError() {
         val container1: Container.Error = errorContainer(IllegalStateException())
-        val container2: Container.Error = errorContainer(IllegalStateException(),
-        isLoadingInBackground = true)
+        val container2: Container.Error = errorContainer(IllegalStateException(), isLoadingInBackground = true)
 
         assertFalse(container1.isLoadingInBackground)
         assertTrue(container2.isLoadingInBackground)
@@ -219,6 +219,210 @@ class ContainerTest {
         assertEquals(source, containerValue?.source)
         assertEquals(isLoading, containerValue?.isLoadingInBackground)
         assertSame(reloadFunction, containerValue?.reloadFunction)
+    }
+
+    @Test
+    fun successContainer_withMetadata_hasCorrectMetadata() {
+        val metadata = defaultMetadata(
+            source = RemoteSourceType,
+            isLoadingInBackground = true,
+        )
+
+        val container = successContainer("hello", metadata)
+
+        assertEquals("hello", container.value)
+        assertSame(metadata, container.metadata)
+        assertEquals(RemoteSourceType, container.source)
+        assertTrue(container.isLoadingInBackground)
+    }
+
+    @Test
+    fun successContainer_withDefaultMetadata_hasEmptyMetadata() {
+        val container = successContainer("hello")
+
+        assertSame(EmptyMetadata, container.metadata)
+    }
+
+    @Test
+    fun errorContainer_withMetadata_hasCorrectMetadata() {
+        val exception = IllegalStateException()
+        val metadata = defaultMetadata(
+            source = LocalSourceType,
+            isLoadingInBackground = false,
+        )
+
+        val container = errorContainer(exception, metadata)
+
+        assertSame(exception, container.exception)
+        assertSame(metadata, container.metadata)
+        assertEquals(LocalSourceType, container.source)
+        assertFalse(container.isLoadingInBackground)
+    }
+
+    @Test
+    fun errorContainer_withDefaultMetadata_hasEmptyMetadata() {
+        val container = errorContainer(IllegalStateException())
+
+        assertSame(EmptyMetadata, container.metadata)
+    }
+
+    @Test
+    fun containerPending_filterMetadata_returnsPending() {
+        val result = Container.Pending.filterMetadata { true }
+
+        assertSame(Container.Pending, result)
+    }
+
+    @Test
+    fun containerSuccess_filterMetadata_matchingPredicate_retainsMetadata() {
+        val container = successContainer(
+            "value",
+            defaultMetadata(source = RemoteSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.filterMetadata { it is SourceTypeMetadata }
+
+        result as Container.Success
+        assertEquals("value", result.value)
+        assertEquals(RemoteSourceType, result.source)
+        assertFalse(result.isLoadingInBackground)
+    }
+
+    @Test
+    fun containerSuccess_filterMetadata_nonMatchingPredicate_removesAllMetadata() {
+        val container = successContainer(
+            "value",
+            defaultMetadata(source = RemoteSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.filterMetadata { false }
+
+        result as Container.Success
+        assertEquals("value", result.value)
+        assertSame(EmptyMetadata, result.metadata)
+    }
+
+    @Test
+    fun containerError_filterMetadata_matchingPredicate_retainsMetadata() {
+        val exception = IllegalStateException()
+        val container = errorContainer(
+            exception,
+            defaultMetadata(source = LocalSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.filterMetadata { it is IsLoadingInBackgroundMetadata }
+
+        assertSame(exception, result.exception)
+        assertTrue(result.isLoadingInBackground)
+        assertEquals(UnknownSourceType, result.source)
+    }
+
+    @Test
+    fun containerError_filterMetadata_nonMatchingPredicate_removesAllMetadata() {
+        val exception = IllegalStateException()
+        val container = errorContainer(
+            exception,
+            defaultMetadata(source = LocalSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.filterMetadata { false }
+
+        assertSame(exception, result.exception)
+        assertSame(EmptyMetadata, result.metadata)
+    }
+
+    @Test
+    fun containerPending_raw_returnsPending() {
+        val result = Container.Pending.raw()
+
+        assertSame(Container.Pending, result)
+    }
+
+    @Test
+    fun containerSuccess_raw_removesAllMetadata() {
+        val container = successContainer(
+            42,
+            defaultMetadata(source = RemoteSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.raw()
+
+        result as Container.Success
+        assertEquals(42, result.value)
+        assertSame(EmptyMetadata, result.metadata)
+    }
+
+    @Test
+    fun containerError_raw_removesAllMetadata() {
+        val exception = IllegalStateException()
+        val container = errorContainer(
+            exception,
+            defaultMetadata(source = RemoteSourceType, isLoadingInBackground = true),
+        )
+
+        val result = container.raw()
+
+        assertSame(exception, result.exception)
+        assertSame(EmptyMetadata, result.metadata)
+    }
+
+    @Test
+    fun containerPending_plusMetadata_returnsPending() {
+        val result = Container.Pending + defaultMetadata(source = RemoteSourceType)
+
+        assertSame(Container.Pending, result)
+    }
+
+    @Test
+    fun containerSuccess_plusMetadata_appendsMetadata() {
+        val reloadFunction = mockk<ReloadFunction>()
+        val container = successContainer("value", defaultMetadata(source = RemoteSourceType))
+
+        val result = container + defaultMetadata(
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        assertEquals("value", result.value)
+        assertEquals(RemoteSourceType, result.source)
+        assertTrue(result.isLoadingInBackground)
+        assertSame(reloadFunction, result.reloadFunction)
+    }
+
+    @Test
+    fun containerSuccess_plusMetadata_overridesExistingMetadataOfSameType() {
+        val container = successContainer("value", defaultMetadata(source = LocalSourceType))
+
+        val result = container + defaultMetadata(source = RemoteSourceType)
+
+        assertEquals(RemoteSourceType, result.source)
+    }
+
+    @Test
+    fun containerError_plusMetadata_appendsMetadata() {
+        val exception = IllegalStateException()
+        val reloadFunction = mockk<ReloadFunction>()
+        val container = errorContainer(exception, defaultMetadata(source = LocalSourceType))
+
+        val result = container + defaultMetadata(
+            isLoadingInBackground = true,
+            reloadFunction = reloadFunction,
+        )
+
+        assertSame(exception, result.exception)
+        assertEquals(LocalSourceType, result.source)
+        assertTrue(result.isLoadingInBackground)
+        assertSame(reloadFunction, result.reloadFunction)
+    }
+
+    @Test
+    fun containerError_plusMetadata_overridesExistingMetadataOfSameType() {
+        val exception = IllegalStateException()
+        val container = errorContainer(exception, defaultMetadata(source = RemoteSourceType))
+
+        val result = container + defaultMetadata(source = LocalSourceType)
+
+        assertEquals(LocalSourceType, result.source)
     }
 
 }

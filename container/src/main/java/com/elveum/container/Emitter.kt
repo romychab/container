@@ -20,7 +20,21 @@ public interface Emitter<T> {
      */
     public suspend fun emit(
         value: T,
-        source: SourceType = UnknownSourceType,
+        source: SourceType,
+        isLastValue: Boolean = false,
+    ): Unit = emit(value, SourceTypeMetadata(source), isLastValue)
+
+    /**
+     * Emit a new value to the flow.
+     *
+     * @param value The value to emit.
+     * @param metadata Additional metadata to be attached to the emitted value.
+     * @param isLastValue Optional indicator that you are going to emit the last
+     *                   value; may be used to increase performance
+     */
+    public suspend fun emit(
+        value: T,
+        metadata: ContainerMetadata = EmptyMetadata,
         isLastValue: Boolean = false,
     )
 

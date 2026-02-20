@@ -29,6 +29,7 @@ public fun <T> LazyFlowSubject<T>.newAsyncLoad(
     silently: Boolean = false,
     valueLoader: ValueLoader<T>,
 ) {
+    @Suppress("UnusedFlow")
     newLoad(silently, valueLoader)
 }
 
@@ -40,6 +41,7 @@ public fun <T> LazyFlowSubject<T>.newAsyncLoad(
 public fun <T> LazyFlowSubject<T>.reloadAsync(
     silently: Boolean = false,
 ) {
+    @Suppress("UnusedFlow")
     reload(silently)
 }
 
@@ -106,7 +108,7 @@ public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
     updateWith { oldContainer ->
         oldContainer.transform(
             onSuccess = {
-                successContainer(updater(it), source ?: this.source)
+                successContainer(updater(it), source)
             }
         )
     }

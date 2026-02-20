@@ -31,6 +31,7 @@ public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
     arg: Arg,
     silently: Boolean = false,
 ) {
+    @Suppress("UnusedFlow")
     reload(arg, silently)
 }
 
@@ -68,7 +69,7 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
     updateWith(arg) { oldContainer ->
         oldContainer.transform(
             onSuccess = {
-                successContainer(updater(it), source ?: this.source)
+                successContainer(updater(it), source)
             }
         )
     }

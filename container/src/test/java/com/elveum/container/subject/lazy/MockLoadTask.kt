@@ -5,6 +5,7 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
@@ -24,8 +25,9 @@ internal class MockLoadTask(
 
     override var lastRealLoader: ValueLoader<String>? = null
 
-    override fun execute(currentContainer: () -> Container<String>?): Flow<Container<String>> {
+    override fun execute(executeParams: ExecuteParams<String>): Flow<Container<String>> {
         return channelFlow {
+            _controller.executeParams = executeParams
             _controller.awaitStart()
             val job = launch {
                 _controller.flow().collect(::send)
@@ -40,6 +42,7 @@ internal class MockLoadTask(
 }
 
 internal interface LoadTaskController {
+    val executeParams: ExecuteParams<String>?
     fun start()
     suspend fun emit(container: Container<String>)
     fun complete()
@@ -53,6 +56,8 @@ private class LoadTaskControllerImpl(
     private var startContinuation = CompletableDeferred<Unit>()
     private var endContinuation = CompletableDeferred<Unit>()
     private val flow = MutableSharedFlow<Container<String>>()
+
+    override var executeParams: ExecuteParams<String>? = null
 
     override fun start() {
         startContinuation.complete(Unit)

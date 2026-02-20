@@ -5,10 +5,12 @@ import com.elveum.container.Emitter
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LocalSourceType
 import com.elveum.container.RemoteSourceType
+import com.elveum.container.SourceType
 import com.elveum.container.exceptionOrNull
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
+import com.elveum.container.utils.MockFlowEmitterCreator
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
@@ -210,14 +212,14 @@ class LoadTaskTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
             silent = true,
-            flowEmitterCreator = {
-                flowCollector = it
+            flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
+                flowCollector = collector
                 flowEmitter
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
-        coEvery { flowEmitter.emit(any(), any()) } coAnswers {
-            flowCollector?.emit(successContainer( firstArg(), secondArg()))
+        coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
+            flowCollector?.emit(successContainer( firstArg(), secondArg<SourceType>()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -244,14 +246,14 @@ class LoadTaskTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
             silent = false,
-            flowEmitterCreator = {
-                flowCollector = it
+            flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
+                flowCollector = collector
                 flowEmitter
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
-        coEvery { flowEmitter.emit(any(), any()) } coAnswers {
-            flowCollector?.emit(successContainer( firstArg(), secondArg()))
+        coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
+            flowCollector?.emit(successContainer( firstArg(), secondArg<SourceType>()))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -336,7 +338,7 @@ class LoadTaskTest {
     private fun makeLoadTask(
         loadTrigger: LoadTrigger = LoadTrigger.NewLoad,
         silent: Boolean = false,
-        flowEmitterCreator: (FlowCollector<Container<String>>) -> FlowEmitter<String> = { flowEmitter }
+        flowEmitterCreator: LoadTask.FlowEmitterCreator<String> = MockFlowEmitterCreator { _, _ -> flowEmitter }
     ): LoadTask<String> {
         return LoadTask.Load(
             loader = valueLoader,
@@ -346,4 +348,5 @@ class LoadTaskTest {
             flowEmitterCreator = flowEmitterCreator,
         )
     }
+
 }

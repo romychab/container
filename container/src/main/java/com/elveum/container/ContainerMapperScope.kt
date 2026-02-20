@@ -12,21 +12,26 @@ public typealias ContainerMapper<T, R> = ContainerMapperScope.(T) -> R
 public interface ContainerMapperScope {
 
     /**
+     * Additional metadata attached to the container.
+     */
+    public val metadata: ContainerMetadata
+
+    /**
      * The original source where the data is loading from.
      */
-    public val source: SourceType
+    public val source: SourceType get() = metadata.sourceType
 
     /**
      * Whether there is another value load in progress.
      * For example, it may be a value being loaded from the remote source, whereas
      * this container represents a local source.
      */
-    public val isLoadingInBackground: Boolean
+    public val isLoadingInBackground: Boolean get() = metadata.isLoadingInBackground
 
     /**
      * Function for reloading data.
      */
-    public val reloadFunction: ReloadFunction
+    public val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
     /**
      * Reload data encapsulated by container.
@@ -46,9 +51,20 @@ public interface ContainerMapperScope {
     ): Container.Success<T> {
         return com.elveum.container.successContainer(
             value = value,
-            source = source ?: this.source,
-            isLoadingInBackground = isLoadingInBackground ?: this.isLoadingInBackground,
-            reloadFunction = reloadFunction ?: this.reloadFunction,
+            metadata = this.metadata + defaultMetadata(source, isLoadingInBackground, reloadFunction)
+        )
+    }
+
+    /**
+     * Create a success container.
+     */
+    public fun <T> successContainer(
+        value: T,
+        metadata: ContainerMetadata = EmptyMetadata,
+    ): Container.Success<T> {
+        return com.elveum.container.successContainer(
+            value = value,
+            metadata = this.metadata + metadata
         )
     }
 
@@ -63,9 +79,20 @@ public interface ContainerMapperScope {
     ): Container.Error {
         return com.elveum.container.errorContainer(
             exception = exception,
-            source = source ?: this.source,
-            isLoadingInBackground = isLoadingInBackground ?: this.isLoadingInBackground,
-            reloadFunction = reloadFunction ?: this.reloadFunction,
+            metadata = this.metadata + defaultMetadata(source, isLoadingInBackground, reloadFunction)
+        )
+    }
+
+    /**
+     * Create an error container.
+     */
+    public fun errorContainer(
+        exception: Exception,
+        metadata: ContainerMetadata = EmptyMetadata,
+    ): Container.Error {
+        return com.elveum.container.errorContainer(
+            exception = exception,
+            metadata = this.metadata + metadata
         )
     }
 

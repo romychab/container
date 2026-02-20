@@ -6,10 +6,12 @@ package com.elveum.container
  */
 public data class ContainerValue<out T>(
     val value: T,
-    val source: SourceType,
-    val isLoadingInBackground: Boolean,
-    val reloadFunction: ReloadFunction,
+    val metadata: ContainerMetadata,
 ) {
+
+    val source: SourceType get() = metadata.sourceType
+    val isLoadingInBackground: Boolean get() = metadata.isLoadingInBackground
+    val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
     public fun reload(silently: Boolean) {
         reloadFunction.invoke(silently)

@@ -8,6 +8,7 @@ import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.pendingContainer
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.successContainer
+import com.elveum.container.utils.raw
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.FlowTestScope
 import com.uandcode.flowtest.runFlowTest
@@ -71,12 +72,12 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222")),
-            collectedItems
+            collectedItems.raw()
         )
         advanceTimeBy(101)
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222"), successContainer("333")),
-            collectedItems
+            collectedItems.raw()
         )
     }
 
@@ -92,7 +93,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(3, collectedItems.size)
         assertEquals(Pending, collectedItems[0])
-        assertEquals(successContainer("111"), collectedItems[1])
+        assertEquals(successContainer("111"), collectedItems[1].raw())
         assertTrue((collectedItems[2] as Error).exception is IllegalArgumentException)
     }
 
@@ -114,11 +115,11 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("v1")),
-            jobState1.collectedItems
+            jobState1.collectedItems.raw()
         )
         assertEquals(
             listOf(successContainer("v1")),
-            jobState2.collectedItems
+            jobState2.collectedItems.raw()
         )
         coVerify(exactly = 1) { spyLoader.invoke(any()) }
     }
@@ -141,11 +142,11 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("v1")),
-            jobState1.collectedItems
+            jobState1.collectedItems.raw()
         )
         assertEquals(
             listOf(pendingContainer(), successContainer("v2")),
-            jobState2.collectedItems
+            jobState2.collectedItems.raw()
         )
         coVerify(exactly = 2) { spyLoader.invoke(any()) }
     }
@@ -168,11 +169,11 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("v1")),
-            collectedItems1
+            collectedItems1.raw()
         )
         assertEquals(
             listOf(Pending, successContainer("v1")),
-            collectedItems2
+            collectedItems2.raw()
         )
     }
 
@@ -195,11 +196,11 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("v1")),
-            collectedItems1
+            collectedItems1.raw()
         )
         assertEquals(
             listOf(Pending, successContainer("v1")),
-            collectedItems2
+            collectedItems2.raw()
         )
     }
 
@@ -223,15 +224,15 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("v1")),
-            collectState1.collectedItems
+            collectState1.collectedItems.raw()
         )
         assertEquals(
             listOf(successContainer("v1")),
-            collectState2.collectedItems
+            collectState2.collectedItems.raw()
         )
         assertEquals(
             listOf(successContainer("v1")),
-            collectState3.collectedItems
+            collectState3.collectedItems.raw()
         )
     }
 
@@ -253,7 +254,7 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("111"), Pending),
-            collectedItems
+            collectedItems.raw()
         )
     }
 
@@ -276,7 +277,7 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("111"), Pending, successContainer("222")),
-            collectedItems
+            collectedItems.raw()
         )
     }
 
@@ -299,7 +300,7 @@ class LazyFlowSubjectImplIntegrationTest {
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222")),
-            collectedItems
+            collectedItems.raw()
         )
     }
 
@@ -328,7 +329,7 @@ class LazyFlowSubjectImplIntegrationTest {
         }
         assertEquals(
             listOf(Pending, successContainer("222")),
-            collectedItems
+            collectedItems.raw()
         )
     }
 
@@ -427,7 +428,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(Pending, successContainer("222")),
-            collectedItems
+            collectedItems.raw()
         )
         advanceTimeBy(10)
         assertEquals(3, collectedItems.size)
@@ -457,11 +458,11 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(Pending, successContainer("111"), Pending, successContainer("222")),
-            state1.collectedItems
+            state1.collectedItems.raw()
         )
         assertEquals(
             listOf(Pending, successContainer("222")),
-            state2.collectedItems
+            state2.collectedItems.raw()
         )
     }
 
@@ -498,7 +499,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("load"), pendingContainer(), successContainer("reload")),
-            state.collectedItems,
+            state.collectedItems.raw(),
         )
     }
 
@@ -517,7 +518,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("222")),
-            collectedItems,
+            collectedItems.raw(),
         )
     }
 
@@ -536,7 +537,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("111"), Success("222")),
-            collectedItems,
+            collectedItems.raw(),
         )
     }
 
@@ -555,7 +556,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("222")),
-            collectedItems,
+            collectedItems.raw(),
         )
     }
 
@@ -574,7 +575,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("111"), Success("222")),
-            collectedItems,
+            collectedItems.raw(),
         )
     }
 
@@ -593,7 +594,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         assertEquals(
             listOf(pendingContainer(), successContainer("111")),
-            collectedItems,
+            collectedItems.raw(),
         )
     }
 
@@ -604,7 +605,7 @@ class LazyFlowSubjectImplIntegrationTest {
         subject.listen().startCollecting()
         subject.updateWith(successContainer("123"))
 
-        assertEquals(successContainer("123"), subject.currentValue())
+        assertEquals(successContainer("123"), subject.currentValue().raw())
     }
 
     @Test

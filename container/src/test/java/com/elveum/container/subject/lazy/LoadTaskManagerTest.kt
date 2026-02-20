@@ -6,7 +6,9 @@ import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
+import io.mockk.MockKAnnotations
 import io.mockk.every
+import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
@@ -21,11 +23,16 @@ import org.junit.Test
 
 class LoadTaskManagerTest {
 
+    @MockK
+    private lateinit var uuidProvider: () -> String
+
     private lateinit var loadTaskManager: LoadTaskManager<String>
 
     @Before
     fun setUp() {
-        loadTaskManager = LoadTaskManager()
+        MockKAnnotations.init(this)
+        every { uuidProvider.invoke() } returns ""
+        loadTaskManager = LoadTaskManager(uuidProvider = uuidProvider)
     }
 
     @Test
@@ -239,7 +246,7 @@ class LoadTaskManagerTest {
         loadTaskManager.startProcessingLoads(backgroundScope)
         advanceTimeBy(1)
 
-        assertEquals(successContainer("2"), loadTaskManager.listen().value)
+        assertEquals(successContainer("2"), loadTaskManager.listen().value.raw())
     }
 
     @Test
@@ -265,6 +272,29 @@ class LoadTaskManagerTest {
 
         loadTask2.controller.emit(successContainer("2"))
         assertEquals(successContainer("2"), loadTaskManager.listen().value)
+    }
+
+    @Test
+    fun startProcessingLoads_attachesUniqueLoadUuid() = runTest {
+        val loadTask1 = MockLoadTask(this)
+        val loadTask2 = MockLoadTask(this)
+        loadTaskManager.startProcessingLoads(backgroundScope)
+        every { uuidProvider.invoke() } returns "uuid1" andThen "uuid2"
+
+        loadTaskManager.submitNewLoadTask(loadTask1)
+        loadTask1.controller.start()
+
+        loadTaskManager.submitNewLoadTask(loadTask2)
+        loadTask2.controller.start()
+
+        assertEquals(
+            "uuid1",
+            loadTask1.controller.executeParams?.loadUuid
+        )
+        assertEquals(
+            "uuid2",
+            loadTask2.controller.executeParams?.loadUuid
+        )
     }
 
 }

@@ -15,15 +15,37 @@ import kotlinx.coroutines.flow.flowOf
 internal interface LoadTask<T> {
     val initialContainer: Container<T>?
     val lastRealLoader: ValueLoader<T>?
-    fun execute(currentContainer: () -> Container<T>? = { null }): Flow<Container<T>>
+    fun execute(executeParams: ExecuteParams<T> = ExecuteParams()): Flow<Container<T>>
     fun cancel()
     fun setLoadTrigger(loadTrigger: LoadTrigger)
+
+    class ExecuteParams<T>(
+        val loadUuid: String = "",
+        val currentContainer: () -> Container<T>? = { null }
+    )
+
+    open class FlowEmitterCreator<T>(
+        private val flowSubject: FlowSubject<T>?,
+        private val loadTrigger: () -> LoadTrigger,
+    ) {
+        open fun create(
+            flowCollector: FlowCollector<Container<T>>,
+            executeParams: ExecuteParams<T>,
+        ): FlowEmitter<T> {
+            return FlowEmitter(
+                loadTrigger = loadTrigger(),
+                flowCollector = flowCollector,
+                executeParams = executeParams,
+                flowSubject = flowSubject,
+            )
+        }
+    }
 
     class Instant<T>(
         override val initialContainer: Container<T>,
         override val lastRealLoader: ValueLoader<T>? = null,
     ) : LoadTask<T> {
-        override fun execute(currentContainer: () -> Container<T>?) = flowOf(initialContainer)
+        override fun execute(executeParams: ExecuteParams<T>) = flowOf(initialContainer)
         override fun cancel() = Unit
         override fun setLoadTrigger(loadTrigger: LoadTrigger) = Unit
     }
@@ -33,9 +55,7 @@ internal interface LoadTask<T> {
         private val loadTrigger: Holder<LoadTrigger>,
         private val silent: Boolean = false,
         private val flowSubject: FlowSubject<T>? = null,
-        private val flowEmitterCreator: (FlowCollector<Container<T>>) -> FlowEmitter<T> = {
-            FlowEmitter(loadTrigger.value, it, flowSubject)
-        },
+        private val flowEmitterCreator: FlowEmitterCreator<T> = FlowEmitterCreator(flowSubject) { loadTrigger.value },
     ) : LoadTask<T> {
 
         override val initialContainer: Container<T>? =
@@ -55,23 +75,25 @@ internal interface LoadTask<T> {
             loadTrigger: LoadTrigger,
             silent: Boolean = false,
             flowSubject: FlowSubject<T>? = null,
-            flowEmitterCreator: (FlowCollector<Container<T>>) -> FlowEmitter<T>,
+            flowEmitterCreator: FlowEmitterCreator<T>,
         ) : this(loader, Holder(loadTrigger), silent, flowSubject, flowEmitterCreator)
 
         override fun setLoadTrigger(loadTrigger: LoadTrigger) {
             this.loadTrigger.value = loadTrigger
         }
 
-        override fun execute(currentContainer: () -> Container<T>?) = flow {
+        override fun execute(
+            executeParams: ExecuteParams<T>,
+        ) = flow {
             try {
                 if (!silent) {
                     emit(Container.Pending)
                 } else {
-                    currentContainer()?.update(isLoadingInBackground = true)?.let {
+                    executeParams.currentContainer()?.update(isLoadingInBackground = true)?.let {
                         emit(it)
                     }
                 }
-                val emitter = flowEmitterCreator(this)
+                val emitter = flowEmitterCreator.create(this, executeParams)
                 loader(emitter)
                 if (!emitter.hasEmittedValues) {
                     throw IllegalStateException("Value Loader should emit at least one item or " +

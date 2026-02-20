@@ -37,7 +37,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // updated state manually
@@ -45,7 +45,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // update state by emitted value
@@ -53,7 +53,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b2", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
     }
 
@@ -90,7 +90,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State3("a1", "b1", "c1")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // updated state manually
@@ -98,7 +98,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State3("a1", "b1", "c1", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // update state by emitted value
@@ -106,7 +106,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State3("a1", "b1", "c2", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
     }
 
@@ -150,7 +150,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d1")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // updated state manually
@@ -158,7 +158,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d1", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // update state by emitted value
@@ -166,7 +166,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State4("a1", "b1", "c1", "d2", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
     }
 
@@ -217,7 +217,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e1")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // updated state manually
@@ -225,7 +225,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e1", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // update state by emitted value
@@ -233,7 +233,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State5("a1", "b1", "c1", "d1", "e2", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
     }
 
@@ -266,7 +266,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // updated state manually
@@ -274,7 +274,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b1", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
 
         // update state by emitted value
@@ -282,7 +282,7 @@ class CombineContainersToReducerTest {
         runCurrent()
         assertEquals(
             successContainer(State2("a1", "b2", "updated")),
-            collector.lastItem
+            collector.lastItem.raw()
         )
     }
 

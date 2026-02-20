@@ -254,15 +254,15 @@ class ContainerFlowExtensionsTest {
             .startCollecting()
 
         assertEquals(
-            successContainer(0, RemoteSourceType, isLoadingInBackground = false, EmptyReloadFunction),
+            successContainer(0, RemoteSourceType),
             updatedSource.lastItem
         )
         assertEquals(
-            successContainer(0, UnknownSourceType, isLoadingInBackground = true, EmptyReloadFunction),
+            successContainer(0, true),
             updatedIsLoading.lastItem
         )
         assertEquals(
-            successContainer(0, UnknownSourceType, isLoadingInBackground = false, reloadFunction),
+            successContainer(0, reloadFunction),
             updatedReloadFunction.lastItem
         )
     }

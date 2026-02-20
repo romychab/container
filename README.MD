@@ -12,7 +12,7 @@ android applications.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta11"
+implementation "com.elveum:container:2.0.0-beta12"
 ```
 
 ## Documentation
@@ -513,17 +513,19 @@ private val productsSubject = LazyFlowSubject.create {
 #### Source Types
 
 Optionally you can assign a `SourceType` to any `Container.Success` value
-just to let them know about an actual source where data arrived from.
+just to let them know about an actual source where data arrived from. Source
+types are represented by `SourceTypeMetadata`, an implementation of
+`ContainerMetadata`.
 
 ```kotlin
-// in loader function:
+// in loader function (SourceType shorthand overload):
 val subject = LazyFlowSubject.create {
     val remoteProducts = productsRemoteDataSource.getProducts()
     emit(remoteProducts, RemoteSourceType)
 }
 
-// in `Container.Success()` directly:
-subject.updateWith(Container.Success("hello", FakeSourceType))
+// when creating a container directly:
+subject.updateWith(successContainer("hello", SourceTypeMetadata(FakeSourceType)))
 
 // in `Container.updateIfSuccess`:
 subject.updateIfSuccess(ImmediateSourceType) { oldValue ->
@@ -531,14 +533,18 @@ subject.updateIfSuccess(ImmediateSourceType) { oldValue ->
 }
 ```
 
-Source types can be accessed via `Container.Success` instance:
+Source types can be accessed via the `source` shorthand property or through
+the container's `metadata`:
 
 ```kotlin
 subject.listen()
     .filterIsInstance<Container.Success<String>>()
     .collectLatest { successContainer ->
         val value = successContainer.value
+        // shorthand property:
         val sourceType = successContainer.source
+        // or via metadata:
+        val sourceType = successContainer.metadata.get<SourceTypeMetadata>()?.sourceType
         println("$value, isRemote = ${sourceType == RemoteSourceType}")
     }
 ```
@@ -551,18 +557,21 @@ call with additional `ContainerConfiguration(emitReloadFunction = true)` argumen
 case, calling `reloadFunction` causes a full reload of the corresponding `LazeFlowSubject`
 instance (similar to call of `LazyFlowSubject.reloadAsync()`).
 
+The reload function is backed by `ReloadFunctionMetadata`, an implementation of
+`ContainerMetadata`.
+
 You can re-assign the reloading function by:
 
-- creating a new container: `successContainer(value, reloadFunction = customReloadFunction)`
+- creating a new container: `successContainer(value, ReloadFunctionMetadata(customReloadFunction))`
 
 - mapping an existing container using `update` function:
-  
+
   ```kotlin
-  Container<T>.update { 
-      reloadFunction = { 
+  Container<T>.update {
+      reloadFunction = {
           println("Reloading...")
           reloadFunction(it)  // call origin reload function if needed
-      } 
+      }
   }
   ```
 - mapping an existing container in a Kotlin Flow:

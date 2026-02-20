@@ -12,10 +12,12 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.util.UUID
 import kotlin.coroutines.coroutineContext
 
 internal class LoadTaskManager<T>(
     private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+    private val uuidProvider: () -> String = { UUID.randomUUID().toString() }
 ) {
 
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
@@ -25,12 +27,14 @@ internal class LoadTaskManager<T>(
     fun listen(): StateFlow<Container<T>> = outputFlow
 
     fun startProcessingLoads(scope: CoroutineScope) = synchronized(this) {
-        if (job != null) return
+        if (job != null) return@synchronized
         val currentContainer: () -> Container<T> = { outputFlow.value }
         job = scope.launch {
             inputFlow
                 .collectLatest { loadTask ->
-                    loadTask.execute(currentContainer)
+                    val loadUuid = uuidProvider.invoke()
+                    val executeParams = LoadTask.ExecuteParams(loadUuid, currentContainer)
+                    loadTask.execute(executeParams)
                         .run(transformation)
                         .collectLatest { value ->
                             setOutputValueIfNotCancelled(loadTask, value)
@@ -56,12 +60,12 @@ internal class LoadTaskManager<T>(
     }
 
     fun submitNewLoadTask(loadTask: LoadTask<T>) = synchronized(this) {
+        if (job != null) {
+            loadTask.initialContainer?.let { outputFlow.value = it }
+        }
         inputFlow.update { oldLoadTask ->
             oldLoadTask.cancel()
             loadTask
-        }
-        if (job != null) {
-            loadTask.initialContainer?.let { outputFlow.value = it }
         }
     }
 

@@ -28,19 +28,19 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // second success value => success
         flowB.value = successContainer("b1")
-        assertEquals(successContainer("a1-b1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = successContainer("b2")
-        assertEquals(successContainer("a2-b2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowB.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowB.value = successContainer("b3")
-        assertEquals(successContainer("a2-b3"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b3"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -64,22 +64,22 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // third success value => success
         flowC.value = successContainer("c1")
-        assertEquals(successContainer("a1-b1-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1-c1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1-c1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = successContainer("b2")
-        assertEquals(successContainer("a2-b2-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c1"), collectedItems.lastItem.raw())
         // emit new value to 3rd flow
         flowC.value = successContainer("c2")
-        assertEquals(successContainer("a2-b2-c2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowC.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowC.value = successContainer("c3")
-        assertEquals(successContainer("a2-b2-c3"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c3"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -107,25 +107,25 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // fourth success value => success
         flowD.value = successContainer("d1")
-        assertEquals(successContainer("a1-b1-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = successContainer("b2")
-        assertEquals(successContainer("a2-b2-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 3rd flow
         flowC.value = successContainer("c2")
-        assertEquals(successContainer("a2-b2-c2-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d1"), collectedItems.lastItem.raw())
         // emit new value to 4th flow
         flowD.value = successContainer("d2")
-        assertEquals(successContainer("a2-b2-c2-d2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowD.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowD.value = successContainer("d3")
-        assertEquals(successContainer("a2-b2-c2-d3"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d3"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -157,28 +157,28 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // fifth success value => success
         flowE.value = successContainer("e1")
-        assertEquals(successContainer("a1-b1-c1-d1-e1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1-c1-d1-e1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1-c1-d1-e1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1-c1-d1-e1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = successContainer("b2")
-        assertEquals(successContainer("a2-b2-c1-d1-e1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c1-d1-e1"), collectedItems.lastItem.raw())
         // emit new value to 3rd flow
         flowC.value = successContainer("c2")
-        assertEquals(successContainer("a2-b2-c2-d1-e1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d1-e1"), collectedItems.lastItem.raw())
         // emit new value to 4th flow
         flowD.value = successContainer("d2")
-        assertEquals(successContainer("a2-b2-c2-d2-e1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d2-e1"), collectedItems.lastItem.raw())
         // emit new value to 5th flow
         flowE.value = successContainer("e2")
-        assertEquals(successContainer("a2-b2-c2-d2-e2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d2-e2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowE.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowE.value = successContainer("e3")
-        assertEquals(successContainer("a2-b2-c2-d2-e3"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d2-e3"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -285,19 +285,19 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // first success value => success
         flowA.value = successContainer("a1")
-        assertEquals(successContainer("a1-b1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = "b2"
-        assertEquals(successContainer("a2-b2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowA.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowA.value = successContainer("a3")
-        assertEquals(successContainer("a3-b2"), collectedItems.lastItem)
+        assertEquals(successContainer("a3-b2"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -315,22 +315,22 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // first success value => success
         flowA.value = successContainer("a1")
-        assertEquals(successContainer("a1-b1-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1-c1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1-c1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = "b2"
-        assertEquals(successContainer("a2-b2-c1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c1"), collectedItems.lastItem.raw())
         // emit new value to 3rd flow
         flowC.value = "c2"
-        assertEquals(successContainer("a2-b2-c2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowA.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowA.value = successContainer("a3")
-        assertEquals(successContainer("a3-b2-c2"), collectedItems.lastItem)
+        assertEquals(successContainer("a3-b2-c2"), collectedItems.lastItem.raw())
     }
 
     @Test
@@ -349,25 +349,25 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(pendingContainer(), collectedItems.lastItem)
         // first success value => success
         flowA.value = successContainer("a1")
-        assertEquals(successContainer("a1-b1-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a1-b1-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 1st flow
         flowA.value = successContainer("a2")
-        assertEquals(successContainer("a2-b1-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b1-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 2nd flow
         flowB.value = "b2"
-        assertEquals(successContainer("a2-b2-c1-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c1-d1"), collectedItems.lastItem.raw())
         // emit new value to 3rd flow
         flowC.value = "c2"
-        assertEquals(successContainer("a2-b2-c2-d1"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d1"), collectedItems.lastItem.raw())
         // emit new value to 4th flow
         flowD.value = "d2"
-        assertEquals(successContainer("a2-b2-c2-d2"), collectedItems.lastItem)
+        assertEquals(successContainer("a2-b2-c2-d2"), collectedItems.lastItem.raw())
         // emit error to one flow -> combined container must be error
         flowA.value = errorContainer(IllegalStateException())
         assertTrue(collectedItems.lastItem.exceptionOrNull() is IllegalStateException)
         // emit success instead of error
         flowA.value = successContainer("a3")
-        assertEquals(successContainer("a3-b2-c2-d2"), collectedItems.lastItem)
+        assertEquals(successContainer("a3-b2-c2-d2"), collectedItems.lastItem.raw())
     }
 
 }

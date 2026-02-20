@@ -62,7 +62,7 @@ class LazyFlowSubjectTest {
 
         val resultValue = subject.currentValue()
 
-        assertEquals(expectedValue, resultValue)
+        assertEquals(expectedValue, resultValue.raw())
     }
 
     @Test
@@ -178,13 +178,13 @@ class LazyFlowSubjectTest {
         val expectedValue1 = successContainer("1")
         flow.value = expectedValue1
         assertEquals(2, state.collectedItems.size)
-        assertEquals(expectedValue1, state.collectedItems.last())
+        assertEquals(expectedValue1, state.collectedItems.last().raw())
 
         // assert next state 2
         val expectedValue2 = successContainer("2")
         flow.value = expectedValue2
         assertEquals(3, state.collectedItems.size)
-        assertEquals(expectedValue2, state.collectedItems.last())
+        assertEquals(expectedValue2, state.collectedItems.last().raw())
     }
 
     @Test

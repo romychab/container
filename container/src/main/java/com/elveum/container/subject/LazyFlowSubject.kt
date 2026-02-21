@@ -1,7 +1,9 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
@@ -110,6 +112,7 @@ public interface LazyFlowSubject<T> {
      */
     public fun newLoad(
         silently: Boolean = false,
+        metadata: ContainerMetadata = EmptyMetadata,
         valueLoader: ValueLoader<T>
     ): Flow<T>
 
@@ -125,7 +128,10 @@ public interface LazyFlowSubject<T> {
      * to update a value held by this subject.
      * @see newLoad
      */
-    public fun reload(silently: Boolean = false): Flow<T>
+    public fun reload(
+        silently: Boolean = false,
+        metadata: ContainerMetadata = EmptyMetadata,
+    ): Flow<T>
 
     public companion object {
 

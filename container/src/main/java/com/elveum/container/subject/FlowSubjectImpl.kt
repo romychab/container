@@ -10,20 +10,20 @@ internal class FlowSubjectImpl<T> : FlowSubject<T> {
     private val listeners = mutableSetOf<Listener<T>>()
 
     override fun onNext(value: T) = synchronized(this) {
-        if (state is State.Closed) return
+        if (state is State.Closed) return@synchronized
         state = State.WithValue(value)
         listeners.forEach { it.onNext(value) }
     }
 
     override fun onError(e: Exception) = synchronized(this) {
-        if (state is State.Closed) return
+        if (state is State.Closed) return@synchronized
         state = State.Closed(e, null)
         listeners.forEach { it.onComplete(e) }
     }
 
     override fun onComplete() = synchronized(this) {
         val state = this.state
-        if (state is State.Closed) return
+        if (state is State.Closed) return@synchronized
         val value = if (state is State.WithValue) {
             state.value
         } else {

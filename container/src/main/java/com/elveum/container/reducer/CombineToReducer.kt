@@ -1,3 +1,5 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package com.elveum.container.reducer
 
 import com.elveum.container.reducer.impl.ReducerImpl

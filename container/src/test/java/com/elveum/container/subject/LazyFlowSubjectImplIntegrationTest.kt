@@ -3,9 +3,15 @@ package com.elveum.container.subject
 import com.elveum.container.Container.Error
 import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Success
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
+import com.elveum.container.RemoteSourceType
+import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.get
 import com.elveum.container.pendingContainer
+import com.elveum.container.sourceType
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.successContainer
 import com.elveum.container.utils.raw
@@ -248,7 +254,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, spyLoader2)
+        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
         runCurrent()
 
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
@@ -270,7 +276,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, spyLoader2)
+        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -293,7 +299,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = true, spyLoader2)
+        subject.newLoad(silently = true, EmptyMetadata, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -320,7 +326,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         advanceTimeBy(50)
-        subject.newLoad(silently = false, spyLoader2)
+        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
         advanceTimeBy(101)
 
         coVerifyOrder {
@@ -351,9 +357,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, loader2).startCollecting()
+        val state1 = subject.newLoad(silently = false, EmptyMetadata, loader2).startCollecting()
         runCurrent()
-        val state2 = subject.newLoad(silently = false, loader3).startCollecting()
+        val state2 = subject.newLoad(silently = false, EmptyMetadata, loader3).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21", "22"), state1.collectedItems)
@@ -379,9 +385,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, loader1).startCollecting()
+        val state1 = subject.newLoad(silently = false, EmptyMetadata, loader1).startCollecting()
         advanceTimeBy(50)
-        val state2 = subject.newLoad(silently = false, loader2).startCollecting()
+        val state2 = subject.newLoad(silently = false, EmptyMetadata, loader2).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21"), state1.collectedItems)
@@ -403,7 +409,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state = subject.newLoad(silently = false, loader1).startCollecting()
+        val state = subject.newLoad(silently = false, EmptyMetadata, loader1).startCollecting()
         runCurrent()
 
         assertEquals(listOf("2"), state.collectedItems)
@@ -423,7 +429,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, loader2)
+        subject.newLoad(silently = false, EmptyMetadata, loader2)
         advanceTimeBy(11)
 
         assertEquals(
@@ -466,6 +472,25 @@ class LazyFlowSubjectImplIntegrationTest {
         )
     }
 
+    @Test
+    fun newLoad_withCustomMetadata_propagatesMetadataToValueLoader() = runFlowTest {
+        val subject = createLazyFlowSubject { emit("initial") }
+        val collectedItems = subject.listen().startCollecting().collectedItems
+        runCurrent()
+
+        subject.newLoad(metadata = SourceTypeMetadata(RemoteSourceType)) {
+            val sourceType = metadata.sourceType
+            emit(if (sourceType == RemoteSourceType) "remote" else "unknown")
+        }
+        runCurrent()
+
+        assertEquals(
+            listOf(Pending, successContainer("initial"), Pending, successContainer("remote")),
+            collectedItems.raw()
+        )
+        assertEquals(RemoteSourceType, collectedItems.last().metadata.sourceType)
+    }
+
     @Test(expected = None::class)
     fun reload_withoutPrevLoader_doesNothing() = runFlowTest {
         val subject = createLazyFlowSubject()
@@ -501,6 +526,24 @@ class LazyFlowSubjectImplIntegrationTest {
             listOf(pendingContainer(), successContainer("load"), pendingContainer(), successContainer("reload")),
             state.collectedItems.raw(),
         )
+    }
+
+    @Test
+    fun reload_withCustomMetadata_propagatesMetadataToValueLoader() = runFlowTest {
+        val subject = createLazyFlowSubject {
+            val sourceType = metadata.get<SourceTypeMetadata>()?.sourceType
+            emit(if (sourceType == RemoteSourceType) "remote" else "initial")
+        }
+        val collectedItems = subject.listen().startCollecting().collectedItems
+        runCurrent()
+        subject.reload(metadata = SourceTypeMetadata(RemoteSourceType))
+        runCurrent()
+
+        assertEquals(
+            listOf(Pending, successContainer("initial"), Pending, successContainer("remote")),
+            collectedItems.raw()
+        )
+        assertEquals(RemoteSourceType, collectedItems.last().metadata.sourceType)
     }
 
     @Test
@@ -618,6 +661,27 @@ class LazyFlowSubjectImplIntegrationTest {
     }
 
     @Test
+    fun updateWith_afterResubscribing_usesPreviousLoader() = runFlowTest {
+        val subject = createLazyFlowSubject(SourceTypeMetadata(RemoteSourceType)) {
+            emit("real-item")
+        }
+        val oldState = subject.listen().startCollecting()
+        runCurrent()
+
+        subject.updateWith(successContainer("updated-item"))
+        oldState.cancel()
+        advanceTimeBy(cacheTimeout + 1)
+        val newState = subject.listen().startCollecting()
+        runCurrent()
+
+        assertEquals(
+            listOf(Pending, successContainer("real-item")),
+            newState.collectedItems.raw()
+        )
+        assertEquals(RemoteSourceType, newState.collectedItems.last().metadata.sourceType)
+    }
+
+    @Test
     fun activeCollectorsCount_withoutCollectors_returnsZero() = runFlowTest {
         val subject = createLazyFlowSubject()
 
@@ -673,6 +737,14 @@ class LazyFlowSubjectImplIntegrationTest {
 
     private fun FlowTestScope.createLazyFlowSubject(
         loader: ValueLoader<String>? = null,
+    ): LazyFlowSubjectImpl<String> = createLazyFlowSubject(
+        metadata = EmptyMetadata,
+        loader = loader,
+    )
+
+    private fun FlowTestScope.createLazyFlowSubject(
+        metadata: ContainerMetadata,
+        loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> {
         val coroutineScopeFactory = mockk<CoroutineScopeFactory>()
 
@@ -685,7 +757,7 @@ class LazyFlowSubjectImplIntegrationTest {
             LoadTaskManager(),
         ).apply {
             if (loader != null) {
-                newAsyncLoad(silently = false, loader)
+                newAsyncLoad(silently = false, metadata, loader)
             }
         }
     }

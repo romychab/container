@@ -2,6 +2,7 @@ package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
@@ -50,12 +51,8 @@ internal class LoadTaskManager<T>(
         outputFlow.value = Container.Pending
         inputFlow.value.cancel()
         inputFlow.update { oldLoadTask ->
-            val loader = oldLoadTask.lastRealLoader
-            if (loader != null) {
-                LoadTask.Load(loader, LoadTrigger.CacheExpired)
-            } else {
-                oldLoadTask.apply { setLoadTrigger(LoadTrigger.CacheExpired) }
-            }
+            val updatedMetadata = oldLoadTask.metadata + LoadTriggerMetadata(LoadTrigger.CacheExpired)
+            oldLoadTask.restoreLoadTask(updatedMetadata)
         }
     }
 
@@ -70,6 +67,8 @@ internal class LoadTaskManager<T>(
     }
 
     fun getLastRealLoader() = inputFlow.value.lastRealLoader
+
+    fun getLastRealMetadata() = inputFlow.value.lastRealMetadata
 
     private suspend fun setOutputValueIfNotCancelled(
         loadTask: LoadTask<T>,

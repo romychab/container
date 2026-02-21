@@ -1,12 +1,20 @@
 package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.LoadUuidMetadata
 import com.elveum.container.LocalSourceType
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceType
+import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.exceptionOrNull
+import com.elveum.container.get
+import com.elveum.container.loadTrigger
+import com.elveum.container.sourceType
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
@@ -17,10 +25,7 @@ import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
-import io.mockk.just
 import io.mockk.mockk
-import io.mockk.runs
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -93,6 +98,40 @@ class LoadTaskTest {
 
         assertEquals(emptyList<Container<String>>(), state.collectedItems)
         assertEquals(CollectStatus.Collecting, state.collectStatus)
+    }
+
+    @Test
+    fun loadTask_withSilentFlagAndCurrentContainer_emitsCurrentContainerWithIsLoadingInBackgroundTrue() = runFlowTest {
+        val currentContainer = successContainer("current-item")
+        val task = makeLoadTask(silent = true)
+        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+
+        val state = task.execute(
+            LoadTask.ExecuteParams(currentContainer = { currentContainer })
+        ).startCollecting(StandardTestDispatcher(scope.testScheduler))
+        advanceTimeBy(5)
+
+        assertEquals(1, state.collectedItems.size)
+        val emitted = state.collectedItems.first() as Container.Success<*>
+        assertEquals("current-item", emitted.value)
+        assertTrue(emitted.isLoadingInBackground)
+    }
+
+    @Test
+    fun loadTask_execute_passesExecuteParamsToFlowEmitterCreator() = runFlowTest {
+        var capturedParams: LoadTask.ExecuteParams<String>? = null
+        val task = makeLoadTask(
+            flowEmitterCreator = MockFlowEmitterCreator { _, params ->
+                capturedParams = params
+                flowEmitter
+            }
+        )
+        every { flowEmitter.hasEmittedValues } returns true
+        val executeParams = LoadTask.ExecuteParams<String>(loadUuid = "test-uuid")
+
+        task.execute(executeParams).startCollecting()
+
+        assertSame(executeParams, capturedParams)
     }
 
     @Test
@@ -300,24 +339,6 @@ class LoadTaskTest {
     }
 
     @Test
-    fun loadTask_setLoadTrigger_updatesValue() = runFlowTest {
-        val loadTask = LoadTask.Load(
-            loader = valueLoader,
-            loadTrigger = LoadTrigger.NewLoad,
-            silent = true,
-            flowSubject = flowSubject,
-        )
-        val emitterSlot = slot<Emitter<String>>()
-        loadTask.setLoadTrigger(LoadTrigger.CacheExpired)
-        coEvery { valueLoader.invoke(capture(emitterSlot)) } just runs
-
-        loadTask.execute().startCollecting()
-
-        val flowEmitter = emitterSlot.captured as FlowEmitter<String>
-        assertEquals(LoadTrigger.CacheExpired, flowEmitter.loadTrigger)
-    }
-
-    @Test
     fun loadTask_withSilentFlag_doesNotHaveInitialValue() {
         val loadTask = makeLoadTask(silent = true)
         assertNull(loadTask.initialContainer)
@@ -335,14 +356,117 @@ class LoadTaskTest {
         assertEquals(successContainer("123"), loadTask.initialContainer)
     }
 
+    @Test
+    fun loadTask_metadata_returnsStoredMetadata() {
+        val metadata = SourceTypeMetadata(RemoteSourceType)
+
+        val loadTask = makeLoadTask(metadata = metadata)
+
+        assertEquals(metadata, loadTask.metadata)
+    }
+
+    @Test
+    fun instantTask_metadata_returnsInitialContainerMetadata() {
+        val metadata = SourceTypeMetadata(LocalSourceType)
+        val container = successContainer("item", metadata)
+
+        val loadTask = LoadTask.Instant(container)
+
+        assertEquals(metadata, loadTask.metadata)
+    }
+
+    @Test
+    fun loadTask_restoreLoadTask_returnsNewTaskWithCombinedMetadata() {
+        val loadTask = makeLoadTask(metadata = SourceTypeMetadata(LocalSourceType))
+
+        val newTask = loadTask.restoreLoadTask(LoadUuidMetadata("uuid-1"))
+
+        assertEquals(LocalSourceType, newTask.metadata.sourceType)
+        assertEquals(LoadUuidMetadata("uuid-1"), newTask.metadata.get<LoadUuidMetadata>())
+    }
+
+    @Test
+    fun loadTask_restoreLoadTask_extraMetadataOverridesOriginalMetadataOfSameType() {
+        val loadTask = makeLoadTask(metadata = SourceTypeMetadata(LocalSourceType))
+
+        val newTask = loadTask.restoreLoadTask(SourceTypeMetadata(RemoteSourceType))
+
+        assertEquals(RemoteSourceType, newTask.metadata.sourceType)
+    }
+
+    @Test
+    fun loadTask_restoreLoadTask_copiesLoaderAndMetadataToNewTask() {
+        val loadMetadata = SourceTypeMetadata(RemoteSourceType)
+        val loadTask = makeLoadTask(metadata = loadMetadata)
+
+        val newTask = loadTask.restoreLoadTask(EmptyMetadata)
+
+        assertSame(valueLoader, newTask.lastRealLoader)
+        assertSame(loadMetadata, newTask.lastRealMetadata)
+    }
+
+    @Test
+    fun instantTask_restoreLoadTask_returnsSameInstance() {
+        val loadTask = LoadTask.Instant(successContainer("item"))
+
+        val newTask = loadTask.restoreLoadTask(SourceTypeMetadata(RemoteSourceType))
+
+        assertSame(loadTask, newTask)
+    }
+
+    @Test
+    fun instantTask_restoreLoadTask_withRealLoader_restoresLoadTask() {
+        val loadTask = LoadTask.Instant(
+            initialContainer = successContainer("item"),
+            lastRealLoader = valueLoader,
+            lastRealMetadata = SourceTypeMetadata(RemoteSourceType)
+        )
+
+        val newTask = loadTask.restoreLoadTask(LoadTriggerMetadata(LoadTrigger.CacheExpired))
+
+        newTask as LoadTask.Load<String>
+        assertEquals(LoadTrigger.CacheExpired, newTask.metadata.loadTrigger)
+        assertEquals(RemoteSourceType, newTask.metadata.sourceType)
+        assertSame(valueLoader, newTask.lastRealLoader)
+    }
+
+    @Test
+    fun instantTask_restoreLoadTask_withRealLoader_overridesMetadataOfSameType() {
+        val loadTask = LoadTask.Instant(
+            initialContainer = successContainer("item"),
+            lastRealLoader = valueLoader,
+            lastRealMetadata = LoadTriggerMetadata(LoadTrigger.NewLoad),
+        )
+
+        val newTask = loadTask.restoreLoadTask(LoadTriggerMetadata(LoadTrigger.CacheExpired))
+
+        newTask as LoadTask.Load<String>
+        assertEquals(LoadTrigger.CacheExpired, newTask.metadata.loadTrigger)
+    }
+
+    @Test
+    fun loadTask_execute_passesMetadataToFlowEmitter() = runFlowTest {
+        val task = LoadTask.Load(
+            loader = { emit("item", isLastValue = true) },
+            metadata = SourceTypeMetadata(RemoteSourceType),
+        )
+
+        val state = task.execute().startCollecting()
+
+        val emittedContainer = state.collectedItems
+            .filterIsInstance<Container.Success<String>>()
+            .first()
+        assertEquals(RemoteSourceType, emittedContainer.metadata.sourceType)
+    }
+
     private fun makeLoadTask(
-        loadTrigger: LoadTrigger = LoadTrigger.NewLoad,
+        metadata: ContainerMetadata = EmptyMetadata,
         silent: Boolean = false,
         flowEmitterCreator: LoadTask.FlowEmitterCreator<String> = MockFlowEmitterCreator { _, _ -> flowEmitter }
     ): LoadTask<String> {
         return LoadTask.Load(
+            metadata = metadata,
             loader = valueLoader,
-            loadTrigger = loadTrigger,
             silent = silent,
             flowSubject = flowSubject,
             flowEmitterCreator = flowEmitterCreator,

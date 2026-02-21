@@ -4,6 +4,8 @@ package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.get
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
@@ -211,42 +213,19 @@ class LoadTaskManagerTest {
     }
 
     @Test
-    fun cancelProcessingLoads_withEmptyRealLoader_setsCacheExpiredTrigger() = runTest {
+    fun cancelProcessingLoads_callsRestoreLoadTaskWithCacheExpiredTriggerMetadata() = runTest {
         val loadTask = spyk(MockLoadTask(this))
         loadTaskManager.startProcessingLoads(backgroundScope)
         loadTaskManager.submitNewLoadTask(loadTask)
 
-        loadTask.controller.start()
-        loadTask.controller.emit(successContainer("1"))
-        assertEquals(successContainer("1"), loadTaskManager.listen().value)
         loadTaskManager.cancelProcessingLoads()
         advanceTimeBy(1)
 
         verify(exactly = 1) {
-            loadTask.setLoadTrigger(LoadTrigger.CacheExpired)
+            loadTask.restoreLoadTask(match { metadata ->
+                metadata.get<LoadTriggerMetadata>()?.loadTrigger == LoadTrigger.CacheExpired
+            })
         }
-    }
-
-    @Test
-    fun cancelProcessingLoads_withRealLoader_createsNewLoadTask() = runTest {
-        val realLoader: ValueLoader<String> = { emit("2") }
-        val loadTask = spyk(MockLoadTask(this))
-        loadTask.lastRealLoader = realLoader
-        loadTaskManager.startProcessingLoads(backgroundScope)
-        loadTaskManager.submitNewLoadTask(loadTask)
-
-        loadTask.controller.start()
-        loadTask.controller.emit(successContainer("1"))
-        assertEquals(successContainer("1"), loadTaskManager.listen().value)
-        loadTaskManager.cancelProcessingLoads()
-        advanceTimeBy(1)
-        verify(exactly = 0) {
-            loadTask.setLoadTrigger(LoadTrigger.CacheExpired)
-        }
-        loadTaskManager.startProcessingLoads(backgroundScope)
-        advanceTimeBy(1)
-
-        assertEquals(successContainer("2"), loadTaskManager.listen().value.raw())
     }
 
     @Test

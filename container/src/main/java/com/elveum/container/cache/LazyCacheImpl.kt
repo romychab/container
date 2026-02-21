@@ -1,3 +1,5 @@
+@file:OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+
 package com.elveum.container.cache
 
 import com.elveum.container.Container
@@ -8,6 +10,7 @@ import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -85,7 +88,7 @@ internal class LazyCacheImpl<Arg, T>(
     }
 
     private fun unregisterRecord(arg: Arg) = synchronized(this) {
-        val record = cacheSlots[arg] ?: return
+        val record = cacheSlots[arg] ?: return@synchronized
         record.count--
         if (record.count == 0) {
             scheduleRemoval(arg)

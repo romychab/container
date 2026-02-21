@@ -67,7 +67,7 @@ public fun defaultMetadata(
 }
 
 public val ContainerMetadata.isLoadingInBackground: Boolean
-    get() = get<IsLoadingInBackgroundMetadata>()?.isLoading ?: false
+    get() = get<IsLoadingInBackgroundMetadata>()?.isLoadingInBackground ?: false
 
 public val ContainerMetadata.reloadFunction: ReloadFunction
     get() = get<ReloadFunctionMetadata>()?.reloadFunction ?: EmptyReloadFunction
@@ -75,8 +75,11 @@ public val ContainerMetadata.reloadFunction: ReloadFunction
 public val ContainerMetadata.sourceType: SourceType
     get() = get<SourceTypeMetadata>()?.sourceType ?: UnknownSourceType
 
+public val ContainerMetadata.loadTrigger: LoadTrigger
+    get() = get<LoadTriggerMetadata>()?.loadTrigger ?: LoadTrigger.NewLoad
+
 public data class IsLoadingInBackgroundMetadata(
-    public val isLoading: Boolean
+    public val isLoadingInBackground: Boolean
 ) : ContainerMetadata
 
 public data class ReloadFunctionMetadata(
@@ -89,6 +92,10 @@ public data class SourceTypeMetadata(
 
 public data class LoadUuidMetadata(
     public val uuid: String,
+) : ContainerMetadata
+
+public data class LoadTriggerMetadata(
+    public val loadTrigger: LoadTrigger,
 ) : ContainerMetadata
 
 public data object EmptyMetadata : ContainerMetadata {

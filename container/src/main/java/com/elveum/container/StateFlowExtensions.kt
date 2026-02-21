@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+
 package com.elveum.container
 
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector

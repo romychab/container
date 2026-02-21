@@ -2,6 +2,10 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.LoadUuidMetadata
+import com.elveum.container.RemoteSourceType
+import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubjectImpl.LoadTaskFactory
 import com.elveum.container.subject.lazy.LoadTask
@@ -99,7 +103,7 @@ class LazyFlowSubjectTest {
             loadTaskFactory.create(
                 silently = true,
                 valueLoader = refEq(valueLoader),
-                loadTrigger = LoadTrigger.Reload,
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
@@ -112,11 +116,36 @@ class LazyFlowSubjectTest {
     }
 
     @Test
+    fun reload_withCustomMetadata_combinesMetadataWithReloadTrigger() {
+        val valueLoader = mockk<ValueLoader<String>>()
+        val loadTask = mockk<LoadTask<String>>()
+        val flowSubject = mockk<FlowSubject<String>>()
+        val customMetadata = LoadUuidMetadata("custom-uuid")
+        every { loadTaskManager.getLastRealLoader() } returns valueLoader
+        every { flowSubject.flow() } returns MutableStateFlow("123")
+        every {
+            loadTaskFactory.create(
+                silently = false,
+                valueLoader = refEq(valueLoader),
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + customMetadata,
+            )
+        } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
+
+        subject.reload(metadata = customMetadata)
+
+        verify(exactly = 1) {
+            loadTaskManager.submitNewLoadTask(refEq(loadTask))
+        }
+    }
+
+    @Test
     fun updateWith_executesInstantTask() {
         val expectedContainer = successContainer("123")
         val expectedValueLoader = mockk<ValueLoader<String>>()
+        val expectedMetadata = SourceTypeMetadata(RemoteSourceType)
         val loadTaskSlot = slot<LoadTask<String>>()
         every { loadTaskManager.getLastRealLoader() } returns expectedValueLoader
+        every { loadTaskManager.getLastRealMetadata() } returns expectedMetadata
 
         subject.updateWith(expectedContainer)
 
@@ -126,6 +155,7 @@ class LazyFlowSubjectTest {
         val resultLoadTask = loadTaskSlot.captured as LoadTask.Instant
         assertSame(expectedContainer, resultLoadTask.initialContainer)
         assertSame(expectedValueLoader, resultLoadTask.lastRealLoader)
+        assertSame(expectedMetadata, resultLoadTask.lastRealMetadata)
     }
 
     @Test
@@ -139,7 +169,7 @@ class LazyFlowSubjectTest {
             loadTaskFactory.create(
                 silently = true,
                 valueLoader = refEq(valueLoader),
-                loadTrigger = LoadTrigger.NewLoad,
+                metadata = LoadTriggerMetadata(LoadTrigger.NewLoad),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
@@ -149,6 +179,28 @@ class LazyFlowSubjectTest {
             loadTaskManager.submitNewLoadTask(refEq(loadTask))
         }
         assertSame(expectedFlow, resultFlow)
+    }
+
+    @Test
+    fun newLoad_withCustomMetadata_combinesMetadataWithNewLoadTrigger() {
+        val valueLoader = mockk<ValueLoader<String>>()
+        val loadTask = mockk<LoadTask<String>>()
+        val flowSubject = mockk<FlowSubject<String>>()
+        val customMetadata = LoadUuidMetadata("custom-uuid")
+        every { flowSubject.flow() } returns MutableStateFlow("123")
+        every {
+            loadTaskFactory.create(
+                silently = false,
+                valueLoader = refEq(valueLoader),
+                metadata = LoadTriggerMetadata(LoadTrigger.NewLoad) + customMetadata,
+            )
+        } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
+
+        subject.newLoad(valueLoader = valueLoader, metadata = customMetadata)
+
+        verify(exactly = 1) {
+            loadTaskManager.submitNewLoadTask(refEq(loadTask))
+        }
     }
 
     @Test

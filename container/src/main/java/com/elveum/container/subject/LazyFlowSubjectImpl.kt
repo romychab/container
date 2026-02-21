@@ -1,14 +1,19 @@
+@file:OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.update
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
@@ -43,22 +48,37 @@ internal class LazyFlowSubjectImpl<T>(
         return ListenStateFlowImpl(configuration)
     }
 
-    override fun newLoad(silently: Boolean, valueLoader: ValueLoader<T>): Flow<T> {
-        return doNewLoad(silently, valueLoader, LoadTrigger.NewLoad)
-    }
-
-    override fun updateWith(container: Container<T>) {
-        loadTaskManager.submitNewLoadTask(
-            LoadTask.Instant(container, loadTaskManager.getLastRealLoader())
+    override fun newLoad(
+        silently: Boolean,
+        metadata: ContainerMetadata,
+        valueLoader: ValueLoader<T>,
+    ): Flow<T> {
+        return doNewLoad(
+            silently = silently,
+            valueLoader = valueLoader,
+            metadata = LoadTriggerMetadata(LoadTrigger.NewLoad) + metadata,
         )
     }
 
-    override fun reload(silently: Boolean): Flow<T> {
-        return loadTaskManager.getLastRealLoader()?.let { lastLoader ->
+    override fun updateWith(container: Container<T>) = synchronized(loadTaskManager) {
+        loadTaskManager.submitNewLoadTask(
+            LoadTask.Instant(
+                initialContainer = container,
+                lastRealLoader = loadTaskManager.getLastRealLoader(),
+                lastRealMetadata = loadTaskManager.getLastRealMetadata(),
+            )
+        )
+    }
+
+    override fun reload(
+        silently: Boolean,
+        metadata: ContainerMetadata,
+    ): Flow<T> = synchronized(loadTaskManager) {
+        loadTaskManager.getLastRealLoader()?.let { lastLoader ->
             doNewLoad(
                 silently = silently,
                 valueLoader = lastLoader,
-                loadTrigger = LoadTrigger.Reload,
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + metadata,
             )
         } ?: emptyFlow()
     }
@@ -66,9 +86,9 @@ internal class LazyFlowSubjectImpl<T>(
     private fun doNewLoad(
         silently: Boolean,
         valueLoader: ValueLoader<T>,
-        loadTrigger: LoadTrigger,
+        metadata: ContainerMetadata,
     ): Flow<T> = synchronized(loadTaskManager) {
-        val loadTaskRecord = loadTaskFactory.create(silently, valueLoader, loadTrigger)
+        val loadTaskRecord = loadTaskFactory.create(silently, valueLoader, metadata)
         loadTaskManager.submitNewLoadTask(loadTaskRecord.loadTask)
         loadTaskRecord.flowSubject.flow()
     }
@@ -156,17 +176,17 @@ internal class LazyFlowSubjectImpl<T>(
         fun <T> create(
             silently: Boolean,
             valueLoader: ValueLoader<T>,
-            loadTrigger: LoadTrigger,
+            metadata: ContainerMetadata,
         ): LoadTaskRecord<T>
 
         object Default : LoadTaskFactory {
             override fun <T> create(
                 silently: Boolean,
                 valueLoader: ValueLoader<T>,
-                loadTrigger: LoadTrigger
+                metadata: ContainerMetadata,
             ): LoadTaskRecord<T> {
                 val flowSubject = FlowSubject.create<T>()
-                val loadTask = LoadTask.Load(valueLoader, loadTrigger, silently, flowSubject)
+                val loadTask = LoadTask.Load(valueLoader, metadata, silently, flowSubject)
                 return LoadTaskRecord(loadTask, flowSubject)
             }
         }

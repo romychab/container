@@ -6,9 +6,15 @@ package com.elveum.container
 public interface Emitter<T> {
 
     /**
+     * Input metadata of the current load. It may contain the load trigger,
+     * or custom user request input values, etc.
+     */
+    public val metadata: ContainerMetadata
+
+    /**
      * Reason why a loader function has been executed.
      */
-    public val loadTrigger: LoadTrigger
+    public val loadTrigger: LoadTrigger get() = metadata.loadTrigger
 
     /**
      * Emit a new value to the flow.
@@ -29,6 +35,7 @@ public interface Emitter<T> {
      *
      * @param value The value to emit.
      * @param metadata Additional metadata to be attached to the emitted value.
+     *   This metadata is added in addition to metadata located in [Emitter.metadata].
      * @param isLastValue Optional indicator that you are going to emit the last
      *                   value; may be used to increase performance
      */

@@ -3,6 +3,8 @@
 package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
@@ -15,15 +17,24 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runCurrent
 
-internal class MockLoadTask(
-    scope: TestScope,
-    override val initialContainer: Container<String>? = null,
+internal class MockLoadTask private constructor(
+    private val scope: TestScope,
+    override val metadata: ContainerMetadata,
+    override val initialContainer: Container<String>?,
+    controller: LoadTaskControllerImpl,
 ) : LoadTask<String> {
 
-    private val _controller = LoadTaskControllerImpl(scope)
+    private val _controller = controller
     val controller: LoadTaskController = _controller
 
     override var lastRealLoader: ValueLoader<String>? = null
+    override val lastRealMetadata: ContainerMetadata = EmptyMetadata
+
+    constructor(
+        scope: TestScope,
+        metadata: ContainerMetadata = EmptyMetadata,
+        initialContainer: Container<String>? = null,
+    ) : this(scope, metadata, initialContainer, LoadTaskControllerImpl(scope))
 
     override fun execute(executeParams: ExecuteParams<String>): Flow<Container<String>> {
         return channelFlow {
@@ -37,7 +48,10 @@ internal class MockLoadTask(
         }
     }
 
-    override fun setLoadTrigger(loadTrigger: LoadTrigger) = Unit
+    override fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<String> {
+        return MockLoadTask(scope, metadata, initialContainer, _controller)
+    }
+
     override fun cancel() = Unit
 }
 

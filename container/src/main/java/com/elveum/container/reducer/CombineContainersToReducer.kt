@@ -1,3 +1,5 @@
+@file:Suppress("UNCHECKED_CAST")
+
 package com.elveum.container.reducer
 
 import com.elveum.container.Container
@@ -13,7 +15,7 @@ import kotlinx.coroutines.flow.SharingStarted
 public fun <State> combineContainersToReducer(
     flows: Iterable<Flow<Container<*>>>,
     initialState: suspend (List<*>) -> State,
-    nextState: suspend (State, List<*>) -> State = { oldState, values ->
+    nextState: suspend (State, List<*>) -> State = { _, values ->
         initialState(values)
     },
     scope: CoroutineScope,
@@ -36,7 +38,7 @@ public fun <T1, T2, State> combineContainersToReducer(
     flow1: Flow<Container<T1>>,
     flow2: Flow<Container<T2>>,
     initialState: suspend (T1, T2) -> State,
-    nextState: suspend (State, T1, T2) -> State = { oldState, v1, v2 ->
+    nextState: suspend (State, T1, T2) -> State = { _, v1, v2 ->
         initialState(v1, v2)
     },
     scope: CoroutineScope,
@@ -64,7 +66,7 @@ public fun <T1, T2, T3, State> combineContainersToReducer(
     flow2: Flow<Container<T2>>,
     flow3: Flow<Container<T3>>,
     initialState: suspend (T1, T2, T3) -> State,
-    nextState: suspend (State, T1, T2, T3) -> State = { oldState, v1, v2, v3 ->
+    nextState: suspend (State, T1, T2, T3) -> State = { _, v1, v2, v3 ->
         initialState(v1, v2, v3)
     },
     scope: CoroutineScope,
@@ -93,7 +95,7 @@ public fun <T1, T2, T3, T4, State> combineContainersToReducer(
     flow3: Flow<Container<T3>>,
     flow4: Flow<Container<T4>>,
     initialState: suspend (T1, T2, T3, T4) -> State,
-    nextState: suspend (State, T1, T2, T3, T4) -> State = { oldState, v1, v2, v3, v4 ->
+    nextState: suspend (State, T1, T2, T3, T4) -> State = { _, v1, v2, v3, v4 ->
         initialState(v1, v2, v3, v4)
     },
     scope: CoroutineScope,
@@ -123,7 +125,7 @@ public fun <T1, T2, T3, T4, T5, State> combineContainersToReducer(
     flow4: Flow<Container<T4>>,
     flow5: Flow<Container<T5>>,
     initialState: suspend (T1, T2, T3, T4, T5) -> State,
-    nextState: suspend (State, T1, T2, T3, T4, T5) -> State = { oldState, v1, v2, v3, v4, v5 ->
+    nextState: suspend (State, T1, T2, T3, T4, T5) -> State = { _, v1, v2, v3, v4, v5 ->
         initialState(v1, v2, v3, v4, v5)
     },
     scope: CoroutineScope,
@@ -149,7 +151,7 @@ public fun <T1, T2, T3, T4, T5, State> combineContainersToReducer(
 public fun <State> ReducerOwner.combineContainersToReducer(
     flows: Iterable<Flow<Container<*>>>,
     initialState: suspend (List<*>) -> State,
-    nextState: suspend (State, List<*>) -> State = { oldState, values ->
+    nextState: suspend (State, List<*>) -> State = { _, values ->
         initialState(values)
     },
 ): ContainerReducer<State> {
@@ -164,7 +166,7 @@ public fun <T1, T2, State> ReducerOwner.combineContainersToReducer(
     flow1: Flow<Container<T1>>,
     flow2: Flow<Container<T2>>,
     initialState: suspend (T1, T2) -> State,
-    nextState: suspend (State, T1, T2) -> State = { oldState, v1, v2 ->
+    nextState: suspend (State, T1, T2) -> State = { _, v1, v2 ->
         initialState(v1, v2)
     },
 ): ContainerReducer<State> {
@@ -180,7 +182,7 @@ public fun <T1, T2, T3, State> ReducerOwner.combineContainersToReducer(
     flow2: Flow<Container<T2>>,
     flow3: Flow<Container<T3>>,
     initialState: suspend (T1, T2, T3) -> State,
-    nextState: suspend (State, T1, T2, T3) -> State = { oldState, v1, v2, v3 ->
+    nextState: suspend (State, T1, T2, T3) -> State = { _, v1, v2, v3 ->
         initialState(v1, v2, v3)
     },
 ): ContainerReducer<State> {
@@ -197,7 +199,7 @@ public fun <T1, T2, T3, T4, State> ReducerOwner.combineContainersToReducer(
     flow3: Flow<Container<T3>>,
     flow4: Flow<Container<T4>>,
     initialState: suspend (T1, T2, T3, T4) -> State,
-    nextState: suspend (State, T1, T2, T3, T4) -> State = { oldState, v1, v2, v3, v4 ->
+    nextState: suspend (State, T1, T2, T3, T4) -> State = { _, v1, v2, v3, v4 ->
         initialState(v1, v2, v3, v4)
     },
 ): ContainerReducer<State> {
@@ -215,7 +217,7 @@ public fun <T1, T2, T3, T4, T5, State> ReducerOwner.combineContainersToReducer(
     flow4: Flow<Container<T4>>,
     flow5: Flow<Container<T5>>,
     initialState: suspend (T1, T2, T3, T4, T5) -> State,
-    nextState: suspend (State, T1, T2, T3, T4, T5) -> State = { oldState, v1, v2, v3, v4, v5 ->
+    nextState: suspend (State, T1, T2, T3, T4, T5) -> State = { _, v1, v2, v3, v4, v5 ->
         initialState(v1, v2, v3, v4, v5)
     },
 ): ContainerReducer<State> {

@@ -5,7 +5,6 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.IsLoadingInBackgroundMetadata
-import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadUuidMetadata
 import com.elveum.container.getOrNull
 import com.elveum.container.pendingContainer
@@ -14,7 +13,7 @@ import com.elveum.container.successContainer
 import kotlinx.coroutines.flow.FlowCollector
 
 internal class FlowEmitter<T>(
-    override val loadTrigger: LoadTrigger,
+    override val metadata: ContainerMetadata,
     private val flowCollector: FlowCollector<Container<T>>,
     private val executeParams: LoadTask.ExecuteParams<T> = LoadTask.ExecuteParams(),
     private val flowSubject: FlowSubject<T>? = null,
@@ -29,17 +28,32 @@ internal class FlowEmitter<T>(
     override suspend fun emit(value: T, metadata: ContainerMetadata, isLastValue: Boolean) {
         _hasEmittedValues = true
         flowSubject?.onNext(value)
-        val loadUuidMetadata = loadUuid.takeIf { it.isNotBlank() }
-            ?.let(::LoadUuidMetadata)
-            ?: EmptyMetadata
-        flowCollector.emit(successContainer(value, loadUuidMetadata + IsLoadingInBackgroundMetadata(!isLastValue)) + metadata)
+        flowCollector.emit(buildOutputContainer(value, metadata, isLoadingInBackground = !isLastValue))
         lastEmittedValue = if (isLastValue) {
             pendingContainer()
         } else {
             successContainer(
-                successContainer(value, loadUuidMetadata + IsLoadingInBackgroundMetadata(false) + metadata)
+                buildOutputContainer(value, metadata, isLoadingInBackground = false)
             )
         }
+    }
+
+    private fun buildOutputContainer(
+        value: T,
+        metadata: ContainerMetadata,
+        isLoadingInBackground: Boolean,
+    ): Container<T> {
+        val loadUuidMetadata = loadUuid.takeIf { it.isNotBlank() }
+            ?.let(::LoadUuidMetadata)
+            ?: EmptyMetadata
+        return successContainer(
+            value = value,
+            metadata = loadUuidMetadata +
+                    IsLoadingInBackgroundMetadata(isLoadingInBackground) +
+                    metadata +
+                    this.metadata
+        )
+
     }
 
     internal suspend fun emitLastItem() {

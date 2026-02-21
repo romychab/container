@@ -1,6 +1,7 @@
 package com.elveum.container.utils
 
 import com.elveum.container.Container
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.subject.lazy.FlowEmitter
 import com.elveum.container.subject.lazy.LoadTask
@@ -10,7 +11,7 @@ import kotlinx.coroutines.flow.FlowCollector
 internal class MockFlowEmitterCreator(
     private val onCreate: (FlowCollector<Container<String>>, ExecuteParams<String>) -> FlowEmitter<String>
 ) : LoadTask.FlowEmitterCreator<String>(
-    null, { LoadTrigger.NewLoad },
+    null, EmptyMetadata,
 ) {
     override fun create(
         flowCollector: FlowCollector<Container<String>>,

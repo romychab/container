@@ -190,6 +190,7 @@ Also, you can combine 2 or more Kotlin Flows into one Reducer by using:
 - `combineContainersToReducer(): ContainerReducer<State>`
 
 ### Reducer vs ContainerReducer
+
 As you see, the library has 2 types of reducers:
 - `Reducer` - provides `StateFlow<T>` for observing state, and `update()` method
   for updating values
@@ -447,7 +448,7 @@ Features:
 5. There is a timeout (default value is 1sec) after the last subscriber
    stops collecting the flow. When timeout expires, the cached value is
    cleared so any further subscribers will execute the load function again
-6. The flow can be collected by using `listen()` method
+6. The flow can be collected by using `listen()` or `listenReloadable()` method
 7. You can replace the load function at any time by using the following methods:
    - `newLoad` - assign a new load function which can emit more than one value.
      This method also returns a separate flow which differs from the flow returned by `listen()`:
@@ -486,6 +487,26 @@ class ProductRepository(
 
     fun reload() {
         productsSubject.reloadAsync()
+    }
+
+}
+```
+
+Hint: instead of direct creation of LazyFlowSubject instances, you can use `SubjectFactory`
+to make your code more testable:
+
+```kotlin
+class ProductRepository(
+  private val subjectFactory: SubjectFactory = SubjectFactory,
+) {
+
+    private val subject = subjectFactory.createSubject {
+        delay(1000)
+        emit("my-item")
+    }
+
+    fun listen(): ContainerFlow<String> {
+        return subject.listenReloadable()
     }
 
 }
@@ -553,7 +574,8 @@ subject.listen()
 
 All success and error containers have an additional property named `reloadFunction`.
 By default, it is empty, but optionally you can configure the `LazyFlowSubject.listen()`
-call with additional `ContainerConfiguration(emitReloadFunction = true)` argument. In this
+call with additional `ContainerConfiguration(emitReloadFunction = true)` argument
+(or call `listenReloadable()` instead of `listen()`). In this
 case, calling `reloadFunction` causes a full reload of the corresponding `LazeFlowSubject`
 instance (similar to call of `LazyFlowSubject.reloadAsync()`).
 
@@ -561,9 +583,7 @@ The reload function is backed by `ReloadFunctionMetadata`, an implementation of
 `ContainerMetadata`.
 
 You can re-assign the reloading function by:
-
 - creating a new container: `successContainer(value, ReloadFunctionMetadata(customReloadFunction))`
-
 - mapping an existing container using `update` function:
 
   ```kotlin
@@ -574,6 +594,7 @@ You can re-assign the reloading function by:
       }
   }
   ```
+
 - mapping an existing container in a Kotlin Flow:
 
   ```kotlin

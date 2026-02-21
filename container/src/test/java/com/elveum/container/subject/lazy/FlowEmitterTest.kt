@@ -16,11 +16,18 @@ import com.elveum.container.sourceType
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
+import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifySequence
 import io.mockk.impl.annotations.MockK
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -33,6 +40,9 @@ class FlowEmitterTest {
 
     @MockK
     private lateinit var flowSubject: FlowSubject<String>
+
+    @MockK
+    private lateinit var flowDependencyStore: FlowDependencyStore
 
     @Before
     fun setUp() {
@@ -312,13 +322,57 @@ class FlowEmitterTest {
         }
     }
 
+    @Test
+    fun dependsOnFlow_delegatesCallToFlowDependencyStore() = runTest {
+        coEvery {
+            flowDependencyStore.dependsOn<String>("key", "varargKey", flow = any())
+        } coAnswers {
+            thirdArg<() -> Flow<Container<String>>>()
+                .invoke()
+                .filterIsInstance<Container.Success<String>>()
+                .first()
+                .value
+        }
+        val flowEmitter = makeFlowEmitter()
+        val flow = MutableStateFlow("one")
+
+        val result = flowEmitter.dependsOnFlow("key", "varargKey") { flow }
+
+        coVerifySequence {
+            flowDependencyStore.dependsOn<String>("key", "varargKey", flow = any())
+        }
+        assertEquals("one", result)
+    }
+
+    @Test
+    fun dependsOnContainerFlow_delegatesCallToFlowDependencyStore() = runTest {
+        coEvery {
+            flowDependencyStore.dependsOn<String>("key", "varargKey", flow = any())
+        } coAnswers {
+            thirdArg<() -> Flow<Container<String>>>()
+                .invoke()
+                .filterIsInstance<Container.Success<String>>()
+                .first()
+                .value
+        }
+        val flowEmitter = makeFlowEmitter()
+        val flow = MutableStateFlow<Container<String>>(successContainer("one"))
+
+        val result = flowEmitter.dependsOnContainerFlow("key", "varargKey") { flow }
+
+        coVerify {
+            flowDependencyStore.dependsOn<String>("key", "varargKey", flow = any())
+        }
+        assertEquals("one", result)
+    }
+
     private fun makeFlowEmitter(
         metadata: ContainerMetadata = EmptyMetadata,
         loadUuid: String = "",
     ) = FlowEmitter(
         metadata = metadata,
         flowCollector = flowCollector,
-        executeParams = LoadTask.ExecuteParams(loadUuid = loadUuid),
+        executeParams = LoadTask.ExecuteParams(loadUuid, flowDependencyStore),
         flowSubject = flowSubject,
     )
 }

@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.errorContainer
+import com.elveum.container.reloadDependencies
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.update
@@ -18,12 +19,13 @@ internal interface LoadTask<T> {
     val initialContainer: Container<T>?
     val lastRealLoader: ValueLoader<T>?
     val lastRealMetadata: ContainerMetadata
-    fun execute(executeParams: ExecuteParams<T> = ExecuteParams()): Flow<Container<T>>
+    fun execute(executeParams: ExecuteParams<T>): Flow<Container<T>>
     fun cancel()
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
 
     class ExecuteParams<T>(
         val loadUuid: String = "",
+        val flowDependencyStore: FlowDependencyStore,
         val currentContainer: () -> Container<T>? = { null }
     )
 
@@ -64,13 +66,13 @@ internal interface LoadTask<T> {
     class Load<T> private constructor(
         override val metadata: ContainerMetadata,
         private val loader: ValueLoader<T>,
-        private val silent: Boolean = false,
+        private val silently: Boolean = false,
         private val flowSubject: FlowSubject<T>? = null,
         private val flowEmitterCreator: FlowEmitterCreator<T> = FlowEmitterCreator(flowSubject, metadata),
     ) : LoadTask<T> {
 
         override val initialContainer: Container<T>? =
-            if (silent) null else Container.Pending
+            if (silently) null else Container.Pending
 
         override val lastRealLoader: ValueLoader<T> = loader
         override val lastRealMetadata: ContainerMetadata = metadata
@@ -94,7 +96,7 @@ internal interface LoadTask<T> {
             executeParams: ExecuteParams<T>,
         ) = flow {
             try {
-                if (!silent) {
+                if (!silently) {
                     emit(Container.Pending)
                 } else {
                     executeParams.currentContainer()?.update(isLoadingInBackground = true)?.let {
@@ -102,7 +104,15 @@ internal interface LoadTask<T> {
                     }
                 }
                 val emitter = flowEmitterCreator.create(this, executeParams)
-                loader(emitter)
+                try {
+                    executeParams.flowDependencyStore.begin(
+                        reloadDependencies = metadata.reloadDependencies,
+                        silently = silently,
+                    )
+                    loader(emitter)
+                } finally {
+                    executeParams.flowDependencyStore.end()
+                }
                 if (!emitter.hasEmittedValues) {
                     throw IllegalStateException("Value Loader should emit at least one item or " +
                             "throw exception. If you don't want to emit values (e.g. it's okay for " +

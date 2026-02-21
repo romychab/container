@@ -8,18 +8,21 @@ import com.elveum.container.subject.transformation.ContainerTransformation
 
 public open class DefaultSubjectFactory(
     private val cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
+    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
     private val coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
     private val transformationFactory: TransformationFactory = TransformationFactory,
 ) : SubjectFactory {
 
     override fun <T> createSubject(
         cacheTimeoutMillis: Long?,
+        reloadDependenciesPeriodMillis: Long?,
         coroutineScopeFactory: CoroutineScopeFactory?,
         transformation: ContainerTransformation<T>?,
         valueLoader: ValueLoader<T>
     ): LazyFlowSubject<T> {
         return LazyFlowSubject.create(
             valueLoader = valueLoader,
+            reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
             cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
             transformation = transformation ?: transformationFactory.create(),
@@ -28,6 +31,7 @@ public open class DefaultSubjectFactory(
 
     override fun <Arg, T> createCache(
         cacheTimeoutMillis: Long?,
+        reloadDependenciesPeriodMillis: Long?,
         coroutineScopeFactory: CoroutineScopeFactory?,
         transformation: ContainerTransformation<T>?,
         valueLoader: CacheValueLoader<Arg, T>
@@ -35,6 +39,7 @@ public open class DefaultSubjectFactory(
         return LazyCache.create(
             valueLoader = valueLoader,
             cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
+            reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
             transformation = transformation ?: transformationFactory.create(),
         )

@@ -6,6 +6,7 @@ import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
+import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -137,6 +138,7 @@ public interface LazyFlowSubject<T> {
 
         public fun <T> create(
             cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
+            reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
             valueLoader: ValueLoader<T>? = null,
@@ -145,6 +147,7 @@ public interface LazyFlowSubject<T> {
                 coroutineScopeFactory = coroutineScopeFactory,
                 cacheTimeoutMillis = cacheTimeoutMillis,
                 loadTaskManager = LoadTaskManager(transformation),
+                reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
             ).apply {
                 if (valueLoader != null) {
                     newAsyncLoad(valueLoader = valueLoader)

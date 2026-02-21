@@ -19,12 +19,14 @@ import kotlinx.coroutines.flow.Flow
 public fun <T> SubjectFactory.createFlow(
     configuration: ContainerConfiguration = ContainerConfiguration(),
     cacheTimeoutMillis: Long? = null,
+    reloadDependenciesPeriodMillis: Long? = null,
     coroutineScopeFactory: CoroutineScopeFactory? = null,
     transformation: ContainerTransformation<T>? = null,
     valueLoader: ValueLoader<T>
 ): Flow<Container<T>> {
     return createSubject(
         cacheTimeoutMillis,
+        reloadDependenciesPeriodMillis,
         coroutineScopeFactory,
         transformation,
         valueLoader
@@ -41,12 +43,14 @@ public fun <T> SubjectFactory.createReloadableFlow(
     emitBackgroundLoads: Boolean = true,
     emitReloadFunction: Boolean = true,
     cacheTimeoutMillis: Long? = null,
+    reloadDependenciesPeriodMillis: Long? = null,
     coroutineScopeFactory: CoroutineScopeFactory? = null,
     transformation: ContainerTransformation<T>? = null,
     valueLoader: ValueLoader<T>
 ): Flow<Container<T>> {
     return createSubject(
         cacheTimeoutMillis,
+        reloadDependenciesPeriodMillis,
         coroutineScopeFactory,
         transformation,
         valueLoader

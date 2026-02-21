@@ -36,6 +36,11 @@ public interface ContainerMetadata {
         }
     }
 
+    /**
+     * Marker interface for metadata types that must be hidden from container
+     * collectors.
+     */
+    public interface Hidden
 }
 
 /**
@@ -78,6 +83,9 @@ public val ContainerMetadata.sourceType: SourceType
 public val ContainerMetadata.loadTrigger: LoadTrigger
     get() = get<LoadTriggerMetadata>()?.loadTrigger ?: LoadTrigger.NewLoad
 
+public val ContainerMetadata.reloadDependencies: Boolean
+    get() = get<ReloadDependenciesMetadata>()?.reloadDependencies ?: false
+
 public data class IsLoadingInBackgroundMetadata(
     public val isLoadingInBackground: Boolean
 ) : ContainerMetadata
@@ -92,11 +100,15 @@ public data class SourceTypeMetadata(
 
 public data class LoadUuidMetadata(
     public val uuid: String,
-) : ContainerMetadata
+) : ContainerMetadata, ContainerMetadata.Hidden
 
 public data class LoadTriggerMetadata(
     public val loadTrigger: LoadTrigger,
-) : ContainerMetadata
+) : ContainerMetadata, ContainerMetadata.Hidden
+
+public data class ReloadDependenciesMetadata(
+    public val reloadDependencies: Boolean,
+) : ContainerMetadata, ContainerMetadata.Hidden
 
 public data object EmptyMetadata : ContainerMetadata {
     override fun plus(other: ContainerMetadata?): ContainerMetadata {

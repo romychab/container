@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LoadUuidMetadata
+import com.elveum.container.ReloadDependenciesMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
@@ -16,6 +17,7 @@ import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
@@ -39,6 +41,9 @@ class LazyFlowSubjectTest {
     @MockK
     private lateinit var loadTaskFactory: LoadTaskFactory
 
+    @RelaxedMockK
+    private lateinit var flowDependencyStore: FlowDependencyStoreImpl<String>
+
     private lateinit var scope: TestScope
 
     private lateinit var coroutineScopeFactory: CoroutineScopeFactory
@@ -55,6 +60,7 @@ class LazyFlowSubjectTest {
             cacheTimeoutMillis = timeoutMillis,
             loadTaskManager = loadTaskManager,
             loadTaskFactory = loadTaskFactory,
+            flowDependencyStore = flowDependencyStore,
         )
     }
 
@@ -103,7 +109,7 @@ class LazyFlowSubjectTest {
             loadTaskFactory.create(
                 silently = true,
                 valueLoader = refEq(valueLoader),
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload),
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + ReloadDependenciesMetadata(true),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
@@ -116,7 +122,7 @@ class LazyFlowSubjectTest {
     }
 
     @Test
-    fun reload_withCustomMetadata_combinesMetadataWithReloadTrigger() {
+    fun reload_withCustomMetadata_combinesMetadataWithReloadTriggerAndDependencies() {
         val valueLoader = mockk<ValueLoader<String>>()
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
@@ -127,7 +133,9 @@ class LazyFlowSubjectTest {
             loadTaskFactory.create(
                 silently = false,
                 valueLoader = refEq(valueLoader),
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + customMetadata,
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
+                        ReloadDependenciesMetadata(true) +
+                        customMetadata,
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
@@ -209,7 +217,7 @@ class LazyFlowSubjectTest {
 
         verify(exactly = 0) {
             loadTaskManager.listen()
-            loadTaskManager.startProcessingLoads(any())
+            loadTaskManager.startProcessingLoads(any(), any())
             loadTaskManager.cancelProcessingLoads()
             coroutineScopeFactory.createScope()
         }
@@ -249,7 +257,7 @@ class LazyFlowSubjectTest {
         subject.listen().startCollecting()
 
         verify(exactly = 1) {
-            loadTaskManager.startProcessingLoads(capture(scopeSlot))
+            loadTaskManager.startProcessingLoads(capture(scopeSlot), any())
         }
         assertSame(scope.testScheduler, scopeSlot.captured.testScheduler)
     }
@@ -325,7 +333,7 @@ class LazyFlowSubjectTest {
         // verify loads started
         val state1 = subject.listen().startCollecting()
         verify(exactly = 1) {
-            loadTaskManager.startProcessingLoads(any())
+            loadTaskManager.startProcessingLoads(any(), any())
         }
         verify(exactly = 0) {
             loadTaskManager.cancelProcessingLoads()
@@ -340,10 +348,10 @@ class LazyFlowSubjectTest {
         subject.listen().startCollecting()
         verifySequence {
             // verify full sequence of calls
-            loadTaskManager.startProcessingLoads(any()) // first collecting
+            loadTaskManager.startProcessingLoads(any(), any()) // first collecting
             loadTaskManager.listen()
             loadTaskManager.cancelProcessingLoads() // first collecting cancelled
-            loadTaskManager.startProcessingLoads(any()) // second collecting started
+            loadTaskManager.startProcessingLoads(any(), any()) // second collecting started
             loadTaskManager.listen()
         }
     }

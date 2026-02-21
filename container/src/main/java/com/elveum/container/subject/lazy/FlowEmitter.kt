@@ -10,12 +10,14 @@ import com.elveum.container.getOrNull
 import com.elveum.container.pendingContainer
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.successContainer
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.map
 
 internal class FlowEmitter<T>(
     override val metadata: ContainerMetadata,
     private val flowCollector: FlowCollector<Container<T>>,
-    private val executeParams: LoadTask.ExecuteParams<T> = LoadTask.ExecuteParams(),
+    private val executeParams: LoadTask.ExecuteParams<T>,
     private val flowSubject: FlowSubject<T>? = null,
 ) : Emitter<T> {
 
@@ -24,6 +26,7 @@ internal class FlowEmitter<T>(
     val hasEmittedValues get() = _hasEmittedValues
 
     private val loadUuid get() = executeParams.loadUuid
+    private val flowDependencyStore = executeParams.flowDependencyStore
 
     override suspend fun emit(value: T, metadata: ContainerMetadata, isLastValue: Boolean) {
         _hasEmittedValues = true
@@ -36,6 +39,24 @@ internal class FlowEmitter<T>(
                 buildOutputContainer(value, metadata, isLoadingInBackground = false)
             )
         }
+    }
+
+    override suspend fun <R> dependsOnFlow(
+        key: Any,
+        vararg keys: Any,
+        flow: () -> Flow<R>,
+    ): R {
+        return dependsOnContainerFlow(key, *keys) {
+            flow().map<R, Container<R>>(::successContainer)
+        }
+    }
+
+    override suspend fun <R> dependsOnContainerFlow(
+        key: Any,
+        vararg keys: Any,
+        flow: () -> Flow<Container<R>>,
+    ): R {
+        return flowDependencyStore.dependsOn(key, *keys, flow = flow)
     }
 
     private fun buildOutputContainer(

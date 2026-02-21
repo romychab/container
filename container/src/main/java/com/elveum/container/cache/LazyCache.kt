@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
+import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -103,12 +104,14 @@ public interface LazyCache<Arg, T> {
          */
         public fun <Arg, T> create(
             cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
+            reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
             valueLoader: CacheValueLoader<Arg, T>,
         ): LazyCache<Arg, T> {
             return LazyCacheImpl(
                 cacheTimeoutMillis = cacheTimeoutMillis,
+                reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
                 coroutineScopeFactory = coroutineScopeFactory,
                 transformation = transformation,
                 valueLoader = valueLoader,

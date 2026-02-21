@@ -7,7 +7,9 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.ReloadDependenciesMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
@@ -30,7 +32,12 @@ internal class LazyFlowSubjectImpl<T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
     private val loadTaskManager: LoadTaskManager<T>,
+    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
     private val loadTaskFactory: LoadTaskFactory = LoadTaskFactory.Default,
+    private val flowDependencyStore: FlowDependencyStoreImpl<T> = FlowDependencyStoreImpl(
+        loadTaskManager = loadTaskManager,
+        reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
+    )
 ) : LazyFlowSubject<T> {
 
     override val activeCollectorsCount: Int get() = collectorsCountFlow.value
@@ -78,7 +85,9 @@ internal class LazyFlowSubjectImpl<T>(
             doNewLoad(
                 silently = silently,
                 valueLoader = lastLoader,
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + metadata,
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
+                        ReloadDependenciesMetadata(true) +
+                        metadata,
             )
         } ?: emptyFlow()
     }
@@ -112,7 +121,15 @@ internal class LazyFlowSubjectImpl<T>(
     private fun startLoading() {
         if (scope != null) return
         scope = coroutineScopeFactory.createScope()
-            .also(loadTaskManager::startProcessingLoads)
+            .also { scope ->
+                flowDependencyStore.initialize(scope) { reloadDependencies ->
+                    reloadAsync(silently = true, metadata = ReloadDependenciesMetadata(reloadDependencies))
+                }
+                loadTaskManager.startProcessingLoads(
+                    scope = scope,
+                    flowDependencyStore = flowDependencyStore,
+                )
+            }
     }
 
     private fun scheduleStopLoading() {
@@ -122,6 +139,7 @@ internal class LazyFlowSubjectImpl<T>(
                 cancellationJob = null
                 if (collectorsCountFlow.value == 0) { // double check required
                     loadTaskManager.cancelProcessingLoads()
+                    flowDependencyStore.shutdown()
                     scope?.cancel()
                     scope = null
                 }

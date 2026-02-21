@@ -12,7 +12,7 @@ android applications.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta12"
+implementation "com.elveum:container:2.0.0-beta13"
 ```
 
 ## Documentation
@@ -605,7 +605,68 @@ You can re-assign the reloading function by:
           reloadFunction(it)  // call origin reload function if needed
       }
   ```
-  
+
+#### Flow Dependencies in Load Functions (experimental)
+
+Starting from v2.0.0-beta13, you can optionally subscribe to Kotlin flows directly
+in a load function by using the following methods:
+- `dependsOnFlow`
+- `dependsOnContainerFlow`
+
+Usage example:
+
+```kotlin
+
+// 1. getCurrentUserFlow() returns a flow emitting Container<User>
+interface SessionProvider {
+    fun getCurrentUserFlow(): Flow<Container<User>>
+}
+
+// 2. Wrap getCurrentUserFlow() call into dependsOnContainerFlow { ... }
+val subject = LazyFlowSubject.create {
+    val currentUser: User = dependsOnContainerFlow("getCurrentUser") {
+        sessionProvider.getCurrentUserFlow()
+    }
+    // 3. Now, this loader function depends on currentUser.
+    //    Whenever the currentUser is changed, the loader function is re-executed.
+    val userProducts = products.getProducts(currentUser)
+    emit(remoteProducts, RemoteSourceType)
+}
+```
+
+:warning: You must supply `dependsOnContainerFlow` and/or `dependsOnFlow` calls
+with unique keys representing the wrapped flow and all its arguments. For example,
+if you want to subscribe to a flow emitting the current user, add a key named `getCurrentUser`:
+
+```kotlin
+val currentUser: User = dependsOnContainerFlow("getCurrentUser") {
+    sessionProvider.getCurrentUserFlow()
+}
+```
+
+Example with additional arguments:
+
+```kotlin
+val userId: String = sessionProvider.getCurrentUserId()
+val user: User = dependsOnContainerFlow("getUserById", userId) {
+    userRepository.getUserById(userId)
+}
+```
+
+Keys are important, since `Flow<T>` instances created by `dependsOnContainerFlow` and
+`dependsOnFlow` calls are cached and retained across multiple loads. When you
+call either `dependsOnFlow`, or `dependsOnContainerFlow` with the same keys, the second
+call returns data from the first call:
+
+```kotlin
+val result1: String = dependsOnContainerFlow("key1") {
+    getFlow1()
+}
+val result2: String = dependsOnContainerFlow("key1") {
+    getFlow2() // IGNORED (key1 already refers to the previous flow)
+}
+```
+
 ## Lazy Cache
 
 `LazyCache` is a store of multiple `LazyFlowSubject` instances. It allows you

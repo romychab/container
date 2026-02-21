@@ -11,6 +11,7 @@ import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
@@ -27,6 +28,9 @@ class LoadTaskManagerTest {
 
     @MockK
     private lateinit var uuidProvider: () -> String
+
+    @RelaxedMockK
+    private lateinit var flowDependencyStore: FlowDependencyStore
 
     private lateinit var loadTaskManager: LoadTaskManager<String>
 
@@ -61,7 +65,7 @@ class LoadTaskManagerTest {
         runCurrent()
 
         verify(exactly = 0) {
-            loadTask.execute()
+            loadTask.execute(any())
         }
     }
 
@@ -70,7 +74,7 @@ class LoadTaskManagerTest {
         val loadTask = spyk(MockLoadTask(this))
 
         loadTaskManager.submitNewLoadTask(loadTask)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         runCurrent()
 
         verify(exactly = 1) {
@@ -82,7 +86,7 @@ class LoadTaskManagerTest {
     fun submitLoadTask_startsLoadingImmediately_ifListenerAlreadySubscribed() = runTest {
         val loadTask = spyk(MockLoadTask(this))
 
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
         runCurrent()
 
@@ -95,7 +99,7 @@ class LoadTaskManagerTest {
     fun submitLoadTask_cancelsPreviousTaskAndExecutesNewTask() = runTest {
         val loadTask1 = spyk(MockLoadTask(this))
         val loadTask2 = spyk(MockLoadTask(this))
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
 
         loadTaskManager.submitNewLoadTask(loadTask1)
         loadTaskManager.submitNewLoadTask(loadTask2)
@@ -108,9 +112,9 @@ class LoadTaskManagerTest {
     }
 
     @Test
-    fun submitNewLoadTask_updatesValueImmediately() = runTest {
+    fun submitRestoreLoadTask_updatesValueImmediately() = runTest {
         val loadTask = MockLoadTask(this, initialContainer = successContainer("123"))
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
 
         loadTaskManager.submitNewLoadTask(loadTask)
         advanceTimeBy(1)
@@ -122,7 +126,7 @@ class LoadTaskManagerTest {
     }
 
     @Test
-    fun submitNewLoadTask_withoutListeners_doesNotUpdateValueImmediately() = runTest {
+    fun submitRestoreLoadTask_withoutListeners_doesNotUpdateValueImmediately() = runTest {
         val loadTask = MockLoadTask(this, initialContainer = successContainer("123"))
 
         loadTaskManager.submitNewLoadTask(loadTask)
@@ -137,7 +141,7 @@ class LoadTaskManagerTest {
     @Test
     fun startProcessingLoads_updatesOutputFlow() = runTest {
         val loadTask = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
         runCurrent()
 
@@ -154,7 +158,7 @@ class LoadTaskManagerTest {
     fun startProcessingLoads_doesNotEmitValues_forCancelledTask() = runTest {
         val loadTask1 = MockLoadTask(this)
         val loadTask2 = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
 
         loadTaskManager.submitNewLoadTask(loadTask1)
         loadTask1.controller.start()
@@ -172,7 +176,7 @@ class LoadTaskManagerTest {
     @Test
     fun cancelProcessingLoads_stopsEmittingItems() = runTest {
         val loadTask = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTaskManager.cancelProcessingLoads()
@@ -185,7 +189,7 @@ class LoadTaskManagerTest {
     @Test
     fun cancelProcessingLoads_setsPendingStatus() = runTest {
         val loadTask = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTask.controller.start()
@@ -201,7 +205,7 @@ class LoadTaskManagerTest {
     @Test
     fun cancelProcessingLoads_cancelsTask() = runTest {
         val loadTask = spyk(MockLoadTask(this))
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTaskManager.cancelProcessingLoads()
@@ -215,7 +219,7 @@ class LoadTaskManagerTest {
     @Test
     fun cancelProcessingLoads_callsRestoreLoadTaskWithCacheExpiredTriggerMetadata() = runTest {
         val loadTask = spyk(MockLoadTask(this))
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTaskManager.submitNewLoadTask(loadTask)
 
         loadTaskManager.cancelProcessingLoads()
@@ -232,7 +236,7 @@ class LoadTaskManagerTest {
     fun startProcessingLoads_afterCancellation_executesLastLoadTask() = runTest {
         val loadTask1 = MockLoadTask(this)
         val loadTask2 = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
 
         loadTaskManager.submitNewLoadTask(loadTask1)
         loadTask1.controller.start()
@@ -241,7 +245,7 @@ class LoadTaskManagerTest {
         loadTaskManager.cancelProcessingLoads()
         loadTask1.controller.reset()
         loadTask2.controller.reset()
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         loadTask1.controller.start()
         loadTask2.controller.start()
         advanceTimeBy(1)
@@ -257,7 +261,7 @@ class LoadTaskManagerTest {
     fun startProcessingLoads_attachesUniqueLoadUuid() = runTest {
         val loadTask1 = MockLoadTask(this)
         val loadTask2 = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope)
+        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
         every { uuidProvider.invoke() } returns "uuid1" andThen "uuid2"
 
         loadTaskManager.submitNewLoadTask(loadTask1)

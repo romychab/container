@@ -25,6 +25,7 @@ import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
+import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
@@ -46,19 +47,25 @@ class LoadTaskTest {
     @MockK
     private lateinit var flowEmitter: FlowEmitter<String>
 
+    @MockK
+    private lateinit var flowDependencyStore: FlowDependencyStore
+
     private lateinit var valueLoader: ValueLoader<String>
+
+    private lateinit var executeParams: LoadTask.ExecuteParams<String>
 
     @Before
     fun setUp() {
         valueLoader = mockk(relaxed = true)
         MockKAnnotations.init(this, relaxed = true)
+        executeParams = LoadTask.ExecuteParams(flowDependencyStore = flowDependencyStore)
     }
 
     @Test
     fun instantLoadTask_emitsDataImmediately() = runFlowTest {
         val task = LoadTask.Instant(successContainer("item"))
 
-        val flow = task.execute()
+        val flow = task.execute(executeParams)
         val state = flow.startCollecting()
         advanceUntilIdle()
 
@@ -76,7 +83,7 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting(StandardTestDispatcher(scope.testScheduler))
+        val state = task.execute(executeParams).startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
         assertEquals(
@@ -93,7 +100,7 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting(StandardTestDispatcher(scope.testScheduler))
+        val state = task.execute(executeParams).startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
         assertEquals(emptyList<Container<String>>(), state.collectedItems)
@@ -107,7 +114,10 @@ class LoadTaskTest {
         coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
 
         val state = task.execute(
-            LoadTask.ExecuteParams(currentContainer = { currentContainer })
+            LoadTask.ExecuteParams(
+                currentContainer = { currentContainer },
+                flowDependencyStore = flowDependencyStore,
+            )
         ).startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
@@ -127,7 +137,7 @@ class LoadTaskTest {
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
-        val executeParams = LoadTask.ExecuteParams<String>(loadUuid = "test-uuid")
+        val executeParams = LoadTask.ExecuteParams<String>(loadUuid = "test-uuid", flowDependencyStore = flowDependencyStore)
 
         task.execute(executeParams).startCollecting()
 
@@ -141,7 +151,7 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
         advanceTimeBy(11)
 
         val exception = state.collectedItems.last().exceptionOrNull()
@@ -158,7 +168,7 @@ class LoadTaskTest {
             delay(10)
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
         advanceTimeBy(11)
 
         assertEquals(2, state.collectedItems.size)
@@ -178,7 +188,7 @@ class LoadTaskTest {
             throw cancellationException
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(CollectStatus.Cancelled, state.collectStatus)
         assertTrue(state.collectedItems.isEmpty())
@@ -195,7 +205,7 @@ class LoadTaskTest {
             throw cancellationException
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(CollectStatus.Cancelled, state.collectStatus)
         assertEquals(
@@ -215,7 +225,7 @@ class LoadTaskTest {
             throw expectedException
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(CollectStatus.Completed, state.collectStatus)
         val exception = state.collectedItems.last().exceptionOrNull()
@@ -234,7 +244,7 @@ class LoadTaskTest {
             throw expectedException
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(CollectStatus.Completed, state.collectStatus)
         assertEquals(2, state.collectedItems.size)
@@ -265,7 +275,7 @@ class LoadTaskTest {
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(
             listOf(
@@ -299,7 +309,7 @@ class LoadTaskTest {
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         assertEquals(
             listOf(
@@ -451,7 +461,7 @@ class LoadTaskTest {
             metadata = SourceTypeMetadata(RemoteSourceType),
         )
 
-        val state = task.execute().startCollecting()
+        val state = task.execute(executeParams).startCollecting()
 
         val emittedContainer = state.collectedItems
             .filterIsInstance<Container.Success<String>>()

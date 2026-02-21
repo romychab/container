@@ -7,6 +7,7 @@ import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 
 public const val DefaultCacheTimeoutMillis: Long = 1000L
+public const val DefaultReloadDependenciesPeriodMillis: Long = 50L
 
 /**
  * Factory that can create [LazyFlowSubject] and [LazyCache] instances.
@@ -19,6 +20,7 @@ public interface SubjectFactory {
      */
     public fun <T> createSubject(
         cacheTimeoutMillis: Long? = null,
+        reloadDependenciesPeriodMillis: Long? = null,
         coroutineScopeFactory: CoroutineScopeFactory? = null,
         transformation: ContainerTransformation<T>? = null,
         valueLoader: ValueLoader<T>
@@ -30,6 +32,7 @@ public interface SubjectFactory {
      */
     public fun <Arg, T> createCache(
         cacheTimeoutMillis: Long? = null,
+        reloadDependenciesPeriodMillis: Long? = null,
         coroutineScopeFactory: CoroutineScopeFactory? = null,
         transformation: ContainerTransformation<T>? = null,
         valueLoader: CacheValueLoader<Arg, T>,
@@ -41,20 +44,22 @@ public interface SubjectFactory {
 
         override fun <T> createSubject(
             cacheTimeoutMillis: Long?,
+            reloadDependenciesPeriodMillis: Long?,
             coroutineScopeFactory: CoroutineScopeFactory?,
             transformation: ContainerTransformation<T>?,
             valueLoader: ValueLoader<T>
         ): LazyFlowSubject<T> {
-            return instance.createSubject(cacheTimeoutMillis, coroutineScopeFactory, transformation, valueLoader)
+            return instance.createSubject(cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation, valueLoader)
         }
 
         override fun <Arg, T> createCache(
             cacheTimeoutMillis: Long?,
+            reloadDependenciesPeriodMillis: Long?,
             coroutineScopeFactory: CoroutineScopeFactory?,
             transformation: ContainerTransformation<T>?,
             valueLoader: CacheValueLoader<Arg, T>
         ): LazyCache<Arg, T> {
-            return instance.createCache(cacheTimeoutMillis, coroutineScopeFactory, transformation, valueLoader)
+            return instance.createCache(cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation, valueLoader)
         }
 
         /**

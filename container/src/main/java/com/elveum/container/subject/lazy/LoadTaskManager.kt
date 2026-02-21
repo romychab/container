@@ -1,6 +1,7 @@
 package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -18,7 +19,7 @@ import kotlin.coroutines.coroutineContext
 
 internal class LoadTaskManager<T>(
     private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
-    private val uuidProvider: () -> String = { UUID.randomUUID().toString() }
+    private val uuidProvider: () -> String = { UUID.randomUUID().toString() },
 ) {
 
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
@@ -27,14 +28,21 @@ internal class LoadTaskManager<T>(
 
     fun listen(): StateFlow<Container<T>> = outputFlow
 
-    fun startProcessingLoads(scope: CoroutineScope) = synchronized(this) {
+    fun startProcessingLoads(
+        scope: CoroutineScope,
+        flowDependencyStore: FlowDependencyStore,
+    ) = synchronized(this) {
         if (job != null) return@synchronized
         val currentContainer: () -> Container<T> = { outputFlow.value }
         job = scope.launch {
             inputFlow
                 .collectLatest { loadTask ->
                     val loadUuid = uuidProvider.invoke()
-                    val executeParams = LoadTask.ExecuteParams(loadUuid, currentContainer)
+                    val executeParams = LoadTask.ExecuteParams(
+                        loadUuid = loadUuid,
+                        flowDependencyStore = flowDependencyStore,
+                        currentContainer = currentContainer,
+                    )
                     loadTask.execute(executeParams)
                         .run(transformation)
                         .collectLatest { value ->
@@ -76,7 +84,9 @@ internal class LoadTaskManager<T>(
     ) {
         synchronized(this) {
             if (coroutineContext.isActive && inputFlow.value === loadTask) {
-                outputFlow.value = value
+                outputFlow.value = value.filterMetadata {
+                    it !is ContainerMetadata.Hidden
+                }
             }
         }
     }

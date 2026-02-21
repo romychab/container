@@ -1,14 +1,19 @@
 package com.elveum.container.subject
 
+import com.elveum.container.Container
 import com.elveum.container.Container.Error
 import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Success
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
+import com.elveum.container.ReloadDependenciesMetadata
+import com.elveum.container.ReloadFunction
+import com.elveum.container.ReloadFunctionMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.get
 import com.elveum.container.pendingContainer
 import com.elveum.container.sourceType
@@ -18,12 +23,17 @@ import com.elveum.container.utils.raw
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.FlowTestScope
 import com.uandcode.flowtest.runFlowTest
+import io.mockk.clearMocks
 import io.mockk.coVerify
 import io.mockk.coVerifyOrder
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.spyk
+import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import org.junit.Assert.assertEquals
@@ -733,6 +743,73 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(1, subject.activeCollectorsCount)
         state2.cancel() // 0 active collectors
         assertEquals(0, subject.activeCollectorsCount)
+    }
+
+    @Test
+    fun loader_withDependencies_observeAllDependencies() = runFlowTest {
+        val reloadFunction = mockk<ReloadFunction>(relaxed = true)
+        val dependencyA = MutableSharedFlow<Container<String>>()
+        val dependencyB = MutableSharedFlow<String>()
+        var isDependencyBCancelled = false
+        val subject = createLazyFlowSubject {
+            val s1 = dependsOnContainerFlow("a") { dependencyA }
+            val s2 = dependsOnFlow("b") {
+                dependencyB.onCompletion {
+                    isDependencyBCancelled = it is CancellationException
+                }
+            }
+            emit("$s1:$s2")
+        }
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+
+        // 1. check first value merged from dependencies is received:
+        dependencyA.emit(successContainer("a1"))
+        runCurrent()
+        dependencyB.emit("b1")
+        runCurrent()
+
+        assertEquals(
+            listOf(pendingContainer(), successContainer("a1:b1")),
+            state.collectedItems.raw(),
+        )
+
+        // 2. check nothing changed (2 items as before), because recomposition
+        //    starts after a delay:
+        dependencyA.emit(successContainer("a2", ReloadFunctionMetadata(reloadFunction)))
+        assertEquals(2, state.count)
+
+        // 3. advance delay and check new updated item received:
+        advanceTimeBy(DefaultReloadDependenciesPeriodMillis + 1)
+        assertEquals(
+            successContainer("a2:b1"),
+            state.lastItem.raw()
+        )
+
+        // 4. new loader, without dependencyB -> it must be freed
+        subject.newAsyncLoad {
+            emit(dependsOnContainerFlow("a") { dependencyA })
+        }
+        runCurrent()
+        assertTrue(isDependencyBCancelled)
+
+        // 5. reload (not silently) -> dependencies must be reloaded
+        subject.reloadAsync(silently = false)
+        verify(exactly = 0) { reloadFunction(true) }
+        runCurrent()
+        verify(exactly = 1) { reloadFunction(false) }
+
+        // 6. reload (silently) -> dependencies must be reloaded
+        subject.reloadAsync(silently = true)
+        runCurrent()
+        verify(exactly = 1) { reloadFunction(true) }
+
+        // 7. reload without dependencies
+        clearMocks(reloadFunction)
+        subject.reloadAsync(metadata = ReloadDependenciesMetadata(false))
+        runCurrent()
+        verify(exactly = 0) { reloadFunction(any()) }
     }
 
     private fun FlowTestScope.createLazyFlowSubject(

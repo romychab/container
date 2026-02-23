@@ -4,9 +4,14 @@
 package com.elveum.container
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.mapLatest
 import kotlin.reflect.KClass
@@ -23,6 +28,41 @@ public inline fun <T, R> Flow<Container<T>>.containerMap(
 ): Flow<Container<R>> {
     return map { container ->
         container.map { mapper(it) }
+    }
+}
+
+/**
+ * Return a Container flow that switches to a new Container flow produced by transform
+ * function every time the original flow emits a new container value.
+ *
+ * When the original flow emits a new value, the previous flow produced by transform block is
+ * cancelled.
+ *
+ * All thrown exceptions are encapsulated into [Container.Error].
+ */
+public inline fun <T, R> Flow<Container<T>>.containerFlatMapLatest(
+    crossinline mapper: suspend ContainerMapperScope.(T) -> Flow<Container<R>>
+): Flow<Container<R>> {
+    return flatMapLatest { container ->
+        container.fold(
+            onPending = { flowOf(pendingContainer()) },
+            onError = { flowOf(errorContainer(it)) },
+            onSuccess = { value ->
+                try {
+                    mapper(value)
+                        .catch { throwable ->
+                            if (throwable is Exception) {
+                                emit(errorContainer(throwable))
+                            } else {
+                                throw throwable
+                            }
+                        }
+                } catch (e: Exception) {
+                    currentCoroutineContext().ensureActive()
+                    flowOf(errorContainer(e))
+                }
+            }
+        )
     }
 }
 

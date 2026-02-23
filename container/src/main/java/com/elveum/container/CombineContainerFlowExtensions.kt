@@ -1,5 +1,6 @@
 package com.elveum.container
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 
@@ -90,6 +91,8 @@ public fun <R> combineContainerFlows(
             try {
                 val transformedValue = transform(scope, values)
                 successContainer(transformedValue)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 errorContainer(e)
             }

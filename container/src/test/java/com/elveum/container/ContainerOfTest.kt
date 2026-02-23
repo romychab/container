@@ -2,7 +2,9 @@ package com.elveum.container
 
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Test
+import kotlin.coroutines.cancellation.CancellationException
 
 class ContainerOfTest {
 
@@ -35,6 +37,17 @@ class ContainerOfTest {
             errorContainer(exception, RemoteSourceType, true, reloadFunction),
             container,
         )
+    }
+
+    @Test
+    fun containerOf_forCancelledBlock_rethrowsCancellationException() {
+        val expectedException = CancellationException()
+
+        val exception = runCatching {
+            containerOf { throw expectedException }
+        }.exceptionOrNull()
+
+        assertSame(expectedException, exception)
     }
 
 }

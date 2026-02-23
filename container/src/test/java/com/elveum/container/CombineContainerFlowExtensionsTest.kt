@@ -1,5 +1,6 @@
 package com.elveum.container
 
+import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.mockk
 import io.mockk.verify
@@ -8,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.coroutines.cancellation.CancellationException
 
 class CombineContainerFlowExtensionsTest {
 
@@ -368,6 +370,21 @@ class CombineContainerFlowExtensionsTest {
         // emit success instead of error
         flowA.value = successContainer("a3")
         assertEquals(successContainer("a3-b2-c2-d2"), collectedItems.lastItem.raw())
+    }
+
+    @Test
+    fun combineContainerFlows_withCancellationException_rethrowsException() = runFlowTest {
+        val flowA = MutableStateFlow<Container<String>>(pendingContainer())
+        val flowB = MutableStateFlow<Container<String>>(pendingContainer())
+        val resultFlow = combineContainerFlows<String, String, String>(flowA, flowB) { _, _ ->
+            throw CancellationException()
+        }
+
+        flowA.value = successContainer("a")
+        flowB.value = successContainer("b")
+        val collector = resultFlow.startCollecting()
+
+        assertEquals(CollectStatus.Cancelled, collector.collectStatus)
     }
 
 }

@@ -12,7 +12,7 @@ android applications.
 Just add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta13"
+implementation "com.elveum:container:2.0.0-beta14"
 ```
 
 ## Documentation
@@ -372,6 +372,7 @@ And ready-to-use integration with Kotlin Flows is available out of the box:
 Other extension functions:
 - `Flow<Container<T>>.containerFilterNot`
 - `Flow<Container<T>>.containerMapLatest`
+- `Flow<Container<T>>.containerFlatMapLatest`
 - `Flow<Container<T>>.containerFold`
 - `Flow<Container<T>>.containerFoldDefault`
 - `Flow<Container<T>>.containerFoldNullable`
@@ -673,7 +674,6 @@ val result2: String = dependsOnContainerFlow("key1") {
 defining listeners and loader functions with additional arguments.
 
 ```kotlin
-
 val lazyCache = LazyCache.create<Long, User> { id ->
     val localUser = localUsersDataSource.getUserById(id)
     if (localUser != null) {
@@ -687,5 +687,4 @@ val lazyCache = LazyCache.create<Long, User> { id ->
 fun getUserById(id: Long): Flow<Container<User>> {
     return lazyCache.listen(id)
 }
-
 ```

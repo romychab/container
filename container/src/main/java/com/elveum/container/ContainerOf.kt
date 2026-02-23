@@ -1,5 +1,7 @@
 package com.elveum.container
 
+import kotlinx.coroutines.CancellationException
+
 /**
  * Execute a [block] and wrap its result into [Container.Completed].
  */
@@ -25,6 +27,8 @@ public inline fun <T> containerOf(
 ): Container.Completed<T> {
     return try {
         successContainer(block(), metadata)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         errorContainer(e, metadata)
     }

@@ -5,6 +5,8 @@ import io.mockk.mockk
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.test.StandardTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertSame
@@ -303,6 +305,126 @@ class ContainerFlowExtensionsTest {
         assertEquals(expectedIsLoading, container2.isLoadingInBackground)
         assertEquals(expectedSource, container2.source)
         assertSame(expectedReloadFunction, container2.reloadFunction)
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_withPending() = runFlowTest {
+        val inputFlow = MutableStateFlow<Container<String>>(pendingContainer())
+
+        val collectedItems = inputFlow
+            .containerFlatMapLatest { value ->
+                flowOf(successContainer("mapped-$value"))
+            }
+            .startCollecting()
+
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_withError() = runFlowTest {
+        val exception = IllegalStateException()
+        val inputFlow = MutableStateFlow<Container<String>>(errorContainer(exception))
+
+        val collectedItems = inputFlow
+            .containerFlatMapLatest { value ->
+                flowOf(successContainer("mapped-$value"))
+            }
+            .startCollecting()
+
+        assertEquals(errorContainer(exception), collectedItems.lastItem)
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_withSuccess() = runFlowTest {
+        val inputFlow = MutableStateFlow<Container<String>>(pendingContainer())
+        val innerFlow = MutableSharedFlow<Container<String>>()
+
+        val collectedItems = inputFlow
+            .containerFlatMapLatest { innerFlow }
+            .startCollecting()
+
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        inputFlow.value = successContainer("value1")
+        innerFlow.emit(successContainer("inner-1"))
+        assertEquals(successContainer("inner-1"), collectedItems.lastItem)
+        innerFlow.emit(successContainer("inner-2"))
+        assertEquals(successContainer("inner-2"), collectedItems.lastItem)
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("inner-1"),
+                successContainer("inner-2"),
+            ),
+            collectedItems.collectedItems,
+        )
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_withCancellation() = runFlowTest {
+        val inputFlow = MutableStateFlow<Container<String>>(pendingContainer())
+
+        val outputFlow = inputFlow.containerFlatMapLatest {
+            flow {
+                delay(100)
+                emit(successContainer("mapped-$it"))
+            }
+        }
+        val collectedItems = outputFlow.startCollecting(
+            StandardTestDispatcher(scope.testScheduler)
+        )
+
+        runCurrent()
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        // new value (not cancelled)
+        inputFlow.value = successContainer("v1")
+        advanceTimeBy(99) // almost mapped
+        assertEquals(pendingContainer(), collectedItems.lastItem)
+        advanceTimeBy(2) // mapping completed
+        assertEquals(successContainer("mapped-v1"), collectedItems.lastItem)
+        // new value (cancelled)
+        inputFlow.value = successContainer("v2")
+        advanceTimeBy(99) // almost mapped
+        assertEquals(successContainer("mapped-v1"), collectedItems.lastItem)
+        inputFlow.value = successContainer("v3") // not waiting for completion, emit a new value
+        advanceTimeBy(101) // mapping completed
+        assertEquals(successContainer("mapped-v3"), collectedItems.lastItem)
+
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("mapped-v1"),
+                successContainer("mapped-v3"),
+            ),
+            collectedItems.collectedItems,
+        )
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_innerFlowError() = runFlowTest {
+        val exception = IllegalStateException()
+        val inputFlow = MutableStateFlow<Container<String>>(successContainer("value"))
+
+        val collectedItems = inputFlow
+            .containerFlatMapLatest {
+                flow<Container<String>> { throw exception }
+            }
+            .startCollecting()
+
+        assertEquals(errorContainer(exception), collectedItems.lastItem)
+    }
+
+    @Test
+    fun test_containerFlatMapLatest_mapperThrows() = runFlowTest {
+        val exception = IllegalStateException()
+        val inputFlow = MutableStateFlow<Container<String>>(successContainer("value"))
+
+        val collectedItems = inputFlow
+            .containerFlatMapLatest<String, String> {
+                throw exception
+            }
+            .startCollecting()
+
+        assertEquals(errorContainer(exception), collectedItems.lastItem)
     }
 
 }

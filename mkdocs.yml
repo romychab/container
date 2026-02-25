@@ -1,0 +1,20 @@
+site_name: Container
+site_url: https://docs.uandcode.com/container/
+site_description: A library for simplifying state management and data loading in Android applications
+site_dir: build/mkdocs
+docs_dir: build/mkdocs-docs
+repo_url: https://github.com/romychab/container
+repo_name: GitHub
+edit_uri: ""
+
+theme:
+  name: readthedocs
+  highlightjs: true
+  hljs_languages:
+    - kotlin
+
+nav:
+  - Home: index.md
+  - Container Type: container-type.md
+  - Reducer Pattern: reducer-pattern.md
+  - Subjects & Cache: subjects.md

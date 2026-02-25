@@ -9,7 +9,7 @@ Kotlin Flows.
 - [Container States](#container-states)
 - [Creating Containers](#creating-containers)
 - [Extracting Values](#extracting-values)
-- [Pattern Matching with fold](#pattern-matching-with-fold)
+- [Pattern Matching with when / fold](#pattern-matching-with-when-fold)
 - [Transformations](#transformations)
   - [map](#map)
   - [transform](#transform)

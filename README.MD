@@ -10,6 +10,10 @@ that cover the most common reactive patterns: wrapping async results in a
 typed status, managing derived state from multiple flows, and lazily loading
 data on demand.
 
+## Documentation
+
+The full documentation is available [here](https://docs.uandcode.com/container).
+
 ## Table of Contents
 
 - [Installation](#installation)

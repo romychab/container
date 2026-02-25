@@ -122,7 +122,7 @@ internal class CombinedMetadata(
 ) : ContainerMetadata {
 
     val sortedByTypeMetadata by lazy {
-        metadataList.sortedBy { it::class.qualifiedName ?: "" }
+        metadataList.sortedBy { it::class.java.name }
     }
 
     override fun filter(predicate: (ContainerMetadata) -> Boolean): ContainerMetadata {

@@ -153,7 +153,7 @@ internal class FlowDependencyStoreImpl<T>(
 
     private class FlowDependencyRecord<R>() {
         val containerFlow = MutableStateFlow<Container<R>>(pendingContainer())
-        var lastReloadFunction: ReloadFunction = {}
+        @Volatile var lastReloadFunction: ReloadFunction = {}
         var job: Job? = null
 
         suspend fun await(): R {

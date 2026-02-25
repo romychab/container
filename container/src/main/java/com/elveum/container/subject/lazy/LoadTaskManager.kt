@@ -8,6 +8,7 @@ import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
@@ -15,7 +16,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.util.UUID
-import kotlin.coroutines.coroutineContext
 
 internal class LoadTaskManager<T>(
     private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
@@ -57,7 +57,7 @@ internal class LoadTaskManager<T>(
         job?.cancel()
         job = null
         outputFlow.value = Container.Pending
-        inputFlow.value.cancel()
+        inputFlow.value.cancel("Load task cancelled since the last collector has been stopped.")
         inputFlow.update { oldLoadTask ->
             val updatedMetadata = oldLoadTask.metadata + LoadTriggerMetadata(LoadTrigger.CacheExpired)
             oldLoadTask.restoreLoadTask(updatedMetadata)
@@ -69,7 +69,7 @@ internal class LoadTaskManager<T>(
             loadTask.initialContainer?.let { outputFlow.value = it }
         }
         inputFlow.update { oldLoadTask ->
-            oldLoadTask.cancel()
+            oldLoadTask.cancel("Load task cancelled due to a new load submission")
             loadTask
         }
     }
@@ -82,8 +82,9 @@ internal class LoadTaskManager<T>(
         loadTask: LoadTask<T>,
         value: Container<T>
     ) {
+        val isActive = currentCoroutineContext().isActive
         synchronized(this) {
-            if (coroutineContext.isActive && inputFlow.value === loadTask) {
+            if (isActive && inputFlow.value === loadTask) {
                 outputFlow.value = value.filterMetadata {
                     it !is ContainerMetadata.Hidden
                 }

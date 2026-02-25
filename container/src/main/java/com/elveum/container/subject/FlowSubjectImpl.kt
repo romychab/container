@@ -1,7 +1,9 @@
 package com.elveum.container.subject
 
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 
 internal class FlowSubjectImpl<T> : FlowSubject<T> {
@@ -50,7 +52,7 @@ internal class FlowSubjectImpl<T> : FlowSubject<T> {
             awaitClose {
                 remove(listener)
             }
-        }
+        }.buffer(Channel.UNLIMITED)
     }
 
     private fun add(listener: Listener<T>) = synchronized(this) {

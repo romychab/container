@@ -61,7 +61,7 @@ internal class MockLoadTask private constructor(
         return MockLoadTask(scope, metadata, initialContainer, _controller)
     }
 
-    override fun cancel() = Unit
+    override fun cancel(reason: String) = Unit
 }
 
 internal interface LoadTaskController {

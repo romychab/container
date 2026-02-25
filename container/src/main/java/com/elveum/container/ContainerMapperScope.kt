@@ -34,13 +34,6 @@ public interface ContainerMapperScope {
     public val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
     /**
-     * Reload data encapsulated by container.
-     */
-    public fun reload(silently: Boolean = false) {
-        reloadFunction.invoke(silently)
-    }
-
-    /**
      * Create a success container.
      */
     public fun <T> successContainer(

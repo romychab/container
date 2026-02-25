@@ -40,11 +40,6 @@ public sealed class Container<out T> {
     public abstract fun raw(): Container<T>
 
     /**
-     * Append the specified [metadata] to the container.
-     */
-    public abstract operator fun plus(metadata: ContainerMetadata): Container<T>
-
-    /**
      * A container representing already completed operation (either success, or error).
      */
     public sealed class Completed<out T> : Container<T>(), ContainerMapperScope {
@@ -64,6 +59,13 @@ public sealed class Container<out T> {
         }
 
         /**
+         * Reload data encapsulated by container.
+         */
+        public fun reload(silently: Boolean = false) {
+            reloadFunction.invoke(silently)
+        }
+
+        /**
          * Get a container instance with filtered metadata.
          */
         abstract override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Completed<T>
@@ -76,7 +78,7 @@ public sealed class Container<out T> {
         /**
          * Append the specified [metadata] to the container.
          */
-        public abstract override operator fun plus(metadata: ContainerMetadata): Completed<T>
+        public abstract operator fun plus(metadata: ContainerMetadata): Completed<T>
 
     }
 
@@ -87,7 +89,6 @@ public sealed class Container<out T> {
         override val metadata: ContainerMetadata = EmptyMetadata
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Pending = Pending
         override fun raw(): Pending = Pending
-        override fun plus(metadata: ContainerMetadata): Pending = Pending
     }
 
     /**

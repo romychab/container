@@ -106,7 +106,7 @@ class LoadTaskManagerTest {
         advanceTimeBy(1)
 
         verify(exactly = 1) {
-            loadTask1.cancel()
+            loadTask1.cancel(any())
             loadTask2.execute(any())
         }
     }
@@ -212,7 +212,7 @@ class LoadTaskManagerTest {
         advanceTimeBy(1)
 
         verify(exactly = 1) {
-            loadTask.cancel()
+            loadTask.cancel(any())
         }
     }
 

@@ -367,13 +367,6 @@ class ContainerTest {
     }
 
     @Test
-    fun containerPending_plusMetadata_returnsPending() {
-        val result = Container.Pending + defaultMetadata(source = RemoteSourceType)
-
-        assertSame(Container.Pending, result)
-    }
-
-    @Test
     fun containerSuccess_plusMetadata_appendsMetadata() {
         val reloadFunction = mockk<ReloadFunction>()
         val container = successContainer("value", defaultMetadata(source = RemoteSourceType))

@@ -20,7 +20,7 @@ internal interface LoadTask<T> {
     val lastRealLoader: ValueLoader<T>?
     val lastRealMetadata: ContainerMetadata
     fun execute(executeParams: ExecuteParams<T>): Flow<Container<T>>
-    fun cancel()
+    fun cancel(reason: String)
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
 
     class ExecuteParams<T>(
@@ -53,7 +53,7 @@ internal interface LoadTask<T> {
     ) : LoadTask<T> {
         override val metadata: ContainerMetadata = initialContainer.metadata
         override fun execute(executeParams: ExecuteParams<T>) = flowOf(initialContainer)
-        override fun cancel() = Unit
+        override fun cancel(reason: String) = Unit
         override fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T> {
             return if (lastRealLoader == null) {
                 this
@@ -128,8 +128,8 @@ internal interface LoadTask<T> {
             }
         }
 
-        override fun cancel() {
-            flowSubject?.onError(CancellationException())
+        override fun cancel(reason: String) {
+            flowSubject?.onError(CancellationException(reason))
         }
 
         override fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T> {

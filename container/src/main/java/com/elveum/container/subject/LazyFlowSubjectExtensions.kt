@@ -56,12 +56,13 @@ public fun <T> LazyFlowSubject<T>.reloadAsync(
  * This method cancels the current load.
  */
 public inline fun <T> LazyFlowSubject<T>.updateWith(
+    configuration: ContainerConfiguration = ContainerConfiguration(),
     updater: (Container<T>) -> Container<T>,
 ) {
-    val oldValue = currentValue()
-    val newValue = updater(oldValue)
-    if (newValue == oldValue) return
-    updateWith(newValue)
+    do {
+        val previousValue = currentValue(configuration)
+        val nextValue = updater(previousValue)
+    } while (!compareAndSet(configuration,previousValue, nextValue))
 }
 
 /**

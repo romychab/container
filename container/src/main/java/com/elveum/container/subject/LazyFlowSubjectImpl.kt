@@ -47,6 +47,8 @@ internal class LazyFlowSubjectImpl<T>(
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
+    private val reloadFunctionRef: (Boolean) -> Unit = ::reloadAsync
+
     override fun currentValue(configuration: ContainerConfiguration): Container<T> {
         return currentValue.applyConfiguration(configuration)
     }
@@ -77,6 +79,20 @@ internal class LazyFlowSubjectImpl<T>(
         )
     }
 
+    override fun compareAndSet(
+        configuration: ContainerConfiguration,
+        expected: Container<T>,
+        updated: Container<T>
+    ): Boolean = synchronized(loadTaskManager) {
+        val latestCurrentValue = currentValue(configuration)
+        return if (latestCurrentValue == expected) {
+            updateWith(updated)
+            true
+        } else {
+            false
+        }
+    }
+
     override fun reload(
         silently: Boolean,
         metadata: ContainerMetadata,
@@ -85,7 +101,8 @@ internal class LazyFlowSubjectImpl<T>(
             doNewLoad(
                 silently = silently,
                 valueLoader = lastLoader,
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
+                metadata = loadTaskManager.getLastRealMetadata() +
+                        LoadTriggerMetadata(LoadTrigger.Reload) +
                         ReloadDependenciesMetadata(true) +
                         metadata,
             )
@@ -150,13 +167,10 @@ internal class LazyFlowSubjectImpl<T>(
     private fun Container<T>.applyConfiguration(
         configuration: ContainerConfiguration,
     ): Container<T> {
-        return this
-            .runIf(!configuration.emitReloadFunction) {
-                update(reloadFunction = EmptyReloadFunction)
-            }
-            .runIf(!configuration.emitBackgroundLoads) {
-                update(isLoadingInBackground = false)
-            }
+        return update {
+            reloadFunction = if (configuration.emitReloadFunction) reloadFunctionRef else EmptyReloadFunction
+            isLoadingInBackground = configuration.emitBackgroundLoads && isLoadingInBackground
+        }
     }
 
     private inner class ListenStateFlowImpl(
@@ -164,13 +178,12 @@ internal class LazyFlowSubjectImpl<T>(
     ) : StateFlow<Container<T>> {
 
         override val replayCache: List<Container<T>> get() = listOf(value)
-        override val value: Container<T> get() = currentValue
+        override val value: Container<T> get() = currentValue.applyConfiguration(configuration)
 
         override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
             try {
                 onStart()
                 loadTaskManager.listen()
-                    .map { it.update(reloadFunction = ::reload) }
                     .map { it.applyConfiguration(configuration) }
                     .internalDistinctUntilChanged()
                     .collect(collector)

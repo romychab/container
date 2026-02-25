@@ -125,6 +125,18 @@ public interface LazyFlowSubject<T> {
     public fun updateWith(container: Container<T>)
 
     /**
+     * Atomically compare the [currentValue] with [expected] value and
+     * update it with [updated] value.
+     *
+     * @return `true` if the [currentValue] is set to [updated].
+     */
+    public fun compareAndSet(
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+        expected: Container<T>,
+        updated: Container<T>,
+    ): Boolean
+
+    /**
      * The same as [newLoad] but using the previous loader function
      * to update a value held by this subject.
      * @see newLoad

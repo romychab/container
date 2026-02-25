@@ -6,6 +6,7 @@ import com.elveum.container.Container.Pending
 import com.elveum.container.Container.Success
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
 import com.elveum.container.ReloadDependenciesMetadata
 import com.elveum.container.ReloadFunction
@@ -15,7 +16,9 @@ import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.get
+import com.elveum.container.isLoadingInBackground
 import com.elveum.container.pendingContainer
+import com.elveum.container.reloadFunction
 import com.elveum.container.sourceType
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.successContainer
@@ -36,7 +39,9 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
+import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Test.None
@@ -810,6 +815,48 @@ class LazyFlowSubjectImplIntegrationTest {
         subject.reloadAsync(metadata = ReloadDependenciesMetadata(false))
         runCurrent()
         verify(exactly = 0) { reloadFunction(any()) }
+    }
+
+    @Test
+    fun listen_withEnabledConfiguration_appliesConfiguration() = runFlowTest {
+        val subject = createLazyFlowSubject {
+            delay(10)
+            emit("test")
+        }
+
+        val noConfigCollector = subject.listen().startCollecting()
+        val reloadFunctionEnabledCollector = subject.listen(
+            ContainerConfiguration(emitReloadFunction = true)
+        ).startCollecting()
+        val bgLoadsEnabledCollector = subject.listen(
+            ContainerConfiguration(emitBackgroundLoads = true)
+        ).startCollecting()
+        val allConfigEnabledCollector = subject.listenReloadable().startCollecting()
+        advanceTimeBy(11)
+
+        // 1. Assert no reload function in noConfig & bgLoadsConfig:
+        assertEquals(EmptyReloadFunction, noConfigCollector.lastItem.metadata.reloadFunction)
+        assertEquals(EmptyReloadFunction, bgLoadsEnabledCollector.lastItem.metadata.reloadFunction)
+
+        // 2. Assert reload function exists in reloadFunConfig
+        reloadFunctionEnabledCollector.lastItem.metadata.reloadFunction.invoke(false)
+        advanceTimeBy(10)
+        assertEquals(pendingContainer(), reloadFunctionEnabledCollector.lastItem)
+        advanceTimeBy(1)
+
+        // 3. Assert reload function exists in allConfig
+        allConfigEnabledCollector.lastItem.metadata.reloadFunction.invoke(false)
+        advanceTimeBy(10)
+        assertEquals(pendingContainer(), allConfigEnabledCollector.lastItem)
+        advanceTimeBy(1)
+
+        // 4. Assert background loading status in all containers
+        subject.reloadAsync(silently = true)
+        advanceTimeBy(10)
+        assertFalse(noConfigCollector.lastItem.metadata.isLoadingInBackground)
+        assertFalse(reloadFunctionEnabledCollector.lastItem.metadata.isLoadingInBackground)
+        assertTrue(bgLoadsEnabledCollector.lastItem.metadata.isLoadingInBackground)
+        assertTrue(allConfigEnabledCollector.lastItem.metadata.isLoadingInBackground)
     }
 
     private fun FlowTestScope.createLazyFlowSubject(

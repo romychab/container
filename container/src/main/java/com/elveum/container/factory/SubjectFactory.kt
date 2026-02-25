@@ -40,6 +40,7 @@ public interface SubjectFactory {
 
     public companion object : SubjectFactory {
 
+        @Volatile
         private var instance: SubjectFactory = DefaultSubjectFactory()
 
         override fun <T> createSubject(

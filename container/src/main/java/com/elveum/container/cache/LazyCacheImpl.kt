@@ -100,7 +100,7 @@ internal class LazyCacheImpl<Arg, T>(
     private fun scheduleRemoval(arg: Arg) {
         scope?.launch {
             delay(cacheTimeoutMillis)
-            synchronized(this) {
+            synchronized(this@LazyCacheImpl) {
                 val record = cacheSlots[arg]
                 if (record?.count == 0) {
                     cacheSlots.remove(arg)

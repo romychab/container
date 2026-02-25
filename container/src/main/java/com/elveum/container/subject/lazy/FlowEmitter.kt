@@ -6,8 +6,6 @@ import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.IsLoadingInBackgroundMetadata
 import com.elveum.container.LoadUuidMetadata
-import com.elveum.container.getOrNull
-import com.elveum.container.pendingContainer
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.successContainer
 import kotlinx.coroutines.flow.Flow
@@ -21,7 +19,7 @@ internal class FlowEmitter<T>(
     private val flowSubject: FlowSubject<T>? = null,
 ) : Emitter<T> {
 
-    private var lastEmittedValue: Container<Container<T>> = Container.Pending
+    private var lastEmittedValue: Container<T>? = null
     private var _hasEmittedValues = false
     val hasEmittedValues get() = _hasEmittedValues
 
@@ -33,11 +31,9 @@ internal class FlowEmitter<T>(
         flowSubject?.onNext(value)
         flowCollector.emit(buildOutputContainer(value, metadata, isLoadingInBackground = !isLastValue))
         lastEmittedValue = if (isLastValue) {
-            pendingContainer()
+            null
         } else {
-            successContainer(
-                buildOutputContainer(value, metadata, isLoadingInBackground = false)
-            )
+            buildOutputContainer(value, metadata, isLoadingInBackground = false)
         }
     }
 
@@ -78,7 +74,7 @@ internal class FlowEmitter<T>(
     }
 
     internal suspend fun emitLastItem() {
-        lastEmittedValue.getOrNull()?.let { container ->
+        lastEmittedValue?.let { container ->
             flowCollector.emit(container)
         }
     }

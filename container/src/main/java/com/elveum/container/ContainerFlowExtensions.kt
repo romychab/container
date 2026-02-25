@@ -77,7 +77,7 @@ public inline fun <T, R> StateFlow<Container<T>>.containerStateMap(
 }
 
 /**
- * Convert the original Flow which contains a [Container] of type [T] info
+ * Convert the original Flow which contains a [Container] of type [T] into
  * a Flow which also contains a [Container] but of type [R].
  *
  * When the original flow emits a new value, computation for the previous
@@ -99,8 +99,8 @@ public inline fun <T, R> Flow<Container<T>>.containerMapLatest(
  *   filtered by the [predicate]. If the [predicate] returns TRUE for the
  *   wrapped value then it is sent to a new flow too.
  */
-public fun <T> Flow<Container<T>>.containerFilter(
-    predicate: suspend ContainerMapperScope.(value: T) -> Boolean
+public inline fun <T> Flow<Container<T>>.containerFilter(
+    crossinline predicate: suspend ContainerMapperScope.(value: T) -> Boolean
 ): Flow<Container<T>> {
     return filter { container ->
         container.foldDefault(

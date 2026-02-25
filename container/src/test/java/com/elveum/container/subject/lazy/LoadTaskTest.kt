@@ -341,7 +341,7 @@ class LoadTaskTest {
     fun cancel_forLoadTask_emitsCancellationException() {
         val loadTask = makeLoadTask()
 
-        loadTask.cancel()
+        loadTask.cancel("cancelled")
 
         verify(exactly = 1) {
             flowSubject.onError(match { it is CancellationException })

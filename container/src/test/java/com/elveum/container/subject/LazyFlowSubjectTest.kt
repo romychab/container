@@ -1,6 +1,7 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LoadUuidMetadata
@@ -104,6 +105,7 @@ class LazyFlowSubjectTest {
         val flowSubject = mockk<FlowSubject<String>>()
         val expectedFlow = MutableStateFlow("123")
         every { loadTaskManager.getLastRealLoader() } returns valueLoader
+        every { loadTaskManager.getLastRealMetadata() } returns EmptyMetadata
         every { flowSubject.flow() } returns expectedFlow
         every {
             loadTaskFactory.create(
@@ -128,6 +130,7 @@ class LazyFlowSubjectTest {
         val flowSubject = mockk<FlowSubject<String>>()
         val customMetadata = LoadUuidMetadata("custom-uuid")
         every { loadTaskManager.getLastRealLoader() } returns valueLoader
+        every { loadTaskManager.getLastRealMetadata() } returns EmptyMetadata
         every { flowSubject.flow() } returns MutableStateFlow("123")
         every {
             loadTaskFactory.create(

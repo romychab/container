@@ -1,7 +1,5 @@
 package com.elveum.container
 
-public class LoadInProgressException : IllegalStateException("Container is Pending and can't be unwrapped")
-
 public typealias ListContainer<T> = Container<List<T>>
 
 /**

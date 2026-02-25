@@ -10,21 +10,27 @@ public class CachingFunction<Input, T>(
     private val function: (Input) -> T,
 ) {
 
-    private var lastInput: Input? = null
+    private var lastInput: InputValue<Input> = InputValue.Unset
     private var cachedResult: Container<T> = pendingContainer()
 
     @Synchronized
     public operator fun invoke(input: Input): T {
         val lastInput = this.lastInput
         val cachedResult = this.cachedResult
-        return if (input == lastInput && cachedResult is Container.Success) {
+        return if (lastInput is InputValue.Set
+                && input == lastInput.value
+                && cachedResult is Container.Success) {
             cachedResult.value
         } else {
             function(input).also {
-                this.lastInput = input
+                this.lastInput = InputValue.Set(input)
                 this.cachedResult = successContainer(it)
             }
         }
     }
 
+    private sealed class InputValue<out T> {
+        data object Unset : InputValue<Nothing>()
+        data class Set<T>(val value: T) : InputValue<T>()
+    }
 }

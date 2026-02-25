@@ -25,7 +25,7 @@ data on demand.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta14"
+implementation "com.elveum:container:2.0.0-beta15"
 ```
 
 ## Core Concepts

@@ -101,7 +101,11 @@ public fun <R> combineContainerFlows(
                 .firstOrNull { it is Container.Error } as? Container.Error
             errorContainer ?: Container.Pending
         }
-        container.update(scope.sourceType, scope.reloadFunction, scope.isLoadingInBackground)
+        container.update {
+            source = scope.sourceType
+            reloadFunction = scope.reloadFunction
+            backgroundLoadState = scope.backgroundLoadState
+        }
     }
 }
 
@@ -178,7 +182,11 @@ public fun <T, R> Flow<Container<T>>.containerCombineWith(
                 val values = listOf(containerValue) + itemList.subList(fromIndex = 1, toIndex = itemList.size)
                 scope.transform(values)
             }
-            .update(scope.sourceType, scope.reloadFunction, scope.isLoadingInBackground)
+            .update {
+                source = scope.sourceType
+                reloadFunction = scope.reloadFunction
+                backgroundLoadState = scope.backgroundLoadState
+            }
     }
 }
 
@@ -191,17 +199,17 @@ private fun Array<Container<*>>.mergeReloadFunctions(): ReloadFunction {
         )
     }
     if (reloadFunctions.all { it == EmptyReloadFunction }) return EmptyReloadFunction
-    return { silently ->
+    return { backgroundLoad ->
         filterIsInstance<Container.Completed<*>>()
             .forEach { container ->
-                container.reload(silently)
+                container.reload(backgroundLoad)
             }
     }
 }
 
 public interface CombineContainerFlowScope {
     public var sourceType: SourceType
-    public var isLoadingInBackground: Boolean
+    public var backgroundLoadState: BackgroundLoadState
     public var reloadFunction: ReloadFunction
 }
 
@@ -213,9 +221,14 @@ internal class CombineContainerFlowScopeImpl(
         it is Container.Completed
     } as? Container.Completed)?.source ?: UnknownSourceType
 
-    override var isLoadingInBackground: Boolean = containers.any {
-        (it as? Container.Completed)?.isLoadingInBackground ?: true
-    }
+    override var backgroundLoadState: BackgroundLoadState =
+        if (containers.any { it.backgroundLoadState == BackgroundLoadState.Loading }) {
+            BackgroundLoadState.Loading
+        } else {
+            containers.firstOrNull { it.backgroundLoadState is BackgroundLoadState.Error }
+                ?.backgroundLoadState
+                ?: BackgroundLoadState.Idle
+        }
 
     override var reloadFunction: ReloadFunction = containers.mergeReloadFunctions()
 
@@ -225,6 +238,6 @@ internal class CombineContainerWithFlowScopeImpl(
     container: Container<*>,
 ) : CombineContainerFlowScope {
     override var sourceType = (container as? Container.Completed)?.source ?: UnknownSourceType
-    override var isLoadingInBackground = (container as? Container.Completed)?.isLoadingInBackground ?: true
+    override var backgroundLoadState = (container as? Container.Completed)?.backgroundLoadState ?: BackgroundLoadState.Loading
     override var reloadFunction = (container as? Container.Completed)?.reloadFunction ?: EmptyReloadFunction
 }

@@ -11,6 +11,25 @@ public sealed class Container<out T> {
     public abstract val metadata: ContainerMetadata
 
     /**
+     * Whether there is another value load in progress.
+     * For example, it may be a value being loaded from the remote source, whereas
+     * this container represents a local source.
+     */
+    public abstract val backgroundLoadState: BackgroundLoadState
+
+    /**
+     * Reload data encapsulated by container.
+     *
+     * @param config defines how the loading state will be propagated to subsequent containers.
+     */
+    public abstract fun reload(config: LoadConfig)
+
+    /**
+     * Reload data encapsulated by container.
+     */
+    public abstract fun reload()
+
+    /**
      * - Returns the result of onSuccess() function if this instance is [Container.Success].
      * - Returns the result of onError() function if this instance is [Container.Error].
      * - Returns the result of onPending() function if this instance is [Container.Pending].
@@ -59,13 +78,6 @@ public sealed class Container<out T> {
         }
 
         /**
-         * Reload data encapsulated by container.
-         */
-        public fun reload(silently: Boolean = false) {
-            reloadFunction.invoke(silently)
-        }
-
-        /**
          * Get a container instance with filtered metadata.
          */
         abstract override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Completed<T>
@@ -87,8 +99,11 @@ public sealed class Container<out T> {
      */
     public data object Pending : Container<Nothing>() {
         override val metadata: ContainerMetadata = EmptyMetadata
+        override val backgroundLoadState: BackgroundLoadState = BackgroundLoadState.Idle
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Pending = Pending
         override fun raw(): Pending = Pending
+        override fun reload(config: LoadConfig): Unit = Unit
+        override fun reload(): Unit = Unit
     }
 
     /**
@@ -99,17 +114,6 @@ public sealed class Container<out T> {
         val value: T,
         override val metadata: ContainerMetadata,
     ) : Completed<T>() {
-
-        @Deprecated("Use successContainer() function instead of direct call of constructor.")
-        public constructor(
-            value: T,
-            source: SourceType? = null,
-            isLoadingInBackground: Boolean? = null,
-            reloadFunction: ReloadFunction? = null,
-        ) : this(
-            value = value,
-            metadata = defaultMetadata(source, isLoadingInBackground, reloadFunction)
-        )
 
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Completed<T> {
             return copy(value = value, metadata = metadata.filter(predicate))
@@ -136,17 +140,6 @@ public sealed class Container<out T> {
         val exception: Exception,
         override val metadata: ContainerMetadata,
     ) : Completed<Nothing>() {
-
-        @Deprecated("Use errorContainer() function instead of direct call of constructor.")
-        public constructor(
-            exception: Exception,
-            source: SourceType? = null,
-            isLoadingInBackground: Boolean? = null,
-            reloadFunction: ReloadFunction? = null,
-        ) : this(
-            exception = exception,
-            metadata = defaultMetadata(source, isLoadingInBackground, reloadFunction)
-        )
 
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Error {
             return copy(exception = exception, metadata = metadata.filter(predicate))
@@ -177,100 +170,11 @@ public fun pendingContainer(): Container.Pending {
 /**
  * Create a success container.
  */
-@Deprecated("Use successContainer() with metadata argument.")
-public fun <T> successContainer(
-    value: T,
-    source: SourceType,
-    isLoadingInBackground: Boolean? = null,
-    reloadFunction: ReloadFunction? = null,
-): Container.Success<T> {
-    return Container.Success(
-        value = value,
-        metadata = defaultMetadata(source, isLoadingInBackground, reloadFunction),
-    )
-}
-
-/**
- * Create a success container.
- */
 public fun <T> successContainer(
     value: T,
     metadata: ContainerMetadata = defaultMetadata(),
 ): Container.Success<T> {
     return Container.Success(value, metadata)
-}
-
-/**
- * Create a success container.
- */
-@Deprecated("Use successContainer() with metadata argument.")
-public fun <T> successContainer(
-    value: T,
-    isLoadingInBackground: Boolean,
-): Container.Success<T> {
-    return Container.Success(
-        value = value,
-        metadata = defaultMetadata(isLoadingInBackground = isLoadingInBackground),
-    )
-}
-
-/**
- * Create a success container.
- */
-@Deprecated("Use successContainer() with metadata argument.")
-public fun <T> successContainer(
-    value: T,
-    reloadFunction: ReloadFunction,
-): Container.Success<T> {
-    return Container.Success(
-        value = value,
-        metadata = defaultMetadata(reloadFunction = reloadFunction),
-    )
-}
-
-/**
- * Create an error container.
- */
-@Deprecated("Use errorContainer() with metadata argument.")
-public fun errorContainer(
-    exception: Exception,
-    source: SourceType,
-    isLoadingInBackground: Boolean? = null,
-    reloadFunction: ReloadFunction? = null,
-): Container.Error {
-    return Container.Error(
-        exception = exception,
-        metadata = defaultMetadata(source, isLoadingInBackground, reloadFunction),
-    )
-}
-
-/**
- * Create an error container.
- */
-@Deprecated("Use errorContainer() with metadata argument.")
-public fun errorContainer(
-    exception: Exception,
-    isLoadingInBackground: Boolean,
-): Container.Error {
-    return Container.Error(
-        exception = exception,
-        metadata = defaultMetadata(isLoadingInBackground = isLoadingInBackground),
-    )
-}
-
-
-/**
- * Create an error container.
- */
-@Deprecated("Use errorContainer() with metadata argument.")
-public fun errorContainer(
-    exception: Exception,
-    reloadFunction: ReloadFunction,
-): Container.Error {
-    return Container.Error(
-        exception = exception,
-        metadata = defaultMetadata(reloadFunction = reloadFunction),
-    )
 }
 
 /**

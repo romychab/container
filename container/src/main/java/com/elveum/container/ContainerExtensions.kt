@@ -109,21 +109,6 @@ public fun <T> Container<T>.unwrapContainerValue(): ContainerValue<T> {
  * Update additional metadata in the container.
  */
 public fun <T> Container<T>.update(
-    source: SourceType? = null,
-    reloadFunction: ReloadFunction? = null,
-    isLoadingInBackground: Boolean? = null,
-): Container<T> {
-    return update {
-        if (source != null) this.source = source
-        if (reloadFunction != null) this.reloadFunction = reloadFunction
-        if (isLoadingInBackground != null) this.isLoadingInBackground = isLoadingInBackground
-    }
-}
-
-/**
- * Update additional metadata in the container.
- */
-public fun <T> Container<T>.update(
     block: ContainerUpdater.() -> Unit,
 ): Container<T> {
     return transform(

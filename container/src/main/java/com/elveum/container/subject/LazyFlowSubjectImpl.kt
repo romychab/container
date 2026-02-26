@@ -2,12 +2,15 @@
 
 package com.elveum.container.subject
 
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.ReloadDependenciesMetadata
+import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.internalDistinctUntilChanged
@@ -47,7 +50,7 @@ internal class LazyFlowSubjectImpl<T>(
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
 
-    private val reloadFunctionRef: (Boolean) -> Unit = ::reloadAsync
+    private val reloadFunctionRef: ReloadFunction = ::reloadAsync
 
     override fun currentValue(configuration: ContainerConfiguration): Container<T> {
         return currentValue.applyConfiguration(configuration)
@@ -58,12 +61,12 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun newLoad(
-        silently: Boolean,
+        config: LoadConfig,
         metadata: ContainerMetadata,
         valueLoader: ValueLoader<T>,
     ): Flow<T> {
         return doNewLoad(
-            silently = silently,
+            config = config,
             valueLoader = valueLoader,
             metadata = LoadTriggerMetadata(LoadTrigger.NewLoad) + metadata,
         )
@@ -94,12 +97,12 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun reload(
-        silently: Boolean,
+        config: LoadConfig,
         metadata: ContainerMetadata,
     ): Flow<T> = synchronized(loadTaskManager) {
         loadTaskManager.getLastRealLoader()?.let { lastLoader ->
             doNewLoad(
-                silently = silently,
+                config = config,
                 valueLoader = lastLoader,
                 metadata = loadTaskManager.getLastRealMetadata() +
                         LoadTriggerMetadata(LoadTrigger.Reload) +
@@ -110,11 +113,11 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     private fun doNewLoad(
-        silently: Boolean,
+        config: LoadConfig,
         valueLoader: ValueLoader<T>,
         metadata: ContainerMetadata,
     ): Flow<T> = synchronized(loadTaskManager) {
-        val loadTaskRecord = loadTaskFactory.create(silently, valueLoader, metadata)
+        val loadTaskRecord = loadTaskFactory.create(config, valueLoader, metadata)
         loadTaskManager.submitNewLoadTask(loadTaskRecord.loadTask)
         loadTaskRecord.flowSubject.flow()
     }
@@ -140,7 +143,7 @@ internal class LazyFlowSubjectImpl<T>(
         scope = coroutineScopeFactory.createScope()
             .also { scope ->
                 flowDependencyStore.initialize(scope) { reloadDependencies ->
-                    reloadAsync(silently = true, metadata = ReloadDependenciesMetadata(reloadDependencies))
+                    reloadAsync(LoadConfig.SilentLoading, metadata = ReloadDependenciesMetadata(reloadDependencies))
                 }
                 loadTaskManager.startProcessingLoads(
                     scope = scope,
@@ -169,7 +172,9 @@ internal class LazyFlowSubjectImpl<T>(
     ): Container<T> {
         return update {
             reloadFunction = if (configuration.emitReloadFunction) reloadFunctionRef else EmptyReloadFunction
-            isLoadingInBackground = configuration.emitBackgroundLoads && isLoadingInBackground
+            if (!configuration.emitBackgroundLoads) {
+                backgroundLoadState = BackgroundLoadState.Idle
+            }
         }
     }
 
@@ -194,30 +199,22 @@ internal class LazyFlowSubjectImpl<T>(
         }
     }
 
-    private inline fun <T> T.runIf(condition: Boolean, block: T.() -> T): T {
-        return if (condition) {
-            block()
-        } else {
-            this
-        }
-    }
-
     interface LoadTaskFactory {
 
         fun <T> create(
-            silently: Boolean,
+            config: LoadConfig,
             valueLoader: ValueLoader<T>,
             metadata: ContainerMetadata,
         ): LoadTaskRecord<T>
 
         object Default : LoadTaskFactory {
             override fun <T> create(
-                silently: Boolean,
+                config: LoadConfig,
                 valueLoader: ValueLoader<T>,
                 metadata: ContainerMetadata,
             ): LoadTaskRecord<T> {
                 val flowSubject = FlowSubject.create<T>()
-                val loadTask = LoadTask.Load(valueLoader, metadata, silently, flowSubject)
+                val loadTask = LoadTask.Load(valueLoader, metadata, config, flowSubject)
                 return LoadTaskRecord(loadTask, flowSubject)
             }
         }

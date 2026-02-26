@@ -10,11 +10,11 @@ public data class ContainerValue<out T>(
 ) {
 
     val source: SourceType get() = metadata.sourceType
-    val isLoadingInBackground: Boolean get() = metadata.isLoadingInBackground
+    val backgroundLoadState: BackgroundLoadState get() = metadata.backgroundLoadState
     val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
-    public fun reload(silently: Boolean) {
-        reloadFunction.invoke(silently)
+    public fun reload(config: LoadConfig) {
+        reloadFunction.invoke(config)
     }
 
 }

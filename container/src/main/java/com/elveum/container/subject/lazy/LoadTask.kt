@@ -1,9 +1,13 @@
 package com.elveum.container.subject.lazy
 
+import com.elveum.container.BackgroundLoadState
+import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
+import com.elveum.container.pendingContainer
 import com.elveum.container.reloadDependencies
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
@@ -24,9 +28,8 @@ internal interface LoadTask<T> {
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
 
     class ExecuteParams<T>(
-        val loadUuid: String = "",
         val flowDependencyStore: FlowDependencyStore,
-        val currentContainer: () -> Container<T>? = { null }
+        val currentContainer: () -> Container<T> = { pendingContainer() }
     )
 
     open class FlowEmitterCreator<T>(
@@ -66,13 +69,13 @@ internal interface LoadTask<T> {
     class Load<T> private constructor(
         override val metadata: ContainerMetadata,
         private val loader: ValueLoader<T>,
-        private val silently: Boolean = false,
+        private val config: LoadConfig = LoadConfig.Normal,
         private val flowSubject: FlowSubject<T>? = null,
         private val flowEmitterCreator: FlowEmitterCreator<T> = FlowEmitterCreator(flowSubject, metadata),
     ) : LoadTask<T> {
 
         override val initialContainer: Container<T>? =
-            if (silently) null else Container.Pending
+            if (config.isSilentLoadingEnabled) null else Container.Pending
 
         override val lastRealLoader: ValueLoader<T> = loader
         override val lastRealMetadata: ContainerMetadata = metadata
@@ -80,34 +83,28 @@ internal interface LoadTask<T> {
         constructor(
             loader: ValueLoader<T>,
             metadata: ContainerMetadata,
-            silent: Boolean = false,
+            config: LoadConfig = LoadConfig.Normal,
             flowSubject: FlowSubject<T>? = null,
-        ) : this(metadata, loader, silent, flowSubject)
+        ) : this(metadata, loader, config, flowSubject)
 
         constructor(
             loader: ValueLoader<T>,
             metadata: ContainerMetadata,
-            silent: Boolean = false,
+            config: LoadConfig = LoadConfig.Normal,
             flowSubject: FlowSubject<T>? = null,
             flowEmitterCreator: FlowEmitterCreator<T>,
-        ) : this(metadata, loader, silent, flowSubject, flowEmitterCreator)
+        ) : this(metadata, loader, config, flowSubject, flowEmitterCreator)
 
         override fun execute(
             executeParams: ExecuteParams<T>,
         ) = flow {
             try {
-                if (!silently) {
-                    emit(Container.Pending)
-                } else {
-                    executeParams.currentContainer()?.update(isLoadingInBackground = true)?.let {
-                        emit(it)
-                    }
-                }
+                handleSilentLoadingConfig(executeParams)
                 val emitter = flowEmitterCreator.create(this, executeParams)
                 try {
                     executeParams.flowDependencyStore.begin(
                         reloadDependencies = metadata.reloadDependencies,
-                        silently = silently,
+                        loadConfig = config,
                     )
                     loader(emitter)
                 } finally {
@@ -124,7 +121,7 @@ internal interface LoadTask<T> {
             } catch (e: Exception) {
                 flowSubject?.onError(e)
                 if (e is CancellationException) throw e
-                emit(errorContainer(e))
+                handleSilentErrorConfig(executeParams, e)
             }
         }
 
@@ -137,6 +134,37 @@ internal interface LoadTask<T> {
                 metadata = this.metadata + metadata,
                 loader = loader,
             )
+        }
+
+        private suspend fun FlowCollector<Container<T>>.handleSilentLoadingConfig(
+            executeParams: ExecuteParams<T>,
+        ) {
+            if (!config.isSilentLoadingEnabled) {
+                emit(Container.Pending)
+            } else {
+                executeParams.currentContainer()
+                    .update { backgroundLoadState = BackgroundLoadState.Loading }
+                    .let { emit(it) }
+            }
+        }
+
+        private suspend fun FlowCollector<Container<T>>.handleSilentErrorConfig(
+            executeParams: ExecuteParams<T>,
+            exception: Exception,
+        ) {
+            if (config.isSilentErrorsEnabled) {
+                executeParams.currentContainer()
+                    .let { currentContainer ->
+                        if (currentContainer is Container.Success) {
+                            val errorBackgroundMetadata = BackgroundLoadMetadata(BackgroundLoadState.Error(exception))
+                            emit(currentContainer + errorBackgroundMetadata + metadata)
+                        } else {
+                            emit(errorContainer(exception, metadata))
+                        }
+                    }
+            } else {
+                emit(errorContainer(exception, metadata))
+            }
         }
 
     }

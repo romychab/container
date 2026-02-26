@@ -62,17 +62,17 @@ public inline fun <reified T : ContainerMetadata> ContainerMetadata.get(): T? {
  */
 public fun defaultMetadata(
     source: SourceType? = null,
-    isLoadingInBackground: Boolean? = null,
+    backgroundLoadState: BackgroundLoadState? = null,
     reloadFunction: ReloadFunction? = null,
 ): ContainerMetadata {
     return EmptyMetadata +
             source?.let(::SourceTypeMetadata) +
-            isLoadingInBackground?.let(::IsLoadingInBackgroundMetadata) +
+            backgroundLoadState?.let(::BackgroundLoadMetadata) +
             reloadFunction?.let(::ReloadFunctionMetadata)
 }
 
-public val ContainerMetadata.isLoadingInBackground: Boolean
-    get() = get<IsLoadingInBackgroundMetadata>()?.isLoadingInBackground ?: false
+public val ContainerMetadata.backgroundLoadState: BackgroundLoadState
+    get() = get<BackgroundLoadMetadata>()?.backgroundLoadState ?: BackgroundLoadState.Idle
 
 public val ContainerMetadata.reloadFunction: ReloadFunction
     get() = get<ReloadFunctionMetadata>()?.reloadFunction ?: EmptyReloadFunction
@@ -86,21 +86,21 @@ public val ContainerMetadata.loadTrigger: LoadTrigger
 public val ContainerMetadata.reloadDependencies: Boolean
     get() = get<ReloadDependenciesMetadata>()?.reloadDependencies ?: false
 
-public data class IsLoadingInBackgroundMetadata(
-    public val isLoadingInBackground: Boolean
+public fun ContainerMetadata.reload(config: LoadConfig) {
+    reloadFunction.invoke(config)
+}
+
+public data class BackgroundLoadMetadata(
+    public val backgroundLoadState: BackgroundLoadState
 ) : ContainerMetadata
 
 public data class ReloadFunctionMetadata(
-    public val reloadFunction: (silently: Boolean) -> Unit,
+    public val reloadFunction: ReloadFunction,
 ) : ContainerMetadata
 
 public data class SourceTypeMetadata(
     public val sourceType: SourceType,
 ) : ContainerMetadata
-
-public data class LoadUuidMetadata(
-    public val uuid: String,
-) : ContainerMetadata, ContainerMetadata.Hidden
 
 public data class LoadTriggerMetadata(
     public val loadTrigger: LoadTrigger,

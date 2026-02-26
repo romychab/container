@@ -1,11 +1,10 @@
 package com.elveum.container.subject.lazy
 
+import com.elveum.container.BackgroundLoadState
+import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
-import com.elveum.container.EmptyMetadata
-import com.elveum.container.IsLoadingInBackgroundMetadata
-import com.elveum.container.LoadUuidMetadata
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.successContainer
 import kotlinx.coroutines.flow.Flow
@@ -23,7 +22,6 @@ internal class FlowEmitter<T>(
     private var _hasEmittedValues = false
     val hasEmittedValues get() = _hasEmittedValues
 
-    private val loadUuid get() = executeParams.loadUuid
     private val flowDependencyStore = executeParams.flowDependencyStore
 
     override suspend fun emit(value: T, metadata: ContainerMetadata, isLastValue: Boolean) {
@@ -60,15 +58,14 @@ internal class FlowEmitter<T>(
         metadata: ContainerMetadata,
         isLoadingInBackground: Boolean,
     ): Container<T> {
-        val loadUuidMetadata = loadUuid.takeIf { it.isNotBlank() }
-            ?.let(::LoadUuidMetadata)
-            ?: EmptyMetadata
+        val backgroundLoadState = if (isLoadingInBackground) {
+            BackgroundLoadState.Loading
+        } else {
+            BackgroundLoadState.Idle
+        }
         return successContainer(
             value = value,
-            metadata = loadUuidMetadata +
-                    IsLoadingInBackgroundMetadata(isLoadingInBackground) +
-                    metadata +
-                    this.metadata
+            metadata = BackgroundLoadMetadata(backgroundLoadState) + metadata + this.metadata
         )
 
     }

@@ -15,11 +15,9 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import java.util.UUID
 
 internal class LoadTaskManager<T>(
     private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
-    private val uuidProvider: () -> String = { UUID.randomUUID().toString() },
 ) {
 
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
@@ -37,9 +35,7 @@ internal class LoadTaskManager<T>(
         job = scope.launch {
             inputFlow
                 .collectLatest { loadTask ->
-                    val loadUuid = uuidProvider.invoke()
                     val executeParams = LoadTask.ExecuteParams(
-                        loadUuid = loadUuid,
                         flowDependencyStore = flowDependencyStore,
                         currentContainer = currentContainer,
                     )

@@ -26,7 +26,7 @@ public interface ContainerMapperScope {
      * For example, it may be a value being loaded from the remote source, whereas
      * this container represents a local source.
      */
-    public val isLoadingInBackground: Boolean get() = metadata.isLoadingInBackground
+    public val backgroundLoadState: BackgroundLoadState get() = metadata.backgroundLoadState
 
     /**
      * Function for reloading data.
@@ -34,17 +34,31 @@ public interface ContainerMapperScope {
     public val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
     /**
+     * Reload data encapsulated by container.
+     */
+    public fun reload(config: LoadConfig) {
+        reloadFunction.invoke(config)
+    }
+
+    /**
+     * Reload data encapsulated by container.
+     */
+    public fun reload() {
+        reloadFunction.invoke(LoadConfig.Normal)
+    }
+
+    /**
      * Create a success container.
      */
     public fun <T> successContainer(
         value: T,
         source: SourceType? = null,
-        isLoadingInBackground: Boolean? = null,
+        backgroundLoadState: BackgroundLoadState? = null,
         reloadFunction: ReloadFunction? = null,
     ): Container.Success<T> {
         return com.elveum.container.successContainer(
             value = value,
-            metadata = this.metadata + defaultMetadata(source, isLoadingInBackground, reloadFunction)
+            metadata = this.metadata + defaultMetadata(source, backgroundLoadState, reloadFunction)
         )
     }
 
@@ -67,12 +81,12 @@ public interface ContainerMapperScope {
     public fun errorContainer(
         exception: Exception,
         source: SourceType? = null,
-        isLoadingInBackground: Boolean? = null,
+        backgroundLoadState: BackgroundLoadState? = null,
         reloadFunction: ReloadFunction? = null,
     ): Container.Error {
         return com.elveum.container.errorContainer(
             exception = exception,
-            metadata = this.metadata + defaultMetadata(source, isLoadingInBackground, reloadFunction)
+            metadata = this.metadata + defaultMetadata(source, backgroundLoadState, reloadFunction)
         )
     }
 

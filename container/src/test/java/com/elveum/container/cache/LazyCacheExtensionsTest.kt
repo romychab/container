@@ -2,6 +2,7 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
@@ -34,12 +35,12 @@ class LazyCacheExtensionsTest {
     fun reloadAsync_delegatesCallToNewLoad() {
         every { lazyCache.reload(any(), any()) } returns emptyFlow()
 
-        lazyCache.reloadAsync("arg1", false)
-        lazyCache.reloadAsync("arg2", true)
+        lazyCache.reloadAsync("arg1", LoadConfig.Normal)
+        lazyCache.reloadAsync("arg2", LoadConfig.SilentLoading)
 
         verify(exactly = 1) {
-            lazyCache.reload("arg1", false)
-            lazyCache.reload("arg2", true)
+            lazyCache.reload("arg1", LoadConfig.Normal)
+            lazyCache.reload("arg2", LoadConfig.SilentLoading)
         }
     }
 

@@ -3,7 +3,6 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.Container.Error
 import com.elveum.container.Container.Pending
-import com.elveum.container.Container.Success
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.EmptyReloadFunction
@@ -15,8 +14,10 @@ import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.BackgroundLoadState
+import com.elveum.container.LoadConfig
+import com.elveum.container.backgroundLoadState
 import com.elveum.container.get
-import com.elveum.container.isLoadingInBackground
 import com.elveum.container.pendingContainer
 import com.elveum.container.reloadFunction
 import com.elveum.container.sourceType
@@ -39,9 +40,7 @@ import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
-import org.junit.Assert
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Test.None
@@ -269,7 +268,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, spyLoader2)
         runCurrent()
 
         coVerify(exactly = 1) { spyLoader2.invoke(any()) }
@@ -291,7 +290,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -314,7 +313,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = true, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.SilentLoading, EmptyMetadata, spyLoader2)
         runCurrent()
         advanceTimeBy(101)
 
@@ -341,7 +340,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         advanceTimeBy(50)
-        subject.newLoad(silently = false, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, spyLoader2)
         advanceTimeBy(101)
 
         coVerifyOrder {
@@ -372,9 +371,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, EmptyMetadata, loader2).startCollecting()
+        val state1 = subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader2).startCollecting()
         runCurrent()
-        val state2 = subject.newLoad(silently = false, EmptyMetadata, loader3).startCollecting()
+        val state2 = subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader3).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21", "22"), state1.collectedItems)
@@ -400,9 +399,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state1 = subject.newLoad(silently = false, EmptyMetadata, loader1).startCollecting()
+        val state1 = subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader1).startCollecting()
         advanceTimeBy(50)
-        val state2 = subject.newLoad(silently = false, EmptyMetadata, loader2).startCollecting()
+        val state2 = subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader2).startCollecting()
         runCurrent()
 
         assertEquals(listOf("21"), state1.collectedItems)
@@ -424,7 +423,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         subject.listen().startCollecting()
         runCurrent()
-        val state = subject.newLoad(silently = false, EmptyMetadata, loader1).startCollecting()
+        val state = subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader1).startCollecting()
         runCurrent()
 
         assertEquals(listOf("2"), state.collectedItems)
@@ -444,7 +443,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(silently = false, EmptyMetadata, loader2)
+        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader2)
         advanceTimeBy(11)
 
         assertEquals(
@@ -594,7 +593,7 @@ class LazyFlowSubjectImplIntegrationTest {
         runCurrent()
 
         assertEquals(
-            listOf(pendingContainer(), successContainer("111"), Success("222")),
+            listOf(pendingContainer(), successContainer("111"), successContainer("222")),
             collectedItems.raw(),
         )
     }
@@ -632,7 +631,7 @@ class LazyFlowSubjectImplIntegrationTest {
         runCurrent()
 
         assertEquals(
-            listOf(pendingContainer(), successContainer("111"), Success("222")),
+            listOf(pendingContainer(), successContainer("111"), successContainer("222")),
             collectedItems.raw(),
         )
     }
@@ -800,15 +799,15 @@ class LazyFlowSubjectImplIntegrationTest {
         assertTrue(isDependencyBCancelled)
 
         // 5. reload (not silently) -> dependencies must be reloaded
-        subject.reloadAsync(silently = false)
-        verify(exactly = 0) { reloadFunction(true) }
+        subject.reloadAsync(config = LoadConfig.Normal)
+        verify(exactly = 0) { reloadFunction(LoadConfig.SilentLoading) }
         runCurrent()
-        verify(exactly = 1) { reloadFunction(false) }
+        verify(exactly = 1) { reloadFunction(LoadConfig.Normal) }
 
         // 6. reload (silently) -> dependencies must be reloaded
-        subject.reloadAsync(silently = true)
+        subject.reloadAsync(config = LoadConfig.SilentLoading)
         runCurrent()
-        verify(exactly = 1) { reloadFunction(true) }
+        verify(exactly = 1) { reloadFunction(LoadConfig.SilentLoading) }
 
         // 7. reload without dependencies
         clearMocks(reloadFunction)
@@ -839,24 +838,24 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(EmptyReloadFunction, bgLoadsEnabledCollector.lastItem.metadata.reloadFunction)
 
         // 2. Assert reload function exists in reloadFunConfig
-        reloadFunctionEnabledCollector.lastItem.metadata.reloadFunction.invoke(false)
+        reloadFunctionEnabledCollector.lastItem.metadata.reloadFunction.invoke(LoadConfig.Normal)
         advanceTimeBy(10)
         assertEquals(pendingContainer(), reloadFunctionEnabledCollector.lastItem)
         advanceTimeBy(1)
 
         // 3. Assert reload function exists in allConfig
-        allConfigEnabledCollector.lastItem.metadata.reloadFunction.invoke(false)
+        allConfigEnabledCollector.lastItem.metadata.reloadFunction.invoke(LoadConfig.Normal)
         advanceTimeBy(10)
         assertEquals(pendingContainer(), allConfigEnabledCollector.lastItem)
         advanceTimeBy(1)
 
         // 4. Assert background loading status in all containers
-        subject.reloadAsync(silently = true)
+        subject.reloadAsync(config = LoadConfig.SilentLoading)
         advanceTimeBy(10)
-        assertFalse(noConfigCollector.lastItem.metadata.isLoadingInBackground)
-        assertFalse(reloadFunctionEnabledCollector.lastItem.metadata.isLoadingInBackground)
-        assertTrue(bgLoadsEnabledCollector.lastItem.metadata.isLoadingInBackground)
-        assertTrue(allConfigEnabledCollector.lastItem.metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Idle, noConfigCollector.lastItem.metadata.backgroundLoadState)
+        assertEquals(BackgroundLoadState.Idle, reloadFunctionEnabledCollector.lastItem.metadata.backgroundLoadState)
+        assertEquals(BackgroundLoadState.Loading, bgLoadsEnabledCollector.lastItem.metadata.backgroundLoadState)
+        assertEquals(BackgroundLoadState.Loading, allConfigEnabledCollector.lastItem.metadata.backgroundLoadState)
     }
 
     private fun FlowTestScope.createLazyFlowSubject(
@@ -881,7 +880,7 @@ class LazyFlowSubjectImplIntegrationTest {
             LoadTaskManager(),
         ).apply {
             if (loader != null) {
-                newAsyncLoad(silently = false, metadata, loader)
+                newAsyncLoad(config = LoadConfig.Normal, metadata, loader)
             }
         }
     }

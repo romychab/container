@@ -14,7 +14,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_forSuccessContainer_executesOnSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container<Int> = successContainer(0, metadata)
 
         val transformed = origin.transform(
             onSuccess = { successContainer(it + 1) },
@@ -22,7 +25,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            successContainer(1, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            successContainer(1, metadata),
             transformed,
         )
     }
@@ -30,7 +33,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_forCompletedSuccessContainer_executesOnSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container.Completed<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container.Completed<Int> = successContainer(0, metadata)
 
         val transformed = origin.transform(
             onSuccess = { successContainer(it + 1) },
@@ -38,7 +44,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            successContainer(1, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            successContainer(1, metadata),
             transformed,
         )
     }
@@ -46,8 +52,11 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_forErrorContainer_executesOnError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val origin: Container<Int> = errorContainer(
-            IllegalStateException(), RemoteSourceType, isLoadingInBackground = true, reloadFunction
+            IllegalStateException(), metadata
         )
 
         val transformed = origin.transform(
@@ -60,15 +69,18 @@ class ContainerMapExtensionsTest {
         )
         val containerException = transformed.getContainerExceptionOrNull()
         assertEquals(RemoteSourceType, containerException?.source)
-        assertTrue(containerException?.isLoadingInBackground ?: false)
+        assertEquals(BackgroundLoadState.Loading, containerException?.backgroundLoadState)
         assertEquals(reloadFunction, containerException?.reloadFunction)
     }
 
     @Test
     fun transform_forCompletedErrorContainer_executesOnError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val origin: Container.Completed<String> = errorContainer(
-            IllegalStateException(), RemoteSourceType, isLoadingInBackground = true, reloadFunction
+            IllegalStateException(), metadata
         )
 
         val transformed = origin.transform(
@@ -81,7 +93,7 @@ class ContainerMapExtensionsTest {
         )
         val containerException = transformed.getContainerExceptionOrNull()
         assertEquals(RemoteSourceType, containerException?.source)
-        assertTrue(containerException?.isLoadingInBackground ?: false)
+        assertEquals(BackgroundLoadState.Loading, containerException?.backgroundLoadState)
         assertEquals(reloadFunction, containerException?.reloadFunction)
     }
 
@@ -100,7 +112,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withFailedSuccessTransformation_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container<Int> = successContainer(0, metadata)
         val exception = IllegalStateException()
 
         val transformed = origin.transform(
@@ -109,7 +124,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            errorContainer(exception, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            errorContainer(exception, metadata),
             transformed,
         )
     }
@@ -117,7 +132,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withFailedSuccessTransformationForCompletedOrigin_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container.Completed<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container.Completed<Int> = successContainer(0, metadata)
         val exception = IllegalStateException()
 
         val transformed = origin.transform(
@@ -126,7 +144,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            errorContainer(exception, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            errorContainer(exception, metadata),
             transformed,
         )
     }
@@ -134,7 +152,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withFailedErrorTransformation_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container<Int> = errorContainer(Exception(), RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container<Int> = errorContainer(Exception(), metadata)
         val exception = IllegalStateException()
 
         val transformed = origin.transform(
@@ -143,7 +164,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            errorContainer(exception, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            errorContainer(exception, metadata),
             transformed,
         )
     }
@@ -151,7 +172,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withFailedErrorTransformationForCompletedOrigin_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container.Completed<Int> = errorContainer(Exception(), RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container.Completed<Int> = errorContainer(Exception(), metadata)
         val exception = IllegalStateException()
 
         val transformed = origin.transform(
@@ -160,7 +184,7 @@ class ContainerMapExtensionsTest {
         )
 
         assertEquals(
-            errorContainer(exception, RemoteSourceType, isLoadingInBackground = true, reloadFunction),
+            errorContainer(exception, metadata),
             transformed,
         )
     }
@@ -168,7 +192,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withCancelledSuccessTransformation_rethrowsException() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container<Int> = successContainer(0, metadata)
 
         val exception = runCatching {
             origin.transform(
@@ -183,7 +210,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withCancelledSuccessTransformationForCompletedOrigin_rethrowsException() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container.Completed<Int> = successContainer(0, RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container.Completed<Int> = successContainer(0, metadata)
 
         val exception = runCatching {
             origin.transform(
@@ -198,7 +228,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withCancelledErrorTransformation_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container<String> = errorContainer(Exception(), RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container<String> = errorContainer(Exception(), metadata)
 
         val exception = runCatching {
             origin.transform(
@@ -213,7 +246,10 @@ class ContainerMapExtensionsTest {
     @Test
     fun transform_withCancelledErrorTransformationForCompletedOrigin_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
-        val origin: Container.Completed<String> = errorContainer(Exception(), RemoteSourceType, isLoadingInBackground = true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val origin: Container.Completed<String> = errorContainer(Exception(), metadata)
 
         val exception = runCatching {
             origin.transform(
@@ -236,10 +272,13 @@ class ContainerMapExtensionsTest {
     fun map_forErrorContainer_returnsErrorInstance() {
         val exception = IllegalStateException()
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container<String> = errorContainer(exception, FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container<String> = errorContainer(exception, metadata)
         val outputContainer: Container<Int> = inputContainer.map { 1 }
         assertEquals(
-            errorContainer(exception, FakeSourceType, true, reloadFunction),
+            errorContainer(exception, metadata),
             outputContainer,
         )
     }
@@ -248,10 +287,13 @@ class ContainerMapExtensionsTest {
     fun map_forCompletedErrorContainer_returnsErrorInstance() {
         val exception = IllegalStateException()
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container.Completed<String> = errorContainer(exception, FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container.Completed<String> = errorContainer(exception, metadata)
         val outputContainer: Container<Int> = inputContainer.map { 1 }
         assertEquals(
-            errorContainer(exception, FakeSourceType, true, reloadFunction),
+            errorContainer(exception, metadata),
             outputContainer,
         )
     }
@@ -259,12 +301,15 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forSuccessContainer_mapsValue() {
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container<String> = successContainer("123", metadata)
 
         val outputContainer = inputContainer.map { it.toInt() }
 
         assertEquals(
-            successContainer(123, FakeSourceType, true, reloadFunction),
+            successContainer(123, metadata),
             outputContainer,
         )
     }
@@ -272,12 +317,15 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forCompletedSuccessContainer_mapsValue() {
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container.Completed<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container.Completed<String> = successContainer("123", metadata)
 
         val outputContainer = inputContainer.map { it.toInt() }
 
         assertEquals(
-            successContainer(123, FakeSourceType, true, reloadFunction),
+            successContainer(123, metadata),
             outputContainer,
         )
     }
@@ -285,13 +333,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forFailedMapping_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val exception = IllegalStateException()
-        val inputContainer: Container<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val inputContainer: Container<String> = successContainer("123", metadata)
 
         val outputContainer = inputContainer.map { throw exception }
 
         assertEquals(
-            errorContainer(exception, FakeSourceType, true, reloadFunction),
+            errorContainer(exception, metadata),
             outputContainer,
         )
     }
@@ -299,13 +350,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forCompletedFailedMapping_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val exception = IllegalStateException()
-        val inputContainer: Container.Completed<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val inputContainer: Container.Completed<String> = successContainer("123", metadata)
 
         val outputContainer = inputContainer.map { throw exception }
 
         assertEquals(
-            errorContainer(exception, FakeSourceType, true, reloadFunction),
+            errorContainer(exception, metadata),
             outputContainer,
         )
     }
@@ -313,8 +367,11 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forCancelledMapping_throwsException() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val expectedException = CancellationException()
-        val inputContainer: Container<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val inputContainer: Container<String> = successContainer("123", metadata)
 
         val exception = runCatching {
             inputContainer.map { throw expectedException }
@@ -326,8 +383,11 @@ class ContainerMapExtensionsTest {
     @Test
     fun map_forCompletedCancelledMapping_throwsException() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val expectedException = CancellationException()
-        val inputContainer: Container.Completed<String> = successContainer("123", FakeSourceType, true, reloadFunction)
+        val inputContainer: Container.Completed<String> = successContainer("123", metadata)
 
         val exception = runCatching {
             inputContainer.map { throw expectedException }
@@ -339,15 +399,18 @@ class ContainerMapExtensionsTest {
     @Test
     fun catchAll_forError_returnsContainer() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val exception = IllegalStateException()
-        val inputContainer: Container<String> = errorContainer(exception, FakeSourceType, true, reloadFunction)
+        val inputContainer: Container<String> = errorContainer(exception, metadata)
 
         val container = inputContainer.catchAll {
             successContainer(it)
         }
 
         assertEquals(
-            successContainer(exception, FakeSourceType, true, reloadFunction),
+            successContainer(exception, metadata),
             container,
         )
     }
@@ -355,15 +418,18 @@ class ContainerMapExtensionsTest {
     @Test
     fun catchAll_forCompletedError_returnsContainer() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val exception = IllegalStateException()
-        val inputContainer: Container.Completed<String> = errorContainer(exception, FakeSourceType, true, reloadFunction)
+        val inputContainer: Container.Completed<String> = errorContainer(exception, metadata)
 
         val container = inputContainer.catchAll {
             successContainer(it)
         }
 
         assertEquals(
-            successContainer(exception, FakeSourceType, true, reloadFunction),
+            successContainer(exception, metadata),
             container,
         )
     }
@@ -371,14 +437,17 @@ class ContainerMapExtensionsTest {
     @Test
     fun catchAll_forSuccess_returnsContainer() {
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container<Int> = successContainer(1, FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container<Int> = successContainer(1, metadata)
 
         val container = inputContainer.catchAll {
             successContainer(it)
         }
 
         assertEquals(
-            successContainer(1, FakeSourceType, true, reloadFunction),
+            successContainer(1, metadata),
             container,
         )
     }
@@ -386,14 +455,17 @@ class ContainerMapExtensionsTest {
     @Test
     fun catchAll_forCompletedSuccess_returnsContainer() {
         val reloadFunction = mockk<ReloadFunction>()
-        val inputContainer: Container.Completed<Int> = successContainer(1, FakeSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(FakeSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
+        val inputContainer: Container.Completed<Int> = successContainer(1, metadata)
 
         val container = inputContainer.catchAll {
             successContainer(it)
         }
 
         assertEquals(
-            successContainer(1, FakeSourceType, true, reloadFunction),
+            successContainer(1, metadata),
             container,
         )
     }
@@ -624,11 +696,12 @@ class ContainerMapExtensionsTest {
 
     @Test
     fun recover_forCompletedSuccess_returnsCompletedSuccessWithOriginValues() {
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(mockk())
         val inputContainer: Container.Completed<Int> = successContainer(
             value = 1,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = mockk(),
+            metadata = metadata,
         )
 
         val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
@@ -639,17 +712,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forCompletedMatchedError_returnsCompletedMappedSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container.Completed<Int> = errorContainer(
             exception = IOException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
         val expectedOutputContainer: Container.Completed<Int> = successContainer(
             value = 2,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
@@ -660,17 +732,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forCompletedMatchedChildError_returnsCompletedMappedSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container.Completed<Int> = errorContainer(
             exception = FileNotFoundException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
         val expectedOutputContainer: Container.Completed<Int> = successContainer(
             value = 2,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container: Container.Completed<Int> = inputContainer.recover(IOException::class) { 2 }
@@ -681,11 +752,12 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forCompletedNonMatchedError_returnsCompletedError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container.Completed<Int> = errorContainer(
             exception = FileNotFoundException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container: Container.Completed<Int> = inputContainer.recover(IllegalArgumentException::class) { 2 }
@@ -695,11 +767,12 @@ class ContainerMapExtensionsTest {
 
     @Test
     fun recover_forSuccess_returnsSuccessWithOriginValues() {
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(mockk())
         val inputContainer: Container<Int> = successContainer(
             value = 1,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = mockk(),
+            metadata = metadata,
         )
 
         val container = inputContainer.recover(IOException::class) { 2 }
@@ -719,17 +792,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forMatchedError_returnsMappedSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container<Int> = errorContainer(
             exception = IOException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
         val expectedOutputContainer = successContainer(
             value = 2,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container = inputContainer.recover(IOException::class) { 2 }
@@ -740,17 +812,16 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forMatchedChildError_returnsMappedSuccess() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container<Int> = errorContainer(
             exception = FileNotFoundException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
         val expectedOutputContainer = successContainer(
             value = 2,
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container = inputContainer.recover(IOException::class) { 2 }
@@ -761,11 +832,12 @@ class ContainerMapExtensionsTest {
     @Test
     fun recover_forNonMatchedError_returnsError() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val inputContainer: Container<Int> = errorContainer(
             exception = FileNotFoundException(),
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         )
 
         val container = inputContainer.recover(IllegalArgumentException::class) { 2 }

@@ -2,6 +2,7 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.LoadConfig
 import com.elveum.container.cache.LazyCacheImpl.LazyFlowSubjectFactory
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.CoroutineScopeFactory
@@ -300,14 +301,14 @@ class LazyCacheTest {
     fun reload_withActiveCacheSlot_reloadsValue() = scope.runFlowTest {
         val subject = mockSubject()
         val expectedFlow = flowOf("")
-        every { subject.reload(silently = true) } returns expectedFlow
+        every { subject.reload(config = LoadConfig.SilentLoading) } returns expectedFlow
         lazyCache.listen(key).startCollecting()
 
-        val flow = lazyCache.reload(key, silently = true)
+        val flow = lazyCache.reload(key, config = LoadConfig.SilentLoading)
 
         assertSame(expectedFlow, flow)
         verify(exactly = 1) {
-            subject.reload(silently = true)
+            subject.reload(config = LoadConfig.SilentLoading)
         }
     }
 

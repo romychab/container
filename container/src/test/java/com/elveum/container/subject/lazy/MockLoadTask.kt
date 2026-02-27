@@ -5,7 +5,7 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadConfig
 import com.elveum.container.reloadDependencies
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
@@ -41,7 +41,7 @@ internal class MockLoadTask private constructor(
         return channelFlow {
             executeParams.flowDependencyStore.begin(
                 reloadDependencies = metadata.reloadDependencies,
-                silently = false,
+                loadConfig = LoadConfig.Normal,
             )
             try {
                 _controller.executeParams = executeParams

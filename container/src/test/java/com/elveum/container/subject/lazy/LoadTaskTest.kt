@@ -4,13 +4,15 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
-import com.elveum.container.LoadUuidMetadata
 import com.elveum.container.LocalSourceType
+import com.elveum.container.LoadConfig
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceType
 import com.elveum.container.SourceTypeMetadata
+import com.elveum.container.errorContainer
 import com.elveum.container.exceptionOrNull
 import com.elveum.container.get
 import com.elveum.container.loadTrigger
@@ -25,7 +27,6 @@ import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
-import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
@@ -78,7 +79,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withoutSilentFlag_emitsPendingStatus() = runFlowTest {
-        val task = makeLoadTask(silent = false)
+        val task = makeLoadTask(config = LoadConfig.Normal)
         coEvery { valueLoader.invoke(any()) } coAnswers {
             delay(10)
         }
@@ -94,8 +95,8 @@ class LoadTaskTest {
     }
 
     @Test
-    fun loadTask_withSilentFlag_doesNotEmitPendingStatus() = runFlowTest {
-        val task = makeLoadTask(silent = true)
+    fun loadTask_withSilentFlag_emitsCurrentPendingContainer() = runFlowTest {
+        val task = makeLoadTask(config = LoadConfig.SilentLoading)
         coEvery { valueLoader.invoke(any()) } coAnswers {
             delay(10)
         }
@@ -103,14 +104,17 @@ class LoadTaskTest {
         val state = task.execute(executeParams).startCollecting(StandardTestDispatcher(scope.testScheduler))
         advanceTimeBy(5)
 
-        assertEquals(emptyList<Container<String>>(), state.collectedItems)
+        assertEquals(
+            listOf(Container.Pending),
+            state.collectedItems,
+        )
         assertEquals(CollectStatus.Collecting, state.collectStatus)
     }
 
     @Test
-    fun loadTask_withSilentFlagAndCurrentContainer_emitsCurrentContainerWithIsLoadingInBackgroundTrue() = runFlowTest {
+    fun loadTask_withSilentFlagAndCurrentContainer_emitsCurrentContainerWithBackgroundLoadLoading() = runFlowTest {
         val currentContainer = successContainer("current-item")
-        val task = makeLoadTask(silent = true)
+        val task = makeLoadTask(config = LoadConfig.SilentLoading)
         coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
 
         val state = task.execute(
@@ -124,7 +128,7 @@ class LoadTaskTest {
         assertEquals(1, state.collectedItems.size)
         val emitted = state.collectedItems.first() as Container.Success<*>
         assertEquals("current-item", emitted.value)
-        assertTrue(emitted.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Loading, emitted.backgroundLoadState)
     }
 
     @Test
@@ -137,7 +141,7 @@ class LoadTaskTest {
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
-        val executeParams = LoadTask.ExecuteParams<String>(loadUuid = "test-uuid", flowDependencyStore = flowDependencyStore)
+        val executeParams = LoadTask.ExecuteParams<String>(flowDependencyStore = flowDependencyStore)
 
         task.execute(executeParams).startCollecting()
 
@@ -146,7 +150,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withoutEmittedItemsAndWithSilentFlag_emitsError() = runFlowTest {
-        val task = makeLoadTask(silent = true)
+        val task = makeLoadTask(config = LoadConfig.SilentLoading)
         coEvery { valueLoader.invoke(any()) } coAnswers {
             delay(10)
         }
@@ -163,7 +167,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withoutEmittedItemsAndWithoutSilentFlag_emitsError() = runFlowTest {
-        val task = makeLoadTask(silent = false)
+        val task = makeLoadTask(config = LoadConfig.Normal)
         coEvery { valueLoader.invoke(any()) } coAnswers {
             delay(10)
         }
@@ -182,7 +186,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withCancellationExceptionAndSilentFlag_fails() = runFlowTest {
-        val task = makeLoadTask(silent = true)
+        val task = makeLoadTask(config = LoadConfig.SilentLoading)
         val cancellationException = CancellationException()
         coEvery { valueLoader.invoke(any()) } coAnswers {
             throw cancellationException
@@ -191,7 +195,10 @@ class LoadTaskTest {
         val state = task.execute(executeParams).startCollecting()
 
         assertEquals(CollectStatus.Cancelled, state.collectStatus)
-        assertTrue(state.collectedItems.isEmpty())
+        assertEquals(
+            listOf(Container.Pending),
+            state.collectedItems,
+        )
         verify(exactly = 1) {
             flowSubject.onError(refEq(cancellationException))
         }
@@ -199,7 +206,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withCancellationExceptionAndWithoutSilentFlag_fails() = runFlowTest {
-        val task = makeLoadTask(silent = false)
+        val task = makeLoadTask(config = LoadConfig.Normal)
         val cancellationException = CancellationException()
         coEvery { valueLoader.invoke(any()) } coAnswers {
             throw cancellationException
@@ -219,7 +226,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withExceptionAndSilentFlag_emitsError() = runFlowTest {
-        val task = makeLoadTask(silent = true)
+        val task = makeLoadTask(config = LoadConfig.SilentLoading)
         val expectedException = IllegalArgumentException()
         coEvery { valueLoader.invoke(any()) } coAnswers {
             throw expectedException
@@ -238,7 +245,7 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withExceptionAndWithoutSilentFlag_emitsError() = runFlowTest {
-        val task = makeLoadTask(silent = false)
+        val task = makeLoadTask(config = LoadConfig.Normal)
         val expectedException = IllegalArgumentException()
         coEvery { valueLoader.invoke(any()) } coAnswers {
             throw expectedException
@@ -260,7 +267,7 @@ class LoadTaskTest {
     fun loadTask_withEmittedItemsAndSilentFlag_completes() = runFlowTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
-            silent = true,
+            config = LoadConfig.SilentLoading,
             flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
                 flowCollector = collector
                 flowEmitter
@@ -268,7 +275,7 @@ class LoadTaskTest {
         )
         every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
-            flowCollector?.emit(successContainer( firstArg(), secondArg<SourceType>()))
+            flowCollector?.emit(successContainer( firstArg(), SourceTypeMetadata(secondArg<SourceType>())))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -279,8 +286,9 @@ class LoadTaskTest {
 
         assertEquals(
             listOf(
-                successContainer("111", LocalSourceType),
-                successContainer("222", RemoteSourceType),
+                Container.Pending,
+                successContainer("111", SourceTypeMetadata(LocalSourceType)),
+                successContainer("222", SourceTypeMetadata(RemoteSourceType)),
             ),
             state.collectedItems
         )
@@ -294,7 +302,7 @@ class LoadTaskTest {
     fun loadTask_withEmittedItemsAndWithoutSilentFlag_completes() = runFlowTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
-            silent = false,
+            config = LoadConfig.Normal,
             flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
                 flowCollector = collector
                 flowEmitter
@@ -302,7 +310,7 @@ class LoadTaskTest {
         )
         every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
-            flowCollector?.emit(successContainer( firstArg(), secondArg<SourceType>()))
+            flowCollector?.emit(successContainer( firstArg(), SourceTypeMetadata(secondArg<SourceType>())))
         }
         coEvery { valueLoader.invoke(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
@@ -314,8 +322,8 @@ class LoadTaskTest {
         assertEquals(
             listOf(
                 Container.Pending,
-                successContainer("111", LocalSourceType),
-                successContainer("222", RemoteSourceType),
+                successContainer("111", SourceTypeMetadata(LocalSourceType)),
+                successContainer("222", SourceTypeMetadata(RemoteSourceType)),
             ),
             state.collectedItems
         )
@@ -350,13 +358,13 @@ class LoadTaskTest {
 
     @Test
     fun loadTask_withSilentFlag_doesNotHaveInitialValue() {
-        val loadTask = makeLoadTask(silent = true)
+        val loadTask = makeLoadTask(config = LoadConfig.SilentLoading)
         assertNull(loadTask.initialContainer)
     }
 
     @Test
     fun loadTask_withoutSilentFlag_hasInitialPendingValue() {
-        val loadTask = makeLoadTask(silent = false)
+        val loadTask = makeLoadTask(config = LoadConfig.Normal)
         assertEquals(Container.Pending, loadTask.initialContainer)
     }
 
@@ -389,10 +397,10 @@ class LoadTaskTest {
     fun loadTask_restoreLoadTask_returnsNewTaskWithCombinedMetadata() {
         val loadTask = makeLoadTask(metadata = SourceTypeMetadata(LocalSourceType))
 
-        val newTask = loadTask.restoreLoadTask(LoadUuidMetadata("uuid-1"))
+        val newTask = loadTask.restoreLoadTask(LoadTriggerMetadata(LoadTrigger.NewLoad))
 
         assertEquals(LocalSourceType, newTask.metadata.sourceType)
-        assertEquals(LoadUuidMetadata("uuid-1"), newTask.metadata.get<LoadUuidMetadata>())
+        assertEquals(LoadTriggerMetadata(LoadTrigger.NewLoad), newTask.metadata.get<LoadTriggerMetadata>())
     }
 
     @Test
@@ -469,15 +477,147 @@ class LoadTaskTest {
         assertEquals(RemoteSourceType, emittedContainer.metadata.sourceType)
     }
 
+    // --- SilentLoadingAndError config tests ---
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfig_emitsCurrentPendingContainer() = runFlowTest {
+        val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
+        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+
+        val state = task.execute(executeParams)
+            .startCollecting(StandardTestDispatcher(scope.testScheduler))
+        advanceTimeBy(5)
+
+        assertEquals(
+            listOf(Container.Pending),
+            state.collectedItems,
+        )
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfig_doesNotHaveInitialValue() {
+        val loadTask = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
+        assertNull(loadTask.initialContainer)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfigAndCurrentSuccessContainer_emitsBackgroundLoadLoading() = runFlowTest {
+        val currentContainer = successContainer("current-item")
+        val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
+        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+
+        val state = task.execute(
+            LoadTask.ExecuteParams(
+                currentContainer = { currentContainer },
+                flowDependencyStore = flowDependencyStore,
+            )
+        ).startCollecting(StandardTestDispatcher(scope.testScheduler))
+        advanceTimeBy(5)
+
+        assertEquals(1, state.collectedItems.size)
+        val emitted = state.collectedItems.first() as Container.Success<*>
+        assertEquals("current-item", emitted.value)
+        assertEquals(BackgroundLoadState.Loading, emitted.backgroundLoadState)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfigAndExceptionAndCurrentSuccess_emitsSuccessWithBackgroundLoadError() = runFlowTest {
+        val currentContainer = successContainer("current-item")
+        val expectedException = IllegalArgumentException("test error")
+        val taskMetadata = SourceTypeMetadata(RemoteSourceType)
+        val task = makeLoadTask(
+            config = LoadConfig.SilentLoadingAndError,
+            metadata = taskMetadata,
+        )
+        coEvery { valueLoader.invoke(any()) } coAnswers {
+            throw expectedException
+        }
+        val params = LoadTask.ExecuteParams(
+            currentContainer = { currentContainer },
+            flowDependencyStore = flowDependencyStore,
+        )
+
+        val state = task.execute(params).startCollecting()
+
+        assertEquals(CollectStatus.Completed, state.collectStatus)
+        val lastItem = state.collectedItems.last()
+        assertTrue(lastItem is Container.Success)
+        lastItem as Container.Success
+        assertEquals("current-item", lastItem.value)
+        val bgLoad = lastItem.backgroundLoadState
+        assertTrue(bgLoad is BackgroundLoadState.Error)
+        assertSame(expectedException, (bgLoad as BackgroundLoadState.Error).exception)
+        assertEquals(RemoteSourceType, lastItem.metadata.sourceType)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfigAndExceptionAndCurrentPending_emitsErrorContainer() = runFlowTest {
+        val expectedException = IllegalArgumentException("test error")
+        val taskMetadata = SourceTypeMetadata(RemoteSourceType)
+        val task = makeLoadTask(
+            config = LoadConfig.SilentLoadingAndError,
+            metadata = taskMetadata,
+        )
+        coEvery { valueLoader.invoke(any()) } coAnswers {
+            throw expectedException
+        }
+
+        val state = task.execute(executeParams).startCollecting()
+
+        assertEquals(CollectStatus.Completed, state.collectStatus)
+        val lastItem = state.collectedItems.last()
+        assertTrue(lastItem is Container.Error)
+        assertSame(expectedException, (lastItem as Container.Error).exception)
+        assertEquals(RemoteSourceType, lastItem.metadata.sourceType)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfigAndExceptionAndCurrentError_emitsErrorContainer() = runFlowTest {
+        val currentError: Container<String> = errorContainer(RuntimeException("old error"))
+        val expectedException = IllegalArgumentException("new error")
+        val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
+        coEvery { valueLoader.invoke(any()) } coAnswers {
+            throw expectedException
+        }
+        val params = LoadTask.ExecuteParams(
+            currentContainer = { currentError },
+            flowDependencyStore = flowDependencyStore,
+        )
+
+        val state = task.execute(params).startCollecting()
+
+        assertEquals(CollectStatus.Completed, state.collectStatus)
+        val lastItem = state.collectedItems.last()
+        assertTrue(lastItem is Container.Error)
+        assertSame(expectedException, (lastItem as Container.Error).exception)
+    }
+
+    @Test
+    fun loadTask_withSilentLoadingAndErrorConfigAndCancellationException_rethrowsCancellation() = runFlowTest {
+        val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
+        val cancellationException = CancellationException()
+        coEvery { valueLoader.invoke(any()) } coAnswers {
+            throw cancellationException
+        }
+
+        val state = task.execute(executeParams).startCollecting()
+
+        assertEquals(CollectStatus.Cancelled, state.collectStatus)
+        verify(exactly = 1) {
+            flowSubject.onError(refEq(cancellationException))
+        }
+    }
+
     private fun makeLoadTask(
         metadata: ContainerMetadata = EmptyMetadata,
-        silent: Boolean = false,
+        config: LoadConfig = LoadConfig.Normal,
         flowEmitterCreator: LoadTask.FlowEmitterCreator<String> = MockFlowEmitterCreator { _, _ -> flowEmitter }
     ): LoadTask<String> {
         return LoadTask.Load(
             metadata = metadata,
             loader = valueLoader,
-            silent = silent,
+            config = config,
             flowSubject = flowSubject,
             flowEmitterCreator = flowEmitterCreator,
         )

@@ -4,7 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
-import com.elveum.container.LoadUuidMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.ReloadDependenciesMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
@@ -109,13 +109,13 @@ class LazyFlowSubjectTest {
         every { flowSubject.flow() } returns expectedFlow
         every {
             loadTaskFactory.create(
-                silently = true,
+                config = LoadConfig.SilentLoading,
                 valueLoader = refEq(valueLoader),
                 metadata = LoadTriggerMetadata(LoadTrigger.Reload) + ReloadDependenciesMetadata(true),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
-        val resultFlow = subject.reload(silently = true)
+        val resultFlow = subject.reload(config = LoadConfig.SilentLoading)
 
         verify(exactly = 1) {
             loadTaskManager.submitNewLoadTask(refEq(loadTask))
@@ -128,13 +128,13 @@ class LazyFlowSubjectTest {
         val valueLoader = mockk<ValueLoader<String>>()
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
-        val customMetadata = LoadUuidMetadata("custom-uuid")
+        val customMetadata = SourceTypeMetadata(RemoteSourceType)
         every { loadTaskManager.getLastRealLoader() } returns valueLoader
         every { loadTaskManager.getLastRealMetadata() } returns EmptyMetadata
         every { flowSubject.flow() } returns MutableStateFlow("123")
         every {
             loadTaskFactory.create(
-                silently = false,
+                config = LoadConfig.Normal,
                 valueLoader = refEq(valueLoader),
                 metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
                         ReloadDependenciesMetadata(true) +
@@ -178,13 +178,13 @@ class LazyFlowSubjectTest {
         every { flowSubject.flow() } returns expectedFlow
         every {
             loadTaskFactory.create(
-                silently = true,
+                config = LoadConfig.SilentLoading,
                 valueLoader = refEq(valueLoader),
                 metadata = LoadTriggerMetadata(LoadTrigger.NewLoad),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
-        val resultFlow = subject.newLoad(silently = true, valueLoader = valueLoader)
+        val resultFlow = subject.newLoad(config = LoadConfig.SilentLoading, valueLoader = valueLoader)
 
         verify(exactly = 1) {
             loadTaskManager.submitNewLoadTask(refEq(loadTask))
@@ -197,11 +197,11 @@ class LazyFlowSubjectTest {
         val valueLoader = mockk<ValueLoader<String>>()
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
-        val customMetadata = LoadUuidMetadata("custom-uuid")
+        val customMetadata = SourceTypeMetadata(RemoteSourceType)
         every { flowSubject.flow() } returns MutableStateFlow("123")
         every {
             loadTaskFactory.create(
-                silently = false,
+                config = LoadConfig.Normal,
                 valueLoader = refEq(valueLoader),
                 metadata = LoadTriggerMetadata(LoadTrigger.NewLoad) + customMetadata,
             )

@@ -6,7 +6,6 @@ import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import kotlin.coroutines.cancellation.CancellationException
@@ -186,10 +185,10 @@ class CombineContainerFlowExtensionsTest {
     @Test
     fun `combineContainerFlows uses sourceType from first flow`() = runFlowTest {
         val flowA = MutableStateFlow<Container<String>>(
-            successContainer("1", RemoteSourceType)
+            successContainer("1", SourceTypeMetadata(RemoteSourceType))
         )
         val flowB = MutableStateFlow<Container<String>>(
-            successContainer("2", LocalSourceType)
+            successContainer("2", SourceTypeMetadata(LocalSourceType))
         )
 
         val resultFlow = combineContainerFlows(listOf(flowA, flowB)) {
@@ -218,13 +217,13 @@ class CombineContainerFlowExtensionsTest {
         val collectedItems = resultFlow.startCollecting()
 
         // no loading
-        assertFalse((collectedItems.lastItem as Container.Success).isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Idle, collectedItems.lastItem.backgroundLoadState)
         // emit any loading
-        flowB.value = successContainer("2", isLoadingInBackground = true)
-        assertTrue((collectedItems.lastItem as Container.Success).isLoadingInBackground)
+        flowB.value = successContainer("2", BackgroundLoadMetadata(BackgroundLoadState.Loading))
+        assertEquals(BackgroundLoadState.Loading, collectedItems.lastItem.backgroundLoadState)
         // reset loading
-        flowB.value = successContainer("2", isLoadingInBackground = false)
-        assertFalse((collectedItems.lastItem as Container.Success).isLoadingInBackground)
+        flowB.value = successContainer("2", BackgroundLoadMetadata(BackgroundLoadState.Idle))
+        assertEquals(BackgroundLoadState.Idle, collectedItems.lastItem.backgroundLoadState)
     }
 
     @Test
@@ -232,21 +231,21 @@ class CombineContainerFlowExtensionsTest {
         val reloadA = mockk<ReloadFunction>(relaxed = true)
         val reloadB = mockk<ReloadFunction>(relaxed = true)
         val flowA = MutableStateFlow<Container<String>>(
-            successContainer("1", reloadFunction = reloadA)
+            successContainer("1", ReloadFunctionMetadata(reloadA))
         )
         val flowB = MutableStateFlow<Container<String>>(
-            successContainer("2", reloadFunction = reloadB)
+            successContainer("2", ReloadFunctionMetadata(reloadB))
         )
 
         val resultFlow = combineContainerFlows(listOf(flowA, flowB)) {
             it.joinToString("-")
         }
         val collectedItems = resultFlow.startCollecting()
-        (collectedItems.lastItem as Container.Success).reloadFunction(true)
+        (collectedItems.lastItem as Container.Success).reloadFunction(LoadConfig.SilentLoading)
 
         verify(exactly = 1) {
-            reloadA(true)
-            reloadB(true)
+            reloadA(LoadConfig.SilentLoading)
+            reloadB(LoadConfig.SilentLoading)
         }
     }
 

@@ -1,6 +1,7 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.subject.lazy.FlowDependencyStore
@@ -149,7 +150,7 @@ class FlowDependencyStoreTest {
         val flow2 = MutableSharedFlow<Container<String>>()
         var isBFlowCancelled = false
         flowDependencyStore.initialize(scope.backgroundScope, recomposeFunction)
-        flowDependencyStore.begin(reloadDependencies = false, silently = false)
+        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
         executeInBackground {
             val a = flowDependencyStore.dependsOn("keyA") { flow1 }
             val b = flowDependencyStore.dependsOn("keyB") {
@@ -167,7 +168,7 @@ class FlowDependencyStoreTest {
         flow1.emit(successContainer("a2"))
         flow2.emit(successContainer("b2"))
 
-        flowDependencyStore.begin(reloadDependencies = false, silently = false)
+        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
         val state = executeInBackground {
             flowDependencyStore.dependsOn("keyA") { flow1 }
         }
@@ -183,7 +184,7 @@ class FlowDependencyStoreTest {
         block: suspend FlowTestScope.() -> Unit
     ) = runFlowTest {
         flowDependencyStore.initialize(scope.backgroundScope, recomposeFunction)
-        flowDependencyStore.begin(reloadDependencies = false, silently = false)
+        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
         this.block()
     }
 

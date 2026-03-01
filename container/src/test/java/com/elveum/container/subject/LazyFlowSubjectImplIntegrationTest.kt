@@ -23,6 +23,7 @@ import com.elveum.container.reloadFunction
 import com.elveum.container.sourceType
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.successContainer
+import com.elveum.container.utils.invokeOn
 import com.elveum.container.utils.raw
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.FlowTestScope
@@ -141,7 +142,7 @@ class LazyFlowSubjectImplIntegrationTest {
             listOf(successContainer("v1")),
             jobState2.collectedItems.raw()
         )
-        coVerify(exactly = 1) { spyLoader.invoke(any()) }
+        coVerify(exactly = 1) { spyLoader.invokeOn(any()) }
     }
 
     @Test
@@ -168,25 +169,26 @@ class LazyFlowSubjectImplIntegrationTest {
             listOf(pendingContainer(), successContainer("v2")),
             jobState2.collectedItems.raw()
         )
-        coVerify(exactly = 2) { spyLoader.invoke(any()) }
+        coVerify(exactly = 2) { spyLoader.invokeOn(any()) }
     }
 
     @Test
     fun listen_whichIsCalledTwice_startsLoadingOnlyOnce() = runFlowTest {
         var index = 0
+        var loaderCalls = 0
         val loader: ValueLoader<String> = {
+            loaderCalls++
             delay(100)
             emit("v${++index}")
         }
-        val spyLoader = spyk(loader)
-        val subject = createLazyFlowSubject(spyLoader)
+        val subject = createLazyFlowSubject(loader)
 
         val collectedItems1 = subject.listen().startCollecting().collectedItems
         advanceTimeBy(50)
         val collectedItems2 = subject.listen().startCollecting().collectedItems
         advanceTimeBy(51)
 
-        coVerify(exactly = 1) { spyLoader.invoke(any()) }
+        assertEquals(1, loaderCalls)
         assertEquals(
             listOf(Pending, successContainer("v1")),
             collectedItems1.raw()
@@ -200,12 +202,13 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun listen_whichIsCalledTwiceOnSameInstance_startsLoadingOnlyOnce() = runFlowTest {
         var index = 0
+        var loaderCalls = 0
         val loader: ValueLoader<String> = {
+            loaderCalls++
             delay(100)
             emit("v${++index}")
         }
-        val spyLoader = spyk(loader)
-        val subject = createLazyFlowSubject(spyLoader)
+        val subject = createLazyFlowSubject(loader)
 
         val flow = subject.listen()
         val collectedItems1 = flow.startCollecting().collectedItems
@@ -213,7 +216,7 @@ class LazyFlowSubjectImplIntegrationTest {
         val collectedItems2 = flow.startCollecting().collectedItems
         advanceTimeBy(51)
 
-        coVerify(exactly = 1) { spyLoader.invoke(any()) }
+        assertEquals(1, loaderCalls)
         assertEquals(
             listOf(Pending, successContainer("v1")),
             collectedItems1.raw()
@@ -241,7 +244,7 @@ class LazyFlowSubjectImplIntegrationTest {
         val collectState3 = subject.listen().startCollecting()
         runCurrent()
 
-        coVerify(exactly = 1) { spyLoader.invoke(any()) }
+        coVerify(exactly = 1) { spyLoader.invokeOn(any()) }
         assertEquals(
             listOf(Pending, successContainer("v1")),
             collectState1.collectedItems.raw()
@@ -271,7 +274,7 @@ class LazyFlowSubjectImplIntegrationTest {
         subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, spyLoader2)
         runCurrent()
 
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
+        coVerify(exactly = 1) { spyLoader2.invokeOn(any()) }
         assertEquals(
             listOf(Pending, successContainer("111"), Pending),
             collectedItems.raw()
@@ -281,20 +284,21 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun newLoad_loadsNewValue() = runFlowTest {
         val loader1: ValueLoader<String> = { emit("111") }
+        var loader2Calls = 0
         val loader2: ValueLoader<String> = {
+            loader2Calls++
             delay(100)
             emit("222")
         }
-        val spyLoader2 = spyk(loader2)
         val subject = createLazyFlowSubject(loader1)
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.Normal, EmptyMetadata, loader2)
         runCurrent()
         advanceTimeBy(101)
 
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
+        assertEquals(1, loader2Calls)
         assertEquals(
             listOf(Pending, successContainer("111"), Pending, successContainer("222")),
             collectedItems.raw()
@@ -304,20 +308,21 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun newLoad_withSilentMode_loadsNewValueWithoutPendingStatus() = runFlowTest {
         val loader1: ValueLoader<String> = { emit("111") }
+        var loader2Calls = 0
         val loader2: ValueLoader<String> = {
+            loader2Calls++
             delay(100)
             emit("222")
         }
-        val spyLoader2 = spyk(loader2)
         val subject = createLazyFlowSubject(loader1)
 
         val collectedItems = subject.listen().startCollecting().collectedItems
         runCurrent()
-        subject.newLoad(config = LoadConfig.SilentLoading, EmptyMetadata, spyLoader2)
+        subject.newLoad(config = LoadConfig.SilentLoading, EmptyMetadata, loader2)
         runCurrent()
         advanceTimeBy(101)
 
-        coVerify(exactly = 1) { spyLoader2.invoke(any()) }
+        assertEquals(1, loader2Calls)
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222")),
             collectedItems.raw()
@@ -344,8 +349,8 @@ class LazyFlowSubjectImplIntegrationTest {
         advanceTimeBy(101)
 
         coVerifyOrder {
-            spyLoader1.invoke(any())
-            spyLoader2.invoke(any())
+            spyLoader1.invokeOn(any())
+            spyLoader2.invokeOn(any())
         }
         assertEquals(
             listOf(Pending, successContainer("222")),

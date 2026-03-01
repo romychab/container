@@ -1,17 +1,14 @@
 package com.elveum.container.subject.lazy
 
-import com.elveum.container.BackgroundLoadState
-import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
-import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.reloadDependencies
 import com.elveum.container.subject.FlowSubject
+import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
-import com.elveum.container.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -29,12 +26,12 @@ internal interface LoadTask<T> {
 
     class ExecuteParams<T>(
         val flowDependencyStore: FlowDependencyStore,
-        val currentContainer: () -> Container<T> = { pendingContainer() }
+        val currentContainer: () -> Container<T> = { pendingContainer() },
     )
 
     open class FlowEmitterCreator<T>(
-        private val flowSubject: FlowSubject<T>?,
-        private val metadata: ContainerMetadata,
+        protected val flowSubject: FlowSubject<T>?,
+        protected val metadata: ContainerMetadata,
     ) {
         open fun create(
             flowCollector: FlowCollector<Container<T>>,
@@ -98,15 +95,22 @@ internal interface LoadTask<T> {
         override fun execute(
             executeParams: ExecuteParams<T>,
         ) = flow {
+            val emitter = flowEmitterCreator.create(this, executeParams)
+            val statefulEmitter = StatefulEmitterImpl(
+                emitter = emitter,
+                executeParams = executeParams,
+                loadConfig = config,
+                flowCollector = this,
+                flowSubject = flowSubject,
+            )
+            val statefulLoader = StatefulValueLoader.wrap(loader)
             try {
-                handleSilentLoadingConfig(executeParams)
-                val emitter = flowEmitterCreator.create(this, executeParams)
                 try {
                     executeParams.flowDependencyStore.begin(
                         reloadDependencies = metadata.reloadDependencies,
                         loadConfig = config,
                     )
-                    loader(emitter)
+                    with(statefulLoader) { statefulEmitter.statefulInvoke() }
                 } finally {
                     executeParams.flowDependencyStore.end()
                 }
@@ -116,12 +120,9 @@ internal interface LoadTask<T> {
                             "you to have an infinite Container.Pending state), you can call " +
                             "awaitCancellation() in the end of your loader function.")
                 }
-                flowSubject?.onComplete()
-                emitter.emitLastItem()
+                statefulEmitter.emitCompletedState()
             } catch (e: Exception) {
-                flowSubject?.onError(e)
-                if (e is CancellationException) throw e
-                handleSilentErrorConfig(executeParams, e)
+                statefulEmitter.emitFailureState(e)
             }
         }
 
@@ -134,37 +135,6 @@ internal interface LoadTask<T> {
                 metadata = this.metadata + metadata,
                 loader = loader,
             )
-        }
-
-        private suspend fun FlowCollector<Container<T>>.handleSilentLoadingConfig(
-            executeParams: ExecuteParams<T>,
-        ) {
-            if (!config.isSilentLoadingEnabled) {
-                emit(Container.Pending)
-            } else {
-                executeParams.currentContainer()
-                    .update { backgroundLoadState = BackgroundLoadState.Loading }
-                    .let { emit(it) }
-            }
-        }
-
-        private suspend fun FlowCollector<Container<T>>.handleSilentErrorConfig(
-            executeParams: ExecuteParams<T>,
-            exception: Exception,
-        ) {
-            if (config.isSilentErrorsEnabled) {
-                executeParams.currentContainer()
-                    .let { currentContainer ->
-                        if (currentContainer is Container.Success) {
-                            val errorBackgroundMetadata = BackgroundLoadMetadata(BackgroundLoadState.Error(exception))
-                            emit(currentContainer + errorBackgroundMetadata + metadata)
-                        } else {
-                            emit(errorContainer(exception, metadata))
-                        }
-                    }
-            } else {
-                emit(errorContainer(exception, metadata))
-            }
         }
 
     }

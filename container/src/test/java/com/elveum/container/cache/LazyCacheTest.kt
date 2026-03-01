@@ -9,6 +9,7 @@ import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
+import com.elveum.container.utils.invokeOn
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
@@ -86,7 +87,7 @@ class LazyCacheTest {
         verify(exactly = 1) {
             subjectFactory.create(capture(valueLoader))
         }
-        valueLoader.captured.invoke(expectedEmitter)
+        valueLoader.captured.invokeOn(expectedEmitter)
         coVerify(exactly = 1) {
             loader(refEq(expectedEmitter), expectedKey)
         }

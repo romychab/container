@@ -1,14 +1,14 @@
 package com.elveum.container.subject.lazy
 
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.BackgroundLoadState
+import com.elveum.container.LoadConfig
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LocalSourceType
-import com.elveum.container.LoadConfig
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceType
 import com.elveum.container.SourceTypeMetadata
@@ -19,8 +19,9 @@ import com.elveum.container.loadTrigger
 import com.elveum.container.sourceType
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
 import com.elveum.container.successContainer
-import com.elveum.container.utils.MockFlowEmitterCreator
+import com.elveum.container.utils.invokeOn
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
@@ -80,7 +81,7 @@ class LoadTaskTest {
     @Test
     fun loadTask_withoutSilentFlag_emitsPendingStatus() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.Normal)
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             delay(10)
         }
 
@@ -97,7 +98,7 @@ class LoadTaskTest {
     @Test
     fun loadTask_withSilentFlag_emitsCurrentPendingContainer() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoading)
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             delay(10)
         }
 
@@ -115,7 +116,7 @@ class LoadTaskTest {
     fun loadTask_withSilentFlagAndCurrentContainer_emitsCurrentContainerWithBackgroundLoadLoading() = runFlowTest {
         val currentContainer = successContainer("current-item")
         val task = makeLoadTask(config = LoadConfig.SilentLoading)
-        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+        coEvery { valueLoader.invokeOn(any()) } coAnswers { delay(10) }
 
         val state = task.execute(
             LoadTask.ExecuteParams(
@@ -135,7 +136,7 @@ class LoadTaskTest {
     fun loadTask_execute_passesExecuteParamsToFlowEmitterCreator() = runFlowTest {
         var capturedParams: LoadTask.ExecuteParams<String>? = null
         val task = makeLoadTask(
-            flowEmitterCreator = MockFlowEmitterCreator { _, params ->
+            onFlowEmitterCreated =  { _, params ->
                 capturedParams = params
                 flowEmitter
             }
@@ -151,7 +152,7 @@ class LoadTaskTest {
     @Test
     fun loadTask_withoutEmittedItemsAndWithSilentFlag_emitsError() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoading)
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             delay(10)
         }
 
@@ -168,7 +169,7 @@ class LoadTaskTest {
     @Test
     fun loadTask_withoutEmittedItemsAndWithoutSilentFlag_emitsError() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.Normal)
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             delay(10)
         }
 
@@ -188,7 +189,7 @@ class LoadTaskTest {
     fun loadTask_withCancellationExceptionAndSilentFlag_fails() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoading)
         val cancellationException = CancellationException()
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw cancellationException
         }
 
@@ -208,7 +209,7 @@ class LoadTaskTest {
     fun loadTask_withCancellationExceptionAndWithoutSilentFlag_fails() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.Normal)
         val cancellationException = CancellationException()
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw cancellationException
         }
 
@@ -228,7 +229,7 @@ class LoadTaskTest {
     fun loadTask_withExceptionAndSilentFlag_emitsError() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoading)
         val expectedException = IllegalArgumentException()
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw expectedException
         }
 
@@ -247,7 +248,7 @@ class LoadTaskTest {
     fun loadTask_withExceptionAndWithoutSilentFlag_emitsError() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.Normal)
         val expectedException = IllegalArgumentException()
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw expectedException
         }
 
@@ -268,16 +269,15 @@ class LoadTaskTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
             config = LoadConfig.SilentLoading,
-            flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
+            onFlowEmitterCreated = { collector, _ ->
                 flowCollector = collector
-                flowEmitter
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
             flowCollector?.emit(successContainer( firstArg(), SourceTypeMetadata(secondArg<SourceType>())))
         }
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
@@ -303,16 +303,15 @@ class LoadTaskTest {
         var flowCollector: FlowCollector<Container<String>>? = null
         val task = makeLoadTask(
             config = LoadConfig.Normal,
-            flowEmitterCreator = MockFlowEmitterCreator { collector, _ ->
+            onFlowEmitterCreated = { collector, _ ->
                 flowCollector = collector
-                flowEmitter
             }
         )
         every { flowEmitter.hasEmittedValues } returns true
         coEvery { flowEmitter.emit(any(), any<SourceType>()) } coAnswers {
             flowCollector?.emit(successContainer( firstArg(), SourceTypeMetadata(secondArg<SourceType>())))
         }
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
@@ -482,7 +481,7 @@ class LoadTaskTest {
     @Test
     fun loadTask_withSilentLoadingAndErrorConfig_emitsCurrentPendingContainer() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
-        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+        coEvery { valueLoader.invokeOn(any()) } coAnswers { delay(10) }
 
         val state = task.execute(executeParams)
             .startCollecting(StandardTestDispatcher(scope.testScheduler))
@@ -505,7 +504,7 @@ class LoadTaskTest {
     fun loadTask_withSilentLoadingAndErrorConfigAndCurrentSuccessContainer_emitsBackgroundLoadLoading() = runFlowTest {
         val currentContainer = successContainer("current-item")
         val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
-        coEvery { valueLoader.invoke(any()) } coAnswers { delay(10) }
+        coEvery { valueLoader.invokeOn(any()) } coAnswers { delay(10) }
 
         val state = task.execute(
             LoadTask.ExecuteParams(
@@ -530,7 +529,7 @@ class LoadTaskTest {
             config = LoadConfig.SilentLoadingAndError,
             metadata = taskMetadata,
         )
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw expectedException
         }
         val params = LoadTask.ExecuteParams(
@@ -559,7 +558,7 @@ class LoadTaskTest {
             config = LoadConfig.SilentLoadingAndError,
             metadata = taskMetadata,
         )
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw expectedException
         }
 
@@ -577,7 +576,7 @@ class LoadTaskTest {
         val currentError: Container<String> = errorContainer(RuntimeException("old error"))
         val expectedException = IllegalArgumentException("new error")
         val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw expectedException
         }
         val params = LoadTask.ExecuteParams(
@@ -597,7 +596,7 @@ class LoadTaskTest {
     fun loadTask_withSilentLoadingAndErrorConfigAndCancellationException_rethrowsCancellation() = runFlowTest {
         val task = makeLoadTask(config = LoadConfig.SilentLoadingAndError)
         val cancellationException = CancellationException()
-        coEvery { valueLoader.invoke(any()) } coAnswers {
+        coEvery { valueLoader.invokeOn(any()) } coAnswers {
             throw cancellationException
         }
 
@@ -612,14 +611,23 @@ class LoadTaskTest {
     private fun makeLoadTask(
         metadata: ContainerMetadata = EmptyMetadata,
         config: LoadConfig = LoadConfig.Normal,
-        flowEmitterCreator: LoadTask.FlowEmitterCreator<String> = MockFlowEmitterCreator { _, _ -> flowEmitter }
+        onFlowEmitterCreated: (FlowCollector<Container<String>>, ExecuteParams<String>) -> Unit = { _, _ -> },
     ): LoadTask<String> {
         return LoadTask.Load(
             metadata = metadata,
             loader = valueLoader,
             config = config,
             flowSubject = flowSubject,
-            flowEmitterCreator = flowEmitterCreator,
+            flowEmitterCreator = object : LoadTask.FlowEmitterCreator<String>(flowSubject, metadata) {
+                override fun create(
+                    flowCollector: FlowCollector<Container<String>>,
+                    executeParams: ExecuteParams<String>
+                ): FlowEmitter<String> {
+                    every { flowEmitter.metadata } returns metadata
+                    onFlowEmitterCreated(flowCollector, executeParams)
+                    return flowEmitter
+                }
+            },
         )
     }
 

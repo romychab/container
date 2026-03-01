@@ -16,11 +16,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 /**
- * Loader function for [LazyFlowSubject] which can emit loaded values.
- */
-public typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
-
-/**
  * Represents the infinite flow which acts as an async container for
  * loading data and listening the current state of loading process.
  *

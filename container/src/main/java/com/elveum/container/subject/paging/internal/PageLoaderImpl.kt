@@ -5,6 +5,7 @@ import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.container.subject.paging.PageLoader
 import com.elveum.container.subject.paging.PageState
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.supervisorScope
@@ -12,6 +13,7 @@ import kotlinx.coroutines.supervisorScope
 internal class PageLoaderImpl<Key, T>(
     private val initialKey: Key,
     private val block: suspend PageEmitter<Key, T>.(Key) -> Unit,
+    private val factory: Factory<Key, T> = Factory(block),
 ) : PageLoader<Key, T> {
 
     override val nextPageState: MutableStateFlow<PageState> = MutableStateFlow(PageState.Idle)
@@ -31,17 +33,16 @@ internal class PageLoaderImpl<Key, T>(
     override suspend fun StatefulEmitter<List<T>>.statefulInvoke() {
         try {
             supervisorScope {
-                val state = PageLoaderState<Key, T>(
+                val state = factory.createState(
                     emitter = this@statefulInvoke,
-                    onNextPageStateChanged = { pageState ->
+                    onNextPageChanged = { pageState ->
                         nextPageState.value = pageState
                     }
                 )
-                val launcher = PageLoadTaskLauncher(
+                val launcher = factory.createLauncher(
                     state = state,
                     coroutineScope = this@supervisorScope,
                     emitter = this@statefulInvoke,
-                    block = block,
                 ).also {
                     this@PageLoaderImpl.launcher = it
                 }
@@ -54,6 +55,27 @@ internal class PageLoaderImpl<Key, T>(
             nextPageState.update { PageState.Idle }
             launcher = null
         }
+    }
+
+    class Factory<Key, T>(
+        private val block: suspend PageEmitter<Key, T>.(Key) -> Unit,
+    ) {
+
+        fun createState(
+            emitter: StatefulEmitter<List<T>>,
+            onNextPageChanged: (PageState) -> Unit,
+        ): PageLoaderState<Key, T> {
+            return PageLoaderState(emitter, onNextPageChanged)
+        }
+
+        fun createLauncher(
+            state: PageLoaderState<Key, T>,
+            coroutineScope: CoroutineScope,
+            emitter: StatefulEmitter<List<T>>,
+        ): PageLoadTaskLauncher<Key, T> {
+            return PageLoadTaskLauncher(state, coroutineScope, emitter, block)
+        }
+
     }
 
 }

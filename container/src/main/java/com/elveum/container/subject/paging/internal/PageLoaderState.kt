@@ -50,7 +50,11 @@ internal class PageLoaderState<Key, T>(
         key: Key,
         job: Job? = null,
     ): PageKeyRecord<Key, T> {
-        return store.getOrPut(key) { PageKeyRecord(key, job) }
+        val record = store.getOrPut(key) { PageKeyRecord(key, job) }
+        if (job != null) {
+            record.job = job
+        }
+        return record
     }
 
     fun findNextKeyForIndex(index: Int): Key? = synchronized(store) {

@@ -35,7 +35,7 @@ internal class PageLoaderImpl<Key, T>(
             supervisorScope {
                 val state = factory.createState(
                     emitter = this@statefulInvoke,
-                    onNextPageChanged = { pageState ->
+                    onNextPageStateChanged = { pageState ->
                         nextPageState.value = pageState
                     }
                 )
@@ -63,9 +63,15 @@ internal class PageLoaderImpl<Key, T>(
 
         fun createState(
             emitter: StatefulEmitter<List<T>>,
-            onNextPageChanged: (PageState) -> Unit,
+            onNextPageStateChanged: (PageState) -> Unit,
         ): PageLoaderState<Key, T> {
-            return PageLoaderState(emitter, onNextPageChanged)
+            val store = PageLoaderRecordStore<Key, T>()
+            val pageResultsEmitter = PageResultsEmitter(
+                store = store,
+                emitter = emitter,
+                onNextPageStateChanged = onNextPageStateChanged,
+            )
+            return PageLoaderState(pageResultsEmitter, store)
         }
 
         fun createLauncher(

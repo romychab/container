@@ -22,7 +22,7 @@ internal class PageEmitterImpl<Key, T>(
         state.onKeyLoaded(key, list)
     }
 
-    override suspend fun emitNextKey(key: Key) {
+    override fun emitNextKey(key: Key) {
         if (emitNextKeyCalled.compareAndSet(false, true)) {
             if (state.isImmediateLaunchScheduled()) {
                 launcher.launch(key)

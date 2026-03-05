@@ -20,6 +20,6 @@ public interface PageEmitter<Key, T> : FlowComposer {
      *
      * Must be called either 1, or 0 times (if there is no next pages).
      */
-    public suspend fun emitNextKey(key: Key)
+    public fun emitNextKey(key: Key)
 
 }

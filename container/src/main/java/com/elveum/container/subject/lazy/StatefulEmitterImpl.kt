@@ -24,6 +24,8 @@ internal class StatefulEmitterImpl<T>(
 
     private val isCompleted = AtomicBoolean(false)
 
+    override val hasEmittedValues: Boolean get() = emitter.hasEmittedValues
+
     override suspend fun emitPendingState() = with(flowCollector) {
         if (!loadConfig.isSilentLoadingEnabled) {
             emit(Container.Pending)
@@ -35,7 +37,6 @@ internal class StatefulEmitterImpl<T>(
     }
 
     override suspend fun emitCompletedState() {
-        // todo: allow multiple endings?
         if (isCompleted.compareAndSet(false, true)) {
             flowSubject?.onComplete()
             emitter.emitLastItem()
@@ -43,17 +44,11 @@ internal class StatefulEmitterImpl<T>(
     }
 
     override suspend fun emitFailureState(exception: Exception) {
-        flowSubject?.onError(exception)
-        if (exception is CancellationException) throw exception
-        handleSilentErrorConfig(executeParams, exception)
-    }
-
-    override fun <T> saveState(key: String, state: T) {
-        TODO("Not yet implemented")
-    }
-
-    override fun <T> restoreState(key: String): T? {
-        TODO("Not yet implemented")
+        if (isCompleted.compareAndSet(false, true)) {
+            flowSubject?.onError(exception)
+            if (exception is CancellationException) throw exception
+            handleSilentErrorConfig(executeParams, exception)
+        }
     }
 
     private suspend fun handleSilentErrorConfig(

@@ -105,24 +105,13 @@ internal interface LoadTask<T> {
             )
             val statefulLoader = StatefulValueLoader.wrap(loader)
             try {
-                try {
-                    executeParams.flowDependencyStore.begin(
-                        reloadDependencies = metadata.reloadDependencies,
-                        loadConfig = config,
-                    )
-                    with(statefulLoader) { statefulEmitter.statefulInvoke() }
-                } finally {
-                    executeParams.flowDependencyStore.end()
-                }
-                if (!emitter.hasEmittedValues) {
-                    throw IllegalStateException("Value Loader should emit at least one item or " +
-                            "throw exception. If you don't want to emit values (e.g. it's okay for " +
-                            "you to have an infinite Container.Pending state), you can call " +
-                            "awaitCancellation() in the end of your loader function.")
-                }
-                statefulEmitter.emitCompletedState()
-            } catch (e: Exception) {
-                statefulEmitter.emitFailureState(e)
+                executeParams.flowDependencyStore.begin(
+                    reloadDependencies = metadata.reloadDependencies,
+                    loadConfig = config,
+                )
+                with(statefulLoader) { statefulEmitter.statefulInvoke() }
+            } finally {
+                executeParams.flowDependencyStore.end()
             }
         }
 

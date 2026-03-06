@@ -29,13 +29,20 @@ import kotlinx.coroutines.flow.StateFlow
  *
  * The `emitNextKey` can be called either 1 time (when there is a next page
  * available), or 0 time (if the current page is the last one).
+ *
+ * If [emitMetadata] is set to `true`, then emitted containers include additional
+ * metadata values:
+ * - `Container.metadata.nextPageState` - see [PageLoader.nextPageState]
+ * - `Container.metadata.onItemRendered(index)` - see [PageLoader.onItemRendered]
  */
 public fun <Key, T> pageLoader(
     initialKey: Key,
+    emitMetadata: Boolean = true,
     block: suspend PageEmitter<Key, T>.(Key) -> Unit
 ): PageLoader<Key, T> {
     return PageLoaderImpl(
         initialKey = initialKey,
+        emitMetadata = emitMetadata,
         block = block,
     )
 }

@@ -1,6 +1,7 @@
 package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.pendingContainer
 import com.elveum.container.subject.paging.PageState
@@ -9,6 +10,7 @@ import kotlin.coroutines.resume
 internal class PageResultsEmitter<Key, T>(
     private val store: PageLoaderRecordStore<Key, T>,
     private val emitter: StatefulEmitter<List<T>>,
+    private val metadataProvider: () -> ContainerMetadata,
     private val onNextPageStateChanged: (PageState) -> Unit,
 ) {
 
@@ -41,7 +43,10 @@ internal class PageResultsEmitter<Key, T>(
             }
             onNextPageStateChanged(pageState)
             val outputList = store.buildOutputList()
-            emitter.emit(outputList)
+            emitter.emit(
+                value = outputList,
+                metadata = metadataProvider(),
+            )
         }
     }
 

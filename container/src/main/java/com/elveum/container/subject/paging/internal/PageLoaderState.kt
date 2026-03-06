@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.successContainer
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -18,7 +19,7 @@ internal class PageLoaderState<Key, T>(
         job: Job,
         block: suspend () -> Unit,
     ) {
-        val record = registerKey(key, job)
+        val record = registerKey(key, job) ?: return
         isImmediateLaunchScheduled = false
         while (true) {
             try {
@@ -30,8 +31,13 @@ internal class PageLoaderState<Key, T>(
                 throw e
             } catch (e: Exception) {
                 failKey(key, e)
-                suspendCancellableCoroutine<Unit> { continuation ->
-                    record.retryContinuation = continuation
+                if (store.getAllContainers().all { it is Container.Error }) {
+                    store.shutdown()
+                    break
+                } else {
+                    suspendCancellableCoroutine<Unit> { continuation ->
+                        record.retryContinuation = continuation
+                    }
                 }
             }
         }
@@ -49,10 +55,10 @@ internal class PageLoaderState<Key, T>(
     fun registerKey(
         key: Key,
         job: Job? = null,
-    ): PageKeyRecord<Key, T> {
+    ): PageKeyRecord<Key, T>? {
         val record = store.getOrPut(key) { PageKeyRecord(key, job) }
         if (job != null) {
-            record.job = job
+            record?.job = job
         }
         return record
     }
@@ -75,9 +81,8 @@ internal class PageLoaderState<Key, T>(
         pageResultsEmitter.emitResults()
     }
 
-    private suspend fun completeKey() {
+    private fun completeKey() {
         store.onKeyCompleted()
-        pageResultsEmitter.emitResults()
     }
 
     private suspend fun failKey(key: Key, exception: Exception) {

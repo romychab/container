@@ -1,7 +1,11 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.subject.paging.NextPageStateMetadata
+import com.elveum.container.subject.paging.OnItemRenderedCallbackMetadata
 import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.container.subject.paging.PageLoader
 import com.elveum.container.subject.paging.PageState
@@ -12,6 +16,7 @@ import kotlinx.coroutines.supervisorScope
 
 internal class PageLoaderImpl<Key, T>(
     private val initialKey: Key,
+    private val emitMetadata: Boolean,
     private val block: suspend PageEmitter<Key, T>.(Key) -> Unit,
     private val factory: Factory<Key, T> = Factory(block),
 ) : PageLoader<Key, T> {
@@ -19,6 +24,10 @@ internal class PageLoaderImpl<Key, T>(
     override val nextPageState: MutableStateFlow<PageState> = MutableStateFlow(PageState.Idle)
 
     private var launcher: PageLoadTaskLauncher<Key, T>? = null
+
+    private val onItemRendererCallbackMetadata = OnItemRenderedCallbackMetadata(
+        onItemRendered = ::onItemRendered,
+    )
 
     override fun onItemRendered(index: Int) {
         val launcher = this.launcher
@@ -37,6 +46,13 @@ internal class PageLoaderImpl<Key, T>(
                     emitter = this@statefulInvoke,
                     onNextPageStateChanged = { pageState ->
                         nextPageState.value = pageState
+                    },
+                    metadataProvider = {
+                        if (emitMetadata) {
+                            onItemRendererCallbackMetadata + NextPageStateMetadata(nextPageState.value)
+                        } else {
+                            EmptyMetadata
+                        }
                     }
                 )
                 val launcher = factory.createLauncher(
@@ -50,6 +66,7 @@ internal class PageLoaderImpl<Key, T>(
                 launcher.launch(initialKey)
 
                 state.await()
+                emitCompletedState()
             }
         } finally {
             nextPageState.update { PageState.Idle }
@@ -64,12 +81,14 @@ internal class PageLoaderImpl<Key, T>(
         fun createState(
             emitter: StatefulEmitter<List<T>>,
             onNextPageStateChanged: (PageState) -> Unit,
+            metadataProvider: () -> ContainerMetadata,
         ): PageLoaderState<Key, T> {
             val store = PageLoaderRecordStore<Key, T>()
             val pageResultsEmitter = PageResultsEmitter(
                 store = store,
                 emitter = emitter,
                 onNextPageStateChanged = onNextPageStateChanged,
+                metadataProvider = metadataProvider,
             )
             return PageLoaderState(pageResultsEmitter, store)
         }

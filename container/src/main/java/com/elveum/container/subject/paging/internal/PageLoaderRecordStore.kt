@@ -13,12 +13,16 @@ internal class PageLoaderRecordStore<Key, T> {
     private val awaitMutex = Mutex(locked = true)
 
     private var counter = 0
+    private var isFinished = false
 
     fun forEach(action: (PageKeyRecord<Key, T>) -> Unit) = synchronized(this) {
         orderedRecords.values.forEach(action)
     }
 
     fun findNextKeyForIndex(index: Int): NextKeyLoadResult<Key> = synchronized(this) {
+        val totalItemsCount = orderedRecords.values
+            .sumOf { (it.container as? Container.Success)?.value?.size ?: 0 }
+        if (index !in 0..<totalItemsCount) return@synchronized NextKeyLoadResult.Skip
         var pageStartIndex = 0
         if (firstOrNull { it.container is Container.Error } != null) {
             return@synchronized NextKeyLoadResult.Skip
@@ -37,7 +41,8 @@ internal class PageLoaderRecordStore<Key, T> {
         }
     }
 
-    fun getOrPut(key: Key, defaultValue: () -> PageKeyRecord<Key, T>): PageKeyRecord<Key, T> = synchronized(this) {
+    fun getOrPut(key: Key, defaultValue: () -> PageKeyRecord<Key, T>): PageKeyRecord<Key, T>? = synchronized(this) {
+        if (isFinished) return@synchronized null
         return orderedRecords.getOrPut(key) {
             counter++
             defaultValue()
@@ -58,7 +63,16 @@ internal class PageLoaderRecordStore<Key, T> {
 
     fun onKeyCompleted() = synchronized(this) {
         counter--
-        if (counter == 0) {
+        if (counter == 0 && awaitMutex.isLocked) {
+            awaitMutex.unlock()
+        }
+    }
+
+    fun shutdown() = synchronized(this) {
+        counter = 0
+        isFinished = true
+        orderedRecords.clear()
+        if (awaitMutex.isLocked) {
             awaitMutex.unlock()
         }
     }

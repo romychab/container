@@ -279,10 +279,12 @@ class LoadTaskTest {
         }
         coEvery { valueLoader.invokeOn(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
+            delay(10)
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
         val state = task.execute(executeParams).startCollecting()
+        advanceTimeBy(11)
 
         assertEquals(
             listOf(
@@ -313,11 +315,23 @@ class LoadTaskTest {
         }
         coEvery { valueLoader.invokeOn(any()) } coAnswers {
             firstArg<Emitter<String>>().emit("111", LocalSourceType)
+            delay(10)
             firstArg<Emitter<String>>().emit("222", RemoteSourceType)
         }
 
         val state = task.execute(executeParams).startCollecting()
 
+        advanceTimeBy(10)
+        assertEquals(
+            listOf(
+                Container.Pending,
+                successContainer("111", SourceTypeMetadata(LocalSourceType)),
+            ),
+            state.collectedItems
+        )
+        assertEquals(CollectStatus.Collecting, state.collectStatus)
+
+        advanceTimeBy(1)
         assertEquals(
             listOf(
                 Container.Pending,

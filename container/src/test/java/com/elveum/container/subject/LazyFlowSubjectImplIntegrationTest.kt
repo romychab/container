@@ -81,6 +81,7 @@ class LazyFlowSubjectImplIntegrationTest {
     fun listen_emitsItemsProducedByLoader() = runFlowTest {
         val subject = createLazyFlowSubject {
             emit("111")
+            delay(1)
             emit("222")
             delay(100)
             emit("333")
@@ -89,13 +90,13 @@ class LazyFlowSubjectImplIntegrationTest {
         val collectedItems = subject.listen()
             .startCollecting(StandardTestDispatcher(scope.testScheduler))
             .collectedItems
-        runCurrent()
+        advanceTimeBy(2)
 
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222")),
             collectedItems.raw()
         )
-        advanceTimeBy(101)
+        advanceTimeBy(100)
         assertEquals(
             listOf(Pending, successContainer("111"), successContainer("222"), successContainer("333")),
             collectedItems.raw()
@@ -106,11 +107,12 @@ class LazyFlowSubjectImplIntegrationTest {
     fun listen_withFailedLoad_emitsException() = runFlowTest {
         val subject = createLazyFlowSubject {
             emit("111")
+            delay(1)
             throw IllegalArgumentException()
         }
 
         val collectedItems = subject.listen().startCollecting().collectedItems
-        runCurrent()
+        advanceTimeBy(2)
 
         assertEquals(3, collectedItems.size)
         assertEquals(Pending, collectedItems[0])

@@ -12,7 +12,8 @@ import com.elveum.container.subject.ValueLoader
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOf
 
 internal interface LoadTask<T> {
@@ -94,13 +95,14 @@ internal interface LoadTask<T> {
 
         override fun execute(
             executeParams: ExecuteParams<T>,
-        ) = flow {
-            val emitter = flowEmitterCreator.create(this, executeParams)
+        ) = channelFlow {
+            val channelFlowCollector = ChannelFlowCollector<Container<T>>(this)
+            val emitter = flowEmitterCreator.create(channelFlowCollector, executeParams)
             val statefulEmitter = StatefulEmitterImpl(
                 emitter = emitter,
                 executeParams = executeParams,
                 loadConfig = config,
-                flowCollector = this,
+                flowCollector = channelFlowCollector,
                 flowSubject = flowSubject,
             )
             val statefulLoader = StatefulValueLoader.wrap(loader)
@@ -113,7 +115,7 @@ internal interface LoadTask<T> {
             } finally {
                 executeParams.flowDependencyStore.end()
             }
-        }
+        }.conflate()
 
         override fun cancel(reason: String) {
             flowSubject?.onError(CancellationException(reason))

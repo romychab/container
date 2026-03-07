@@ -2,9 +2,12 @@
 
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.container.subject.paging.PageState
+import com.elveum.container.subject.paging.nextPageState
+import com.elveum.container.subject.paging.onItemRendered
 import io.mockk.MockKAnnotations
 import io.mockk.awaits
 import io.mockk.coEvery
@@ -17,11 +20,13 @@ import io.mockk.mockk
 import io.mockk.runs
 import io.mockk.slot
 import io.mockk.verify
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Before
 import org.junit.Test
 
@@ -36,7 +41,6 @@ class PageLoaderTest {
     @RelaxedMockK
     private lateinit var statefulEmitter: StatefulEmitter<List<String>>
 
-    @RelaxedMockK
     private lateinit var loader: PageLoaderImpl<Int, String>
 
     @MockK
@@ -50,9 +54,9 @@ class PageLoaderTest {
     fun setUp() {
         MockKAnnotations.init(this)
         block = mockk(relaxed = true)
-        every { factory.createState(any(), any()) } returns state
+        every { factory.createState(any(), any(), any()) } returns state
         every { factory.createLauncher(any(), any(), any()) } returns launcher
-        loader = PageLoaderImpl(initialKey, block, factory)
+        loader = PageLoaderImpl(initialKey, true, block, factory)
     }
 
     @Test
@@ -114,7 +118,7 @@ class PageLoaderTest {
 
         with(loader) { statefulEmitter.statefulInvoke() }
 
-        verify(exactly = 1) { factory.createState(eq(statefulEmitter), any()) }
+        verify(exactly = 1) { factory.createState(eq(statefulEmitter), any(), any()) }
         verify(exactly = 1) {
             factory.createLauncher(
                 state = eq(state),
@@ -154,6 +158,26 @@ class PageLoaderTest {
     }
 
     @Test
+    fun statefulInvoke_emitsCompletedStateOnlyAfterAwait() = runTest {
+        val deferred = CompletableDeferred<Unit>()
+        coEvery { state.await() } coAnswers { deferred.await() }
+
+        backgroundScope.launch { with(loader) { statefulEmitter.statefulInvoke() } }
+        runCurrent()
+
+        coVerify(exactly = 0) {
+            statefulEmitter.emitCompletedState()
+        }
+
+        deferred.complete(Unit)
+        runCurrent()
+
+        coVerify(exactly = 1) {
+            statefulEmitter.emitCompletedState()
+        }
+    }
+
+    @Test
     fun nextPageState_initialValue_isIdle() {
         assertEquals(PageState.Idle, loader.nextPageState.value)
     }
@@ -161,7 +185,7 @@ class PageLoaderTest {
     @Test
     fun statefulInvoke_whenCreatingState_usesLambdaForUpdatingNextPageState() = runTest {
         val onNextPageChangedSlot = slot<(PageState) -> Unit>()
-        every { factory.createState(any(), capture(onNextPageChangedSlot)) } returns state
+        every { factory.createState(any(), capture(onNextPageChangedSlot), any()) } returns state
         coEvery { state.await() } just awaits
 
         backgroundScope.launch { with(loader) { statefulEmitter.statefulInvoke() } }
@@ -169,6 +193,27 @@ class PageLoaderTest {
 
         onNextPageChangedSlot.captured.invoke(PageState.Pending)
         assertEquals(PageState.Pending, loader.nextPageState.value)
+    }
+
+    @Test
+    fun statefulInvoke_whenCreatingState_createsValidMetadataProvider() = runTest {
+        val expectedPageState = PageState.Error(IllegalStateException()) {}
+        val metadataProviderSlot = slot<() -> ContainerMetadata>()
+        every { factory.createState(any(), any(), capture(metadataProviderSlot)) } returns state
+        every { launcher.findNextKeyForIndex(2) } returns 10
+        coEvery { state.await() } just awaits
+        backgroundScope.launch { with(loader) { statefulEmitter.statefulInvoke() } }
+        runCurrent()
+
+        loader.nextPageState.value = expectedPageState
+        val metadata = metadataProviderSlot.captured.invoke()
+
+        assertSame(expectedPageState, metadata.nextPageState)
+        metadata.onItemRendered(2)
+        verify(exactly = 1) {
+            launcher.findNextKeyForIndex(2)
+            launcher.launch(10)
+        }
     }
 
 }

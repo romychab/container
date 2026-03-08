@@ -64,13 +64,13 @@ public fun <Arg, T> LazyCache.Companion.createSimple(
  */
 public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
     arg: Arg,
-    source: SourceType? = null,
+    sourceType: SourceType? = null,
     updater: (T) -> T,
 ) {
     updateWith(arg) { oldContainer ->
         oldContainer.transform(
             onSuccess = {
-                successContainer(updater(it), source)
+                successContainer(updater(it), sourceType)
             }
         )
     }

@@ -30,7 +30,7 @@ class ContainerTest {
 
         container as Container.Success
         assertSame(expectedValue, container.value)
-        assertSame(expectedSource, container.source)
+        assertSame(expectedSource, container.sourceType)
         assertEquals(BackgroundLoadState.Idle, container.backgroundLoadState)
         container.reload(LoadConfig.SilentLoading)
         verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading) }
@@ -51,7 +51,7 @@ class ContainerTest {
 
         container as Container.Error
         assertSame(expectedException, container.exception)
-        assertSame(expectedSource, container.source)
+        assertSame(expectedSource, container.sourceType)
         assertEquals(BackgroundLoadState.Idle, container.backgroundLoadState)
         container.reload(LoadConfig.SilentLoading)
         verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading) }
@@ -98,10 +98,10 @@ class ContainerTest {
         val customSuccess: Container.Success<String> = successContainer("123", SourceTypeMetadata(sourceType))
         val customError: Container.Error = errorContainer(IllegalStateException(), SourceTypeMetadata(sourceType))
 
-        assertSame(defaultSuccess.source, UnknownSourceType)
-        assertSame(defaultError.source, UnknownSourceType)
-        assertSame(customSuccess.source, sourceType)
-        assertSame(customError.source, sourceType)
+        assertSame(defaultSuccess.sourceType, UnknownSourceType)
+        assertSame(defaultError.sourceType, UnknownSourceType)
+        assertSame(customSuccess.sourceType, sourceType)
+        assertSame(customError.sourceType, sourceType)
     }
 
     @Test
@@ -124,7 +124,7 @@ class ContainerTest {
         val containerValue = transformed.getContainerValueOrNull()
 
         assertEquals(10, containerValue?.value)
-        assertEquals(source, containerValue?.source)
+        assertEquals(source, containerValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerValue?.backgroundLoadState)
         assertSame(reloadFunction, containerValue?.reloadFunction)
     }
@@ -153,7 +153,7 @@ class ContainerTest {
 
         assertEquals("test", containerValue?.value?.message)
         assertSame(exception, containerValue?.value?.cause)
-        assertEquals(source, containerValue?.source)
+        assertEquals(source, containerValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerValue?.backgroundLoadState)
         assertSame(reloadFunction, containerValue?.reloadFunction)
     }
@@ -191,7 +191,7 @@ class ContainerTest {
         val containerValue = transformed.getContainerValueOrNull()
 
         assertEquals(10, containerValue?.value)
-        assertEquals(source, containerValue?.source)
+        assertEquals(source, containerValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerValue?.backgroundLoadState)
         assertSame(reloadFunction, containerValue?.reloadFunction)
     }
@@ -219,7 +219,7 @@ class ContainerTest {
 
         assertEquals("test", containerValue?.value?.message)
         assertSame(exception, containerValue?.value?.cause)
-        assertEquals(source, containerValue?.source)
+        assertEquals(source, containerValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerValue?.backgroundLoadState)
         assertSame(reloadFunction, containerValue?.reloadFunction)
     }
@@ -227,7 +227,7 @@ class ContainerTest {
     @Test
     fun successContainer_withMetadata_hasCorrectMetadata() {
         val metadata = defaultMetadata(
-            source = RemoteSourceType,
+            sourceType = RemoteSourceType,
             backgroundLoadState = BackgroundLoadState.Loading,
         )
 
@@ -235,7 +235,7 @@ class ContainerTest {
 
         assertEquals("hello", container.value)
         assertSame(metadata, container.metadata)
-        assertEquals(RemoteSourceType, container.source)
+        assertEquals(RemoteSourceType, container.sourceType)
         assertEquals(BackgroundLoadState.Loading, container.backgroundLoadState)
     }
 
@@ -250,7 +250,7 @@ class ContainerTest {
     fun errorContainer_withMetadata_hasCorrectMetadata() {
         val exception = IllegalStateException()
         val metadata = defaultMetadata(
-            source = LocalSourceType,
+            sourceType = LocalSourceType,
             backgroundLoadState = BackgroundLoadState.Idle,
         )
 
@@ -258,7 +258,7 @@ class ContainerTest {
 
         assertSame(exception, container.exception)
         assertSame(metadata, container.metadata)
-        assertEquals(LocalSourceType, container.source)
+        assertEquals(LocalSourceType, container.sourceType)
         assertEquals(BackgroundLoadState.Idle, container.backgroundLoadState)
     }
 
@@ -280,14 +280,14 @@ class ContainerTest {
     fun containerSuccess_filterMetadata_matchingPredicate_retainsMetadata() {
         val container = successContainer(
             "value",
-            defaultMetadata(source = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.filterMetadata { it is SourceTypeMetadata }
 
         result as Container.Success
         assertEquals("value", result.value)
-        assertEquals(RemoteSourceType, result.source)
+        assertEquals(RemoteSourceType, result.sourceType)
         assertEquals(BackgroundLoadState.Idle, result.backgroundLoadState)
     }
 
@@ -295,7 +295,7 @@ class ContainerTest {
     fun containerSuccess_filterMetadata_nonMatchingPredicate_removesAllMetadata() {
         val container = successContainer(
             "value",
-            defaultMetadata(source = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.filterMetadata { false }
@@ -310,14 +310,14 @@ class ContainerTest {
         val exception = IllegalStateException()
         val container = errorContainer(
             exception,
-            defaultMetadata(source = LocalSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = LocalSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.filterMetadata { it is BackgroundLoadMetadata }
 
         assertSame(exception, result.exception)
         assertEquals(BackgroundLoadState.Loading, result.backgroundLoadState)
-        assertEquals(UnknownSourceType, result.source)
+        assertEquals(UnknownSourceType, result.sourceType)
     }
 
     @Test
@@ -325,7 +325,7 @@ class ContainerTest {
         val exception = IllegalStateException()
         val container = errorContainer(
             exception,
-            defaultMetadata(source = LocalSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = LocalSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.filterMetadata { false }
@@ -345,7 +345,7 @@ class ContainerTest {
     fun containerSuccess_raw_removesAllMetadata() {
         val container = successContainer(
             42,
-            defaultMetadata(source = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.raw()
@@ -360,7 +360,7 @@ class ContainerTest {
         val exception = IllegalStateException()
         val container = errorContainer(
             exception,
-            defaultMetadata(source = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
+            defaultMetadata(sourceType = RemoteSourceType, backgroundLoadState = BackgroundLoadState.Loading),
         )
 
         val result = container.raw()
@@ -372,7 +372,7 @@ class ContainerTest {
     @Test
     fun containerSuccess_plusMetadata_appendsMetadata() {
         val reloadFunction = mockk<ReloadFunction>()
-        val container = successContainer("value", defaultMetadata(source = RemoteSourceType))
+        val container = successContainer("value", defaultMetadata(sourceType = RemoteSourceType))
 
         val result = container + defaultMetadata(
             backgroundLoadState = BackgroundLoadState.Loading,
@@ -380,25 +380,25 @@ class ContainerTest {
         )
 
         assertEquals("value", result.value)
-        assertEquals(RemoteSourceType, result.source)
+        assertEquals(RemoteSourceType, result.sourceType)
         assertEquals(BackgroundLoadState.Loading, result.backgroundLoadState)
         assertSame(reloadFunction, result.reloadFunction)
     }
 
     @Test
     fun containerSuccess_plusMetadata_overridesExistingMetadataOfSameType() {
-        val container = successContainer("value", defaultMetadata(source = LocalSourceType))
+        val container = successContainer("value", defaultMetadata(sourceType = LocalSourceType))
 
-        val result = container + defaultMetadata(source = RemoteSourceType)
+        val result = container + defaultMetadata(sourceType = RemoteSourceType)
 
-        assertEquals(RemoteSourceType, result.source)
+        assertEquals(RemoteSourceType, result.sourceType)
     }
 
     @Test
     fun containerError_plusMetadata_appendsMetadata() {
         val exception = IllegalStateException()
         val reloadFunction = mockk<ReloadFunction>()
-        val container = errorContainer(exception, defaultMetadata(source = LocalSourceType))
+        val container = errorContainer(exception, defaultMetadata(sourceType = LocalSourceType))
 
         val result = container + defaultMetadata(
             backgroundLoadState = BackgroundLoadState.Loading,
@@ -406,7 +406,7 @@ class ContainerTest {
         )
 
         assertSame(exception, result.exception)
-        assertEquals(LocalSourceType, result.source)
+        assertEquals(LocalSourceType, result.sourceType)
         assertEquals(BackgroundLoadState.Loading, result.backgroundLoadState)
         assertSame(reloadFunction, result.reloadFunction)
     }
@@ -414,11 +414,11 @@ class ContainerTest {
     @Test
     fun containerError_plusMetadata_overridesExistingMetadataOfSameType() {
         val exception = IllegalStateException()
-        val container = errorContainer(exception, defaultMetadata(source = RemoteSourceType))
+        val container = errorContainer(exception, defaultMetadata(sourceType = RemoteSourceType))
 
-        val result = container + defaultMetadata(source = LocalSourceType)
+        val result = container + defaultMetadata(sourceType = LocalSourceType)
 
-        assertEquals(LocalSourceType, result.source)
+        assertEquals(LocalSourceType, result.sourceType)
     }
 
 }

@@ -198,7 +198,7 @@ class CombineContainerFlowExtensionsTest {
 
         assertEquals(
             RemoteSourceType,
-            (collectedItems.lastItem as Container.Success).source,
+            (collectedItems.lastItem as Container.Success).sourceType,
         )
     }
 

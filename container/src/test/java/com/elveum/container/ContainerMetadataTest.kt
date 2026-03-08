@@ -204,7 +204,7 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withSource_containsSourceTypeMetadata() {
-        val result = defaultMetadata(source = LocalSourceType)
+        val result = defaultMetadata(sourceType = LocalSourceType)
 
         assertEquals(SourceTypeMetadata(LocalSourceType), result.get<SourceTypeMetadata>())
     }
@@ -237,7 +237,7 @@ class ContainerMetadataTest {
         val fn: ReloadFunction = { }
 
         val result = defaultMetadata(
-            source = RemoteSourceType,
+            sourceType = RemoteSourceType,
             backgroundLoadState = BackgroundLoadState.Loading,
             reloadFunction = fn,
         )
@@ -249,7 +249,7 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withOnlySource_doesNotContainOtherMetadata() {
-        val result = defaultMetadata(source = LocalSourceType)
+        val result = defaultMetadata(sourceType = LocalSourceType)
 
         assertNull(result.get<BackgroundLoadMetadata>())
         assertNull(result.get<ReloadFunctionMetadata>())

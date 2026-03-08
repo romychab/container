@@ -19,7 +19,7 @@ public interface ContainerMapperScope {
     /**
      * The original source where the data is loading from.
      */
-    public val source: SourceType get() = metadata.sourceType
+    public val sourceType: SourceType get() = metadata.sourceType
 
     /**
      * Whether there is another value load in progress.

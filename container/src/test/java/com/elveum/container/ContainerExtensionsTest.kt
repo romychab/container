@@ -424,7 +424,7 @@ class ContainerExtensionsTest {
 
         val value = container.unwrapContainerValue()
 
-        assertEquals(expectedSource.sourceType, value.source)
+        assertEquals(expectedSource.sourceType, value.sourceType)
         assertEquals(expectedIsLoadingInBackground.backgroundLoadState, value.backgroundLoadState)
         assertSame(expectedReloadFunction.reloadFunction, value.reloadFunction)
         assertEquals(expectedValue, value.value)
@@ -443,7 +443,7 @@ class ContainerExtensionsTest {
         val successValue = success.getContainerValueOrNull()
         assertSame(reloadFunction, successValue?.reloadFunction)
         assertEquals("test", successValue?.value)
-        assertEquals(RemoteSourceType, successValue?.source)
+        assertEquals(RemoteSourceType, successValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, successValue!!.backgroundLoadState)
     }
 
@@ -460,7 +460,7 @@ class ContainerExtensionsTest {
         val errorValue = error.getContainerExceptionOrNull()
         assertSame(reloadFunction, errorValue?.reloadFunction)
         assertTrue(errorValue?.value is IllegalStateException)
-        assertEquals(RemoteSourceType, errorValue?.source)
+        assertEquals(RemoteSourceType, errorValue?.sourceType)
         assertEquals(BackgroundLoadState.Loading, errorValue!!.backgroundLoadState)
     }
 
@@ -479,17 +479,17 @@ class ContainerExtensionsTest {
         )
 
         val updatedContainer = container.update {
-            assertSame(LocalSourceType, source)
+            assertSame(LocalSourceType, sourceType)
             assertEquals(BackgroundLoadState.Loading, backgroundLoadState)
             assertSame(reloadFunctionBefore, reloadFunction)
 
-            source = expectedSource
+            sourceType = expectedSource
             backgroundLoadState = expectedBackgroundLoadState
             reloadFunction = expectedReloadFunction
         } as Container.Success<String>
 
         assertEquals(expectedValue, updatedContainer.value)
-        assertSame(expectedSource, updatedContainer.source)
+        assertSame(expectedSource, updatedContainer.sourceType)
         assertSame(expectedReloadFunction, updatedContainer.reloadFunction)
         assertEquals(expectedBackgroundLoadState, updatedContainer.backgroundLoadState)
     }
@@ -509,17 +509,17 @@ class ContainerExtensionsTest {
         )
 
         val updatedContainer = container.update {
-            assertSame(LocalSourceType, source)
+            assertSame(LocalSourceType, sourceType)
             assertEquals(BackgroundLoadState.Loading, backgroundLoadState)
             assertSame(reloadFunctionBefore, reloadFunction)
 
-            source = expectedSource
+            sourceType = expectedSource
             backgroundLoadState = expectedBackgroundLoadState
             reloadFunction = expectedReloadFunction
         } as Container.Error
 
         assertEquals(expectedException, updatedContainer.exception)
-        assertSame(expectedSource, updatedContainer.source)
+        assertSame(expectedSource, updatedContainer.sourceType)
         assertSame(expectedReloadFunction, updatedContainer.reloadFunction)
         assertEquals(expectedBackgroundLoadState, updatedContainer.backgroundLoadState)
     }

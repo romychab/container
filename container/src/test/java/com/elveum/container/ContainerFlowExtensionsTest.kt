@@ -260,10 +260,10 @@ class ContainerFlowExtensionsTest {
             .containerUpdate {
                 assertEquals(initialIsLoading, backgroundLoadState)
                 assertSame(initialReloadFunction, reloadFunction)
-                assertSame(initialSource, source)
+                assertSame(initialSource, sourceType)
                 backgroundLoadState = expectedIsLoading
                 reloadFunction = expectedReloadFunction
-                source = expectedSource
+                sourceType = expectedSource
             }
         val collectedItems = outputFlow.startCollecting()
 
@@ -271,14 +271,14 @@ class ContainerFlowExtensionsTest {
         val container1 = collectedItems.lastItem as Container.Success<String>
         assertEquals(expectedValue, container1.value)
         assertEquals(expectedIsLoading, container1.backgroundLoadState)
-        assertEquals(expectedSource, container1.source)
+        assertEquals(expectedSource, container1.sourceType)
         assertSame(expectedReloadFunction, container1.reloadFunction)
 
         inputFlow.emit(errorContainer(expectedException, initialMetadata))
         val container2 = collectedItems.lastItem as Container.Error
         assertEquals(expectedException, container2.exception)
         assertEquals(expectedIsLoading, container2.backgroundLoadState)
-        assertEquals(expectedSource, container2.source)
+        assertEquals(expectedSource, container2.sourceType)
         assertSame(expectedReloadFunction, container2.reloadFunction)
     }
 

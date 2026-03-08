@@ -5,7 +5,7 @@ public interface ContainerUpdater {
 
     public var reloadFunction: ReloadFunction
     public var backgroundLoadState: BackgroundLoadState
-    public var source: SourceType
+    public var sourceType: SourceType
 }
 
 internal class ContainerUpdaterImpl(
@@ -26,7 +26,7 @@ internal class ContainerUpdaterImpl(
             metadata += BackgroundLoadMetadata(value)
         }
 
-    override var source: SourceType
+    override var sourceType: SourceType
         get() = metadata.sourceType
         set(value) {
             metadata += SourceTypeMetadata(value)

@@ -68,7 +68,7 @@ class ContainerMapExtensionsTest {
             transformed.exceptionOrNull()?.cause is IllegalStateException
         )
         val containerException = transformed.getContainerExceptionOrNull()
-        assertEquals(RemoteSourceType, containerException?.source)
+        assertEquals(RemoteSourceType, containerException?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerException?.backgroundLoadState)
         assertEquals(reloadFunction, containerException?.reloadFunction)
     }
@@ -92,7 +92,7 @@ class ContainerMapExtensionsTest {
             transformed.exceptionOrNull()?.cause is IllegalStateException
         )
         val containerException = transformed.getContainerExceptionOrNull()
-        assertEquals(RemoteSourceType, containerException?.source)
+        assertEquals(RemoteSourceType, containerException?.sourceType)
         assertEquals(BackgroundLoadState.Loading, containerException?.backgroundLoadState)
         assertEquals(reloadFunction, containerException?.reloadFunction)
     }

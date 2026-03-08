@@ -142,7 +142,7 @@ class FlowEmitterTest {
         flowEmitter.emit("item", customMetadata, isLastValue = false)
         flowEmitter.emitLastItem()
 
-        // Only the re-emitted container (from emitLastItem) has isLoadingInBackground=false
+        // Only the re-emitted container (from emitLastItem) has backgroundLoadState=Idle
         coVerify(exactly = 1) {
             flowCollector.emit(match { container ->
                 container.metadata.get<SourceTypeMetadata>()?.sourceType == LocalSourceType &&
@@ -225,7 +225,7 @@ class FlowEmitterTest {
         flowEmitter.emitLastItem()
 
         // Both initial emit and re-emit have RemoteSourceType;
-        // only the re-emitted container (from emitLastItem) has isLoadingInBackground=false
+        // only the re-emitted container (from emitLastItem) has backgroundLoadState=Idle
         coVerify(exactly = 1) {
             flowCollector.emit(match { container ->
                 container.metadata.sourceType == RemoteSourceType &&

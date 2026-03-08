@@ -102,7 +102,7 @@ public fun <R> combineContainerFlows(
             errorContainer ?: Container.Pending
         }
         container.update {
-            source = scope.sourceType
+            sourceType = scope.sourceType
             reloadFunction = scope.reloadFunction
             backgroundLoadState = scope.backgroundLoadState
         }
@@ -183,7 +183,7 @@ public fun <T, R> Flow<Container<T>>.containerCombineWith(
                 scope.transform(values)
             }
             .update {
-                source = scope.sourceType
+                sourceType = scope.sourceType
                 reloadFunction = scope.reloadFunction
                 backgroundLoadState = scope.backgroundLoadState
             }
@@ -219,7 +219,7 @@ internal class CombineContainerFlowScopeImpl(
 
     override var sourceType: SourceType = (containers.firstOrNull {
         it is Container.Completed
-    } as? Container.Completed)?.source ?: UnknownSourceType
+    } as? Container.Completed)?.sourceType ?: UnknownSourceType
 
     override var backgroundLoadState: BackgroundLoadState =
         if (containers.any { it.backgroundLoadState == BackgroundLoadState.Loading }) {
@@ -237,7 +237,7 @@ internal class CombineContainerFlowScopeImpl(
 internal class CombineContainerWithFlowScopeImpl(
     container: Container<*>,
 ) : CombineContainerFlowScope {
-    override var sourceType = (container as? Container.Completed)?.source ?: UnknownSourceType
+    override var sourceType = (container as? Container.Completed)?.sourceType ?: UnknownSourceType
     override var backgroundLoadState = (container as? Container.Completed)?.backgroundLoadState ?: BackgroundLoadState.Loading
     override var reloadFunction = (container as? Container.Completed)?.reloadFunction ?: EmptyReloadFunction
 }

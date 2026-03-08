@@ -18,6 +18,13 @@ public sealed class Container<out T> {
     public abstract val backgroundLoadState: BackgroundLoadState
 
     /**
+     * Whether there is another value load in progress.
+     * For example, it may be a value being loaded from the remote source, whereas
+     * this container represents a local source.
+     */
+    public abstract val sourceType: SourceType
+
+    /**
      * Reload data encapsulated by container.
      *
      * @param config defines how the loading state will be propagated to subsequent containers.
@@ -100,6 +107,7 @@ public sealed class Container<out T> {
     public data object Pending : Container<Nothing>() {
         override val metadata: ContainerMetadata = EmptyMetadata
         override val backgroundLoadState: BackgroundLoadState = BackgroundLoadState.Idle
+        override val sourceType: SourceType = UnknownSourceType
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Pending = Pending
         override fun raw(): Pending = Pending
         override fun reload(config: LoadConfig): Unit = Unit

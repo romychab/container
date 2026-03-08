@@ -57,16 +57,16 @@ public inline fun <reified T : ContainerMetadata> ContainerMetadata.get(): T? {
 }
 
 /**
- * Create metadata instance initialized with default fields: [source], [isLoadingInBackground],
+ * Create metadata instance initialized with default fields: [sourceType], [backgroundLoadState],
  * and [reloadFunction].
  */
 public fun defaultMetadata(
-    source: SourceType? = null,
+    sourceType: SourceType? = null,
     backgroundLoadState: BackgroundLoadState? = null,
     reloadFunction: ReloadFunction? = null,
 ): ContainerMetadata {
     return EmptyMetadata +
-            source?.let(::SourceTypeMetadata) +
+            sourceType?.let(::SourceTypeMetadata) +
             backgroundLoadState?.let(::BackgroundLoadMetadata) +
             reloadFunction?.let(::ReloadFunctionMetadata)
 }

@@ -7,7 +7,8 @@ import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
-import java.util.Random
+import java.util.Random as JavaRandom
+import kotlin.random.Random as KotlinRandom
 import javax.inject.Singleton
 
 @Module
@@ -22,7 +23,12 @@ object AppModule {
 
     @Provides
     fun provideFaker(): Faker {
-        return Faker.instance(Random(0))
+        return Faker.instance(JavaRandom(0))
+    }
+
+    @Provides
+    fun provideKotlinRandom(): KotlinRandom {
+        return KotlinRandom(0)
     }
 
 }

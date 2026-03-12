@@ -1,6 +1,9 @@
 package com.elveum.container.demo.navigation.examples
 
 import androidx.compose.runtime.Composable
+import com.elveum.container.demo.feature.examples.container_of.ContainerOfScreen
+import com.elveum.container.demo.feature.examples.container_states.ContainerStatesScreen
+import com.elveum.container.demo.feature.examples.container_unwrapping.ContainerUnwrapScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -12,5 +15,35 @@ sealed class Example {
 
     @Composable
     abstract fun Content()
+
+    @Serializable
+    data object ContainerStates : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "Container States"
+        @Transient override val description = "Renders Pending, Success, and Error states with the fold() function. Switches between states using buttons."
+
+        @Composable
+        override fun Content() = ContainerStatesScreen()
+    }
+
+    @Serializable
+    data object ContainerOf : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "ContainerOf Loaders"
+        @Transient override val description = "Uses the containerOf { ... } function to wrap any block of code into Container<T>."
+
+        @Composable
+        override fun Content() = ContainerOfScreen()
+    }
+
+    @Serializable
+    data object ContainerUnwrapping : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "Container Unwrapping"
+        @Transient override val description = "Uses the unwrap() extension within containerOf { ... } when combining results from multiple containers."
+
+        @Composable
+        override fun Content() = ContainerUnwrapScreen()
+    }
 
 }

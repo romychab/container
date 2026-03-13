@@ -6,6 +6,9 @@ object ExampleRegistry {
         Example.ContainerStates,
         Example.ContainerOf,
         Example.ContainerUnwrapping,
+        Example.ContainerValues,
+        Example.ContainerMetadata,
+        Example.ContainerTransformations,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

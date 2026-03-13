@@ -1,9 +1,12 @@
 package com.elveum.container.demo.navigation.examples
 
 import androidx.compose.runtime.Composable
+import com.elveum.container.demo.feature.examples.container_metadata.ContainerMetadataScreen
 import com.elveum.container.demo.feature.examples.container_of.ContainerOfScreen
 import com.elveum.container.demo.feature.examples.container_states.ContainerStatesScreen
+import com.elveum.container.demo.feature.examples.container_transformations.ContainerTransformationsScreen
 import com.elveum.container.demo.feature.examples.container_unwrapping.ContainerUnwrapScreen
+import com.elveum.container.demo.feature.examples.container_values.ContainerValuesScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -44,6 +47,36 @@ sealed class Example {
 
         @Composable
         override fun Content() = ContainerUnwrapScreen()
+    }
+
+    @Serializable
+    data object ContainerValues : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "Container Values"
+        @Transient override val description = "Uses the getOrNull() / exceptionOrNull() extensions to convert any container into nullable values."
+
+        @Composable
+        override fun Content() = ContainerValuesScreen()
+    }
+
+    @Serializable
+    data object ContainerMetadata : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "Container Metadata"
+        @Transient override val description = "Reads / Writes built-in additional fields attached to Container<T> or even creates custom fields."
+
+        @Composable
+        override fun Content() = ContainerMetadataScreen()
+    }
+
+    @Serializable
+    data object ContainerTransformations : Example() {
+        @Transient override val category = Category.ContainerType
+        @Transient override val title = "Container Transformations"
+        @Transient override val description = "Demonstrates map, mapException, catch, recover, and other transformation functions."
+
+        @Composable
+        override fun Content() = ContainerTransformationsScreen()
     }
 
 }

@@ -7,6 +7,8 @@ import com.elveum.container.demo.feature.examples.container_states.ContainerStat
 import com.elveum.container.demo.feature.examples.container_transformations.ContainerTransformationsScreen
 import com.elveum.container.demo.feature.examples.container_unwrapping.ContainerUnwrapScreen
 import com.elveum.container.demo.feature.examples.container_values.ContainerValuesScreen
+import com.elveum.container.demo.feature.examples.reducer_owner.ReducerOwnerScreen
+import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -77,6 +79,26 @@ sealed class Example {
 
         @Composable
         override fun Content() = ContainerTransformationsScreen()
+    }
+
+    @Serializable
+    data object ReducerFromFlow : Example() {
+        @Transient override val category = Category.ReducerPattern
+        @Transient override val title = "Reducer Basics"
+        @Transient override val description = "Reducer<T> builds the final state on input flow and manual updates."
+
+        @Composable
+        override fun Content() = FlowToReducerScreen()
+    }
+
+    @Serializable
+    data object ReducerOwner : Example() {
+        @Transient override val category = Category.ReducerPattern
+        @Transient override val title = "ReducerOwner"
+        @Transient override val description = "Uses the ReducerOwner interface to simplify creating Reducer<T> instances by specifying the coroutine scope and sharing strategy once."
+
+        @Composable
+        override fun Content() = ReducerOwnerScreen()
     }
 
 }

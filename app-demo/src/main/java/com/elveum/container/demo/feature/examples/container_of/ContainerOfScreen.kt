@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.elveum.container.Container
+import com.elveum.container.demo.feature.examples.container_of.VectorGraphicRepository.VectorGraphic
 import com.elveum.container.demo.ui.components.DemoScaffold
 
 @Composable
@@ -78,7 +79,7 @@ fun ContainerOfScreen() = DemoScaffold(
 }
 
 @Composable
-private fun SpirographCanvas(graphic: VectorGraphicRepository.VectorGraphic) {
+private fun SpirographCanvas(graphic: VectorGraphic) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,7 +91,7 @@ private fun SpirographCanvas(graphic: VectorGraphicRepository.VectorGraphic) {
     )
 }
 
-private fun DrawScope.drawSpirograph(graphic: VectorGraphicRepository.VectorGraphic) {
+private fun DrawScope.drawSpirograph(graphic: VectorGraphic) {
     val scale = size.minDimension / 2f * 0.88f
     val center = Offset(size.width / 2f, size.height / 2f)
 

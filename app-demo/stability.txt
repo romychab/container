@@ -1,1 +1,3 @@
 com.elveum.container.Container
+kotlin.collections.List<_>
+kotlin.collections.Set<_>

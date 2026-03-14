@@ -7,8 +7,11 @@ import com.elveum.container.demo.feature.examples.container_states.ContainerStat
 import com.elveum.container.demo.feature.examples.container_transformations.ContainerTransformationsScreen
 import com.elveum.container.demo.feature.examples.container_unwrapping.ContainerUnwrapScreen
 import com.elveum.container.demo.feature.examples.container_values.ContainerValuesScreen
+import com.elveum.container.demo.feature.examples.reducer_container.FlowToContainerReducerScreen
+import com.elveum.container.demo.feature.examples.reducer_container_flow.ContainerFlowToContainerReducerScreen
 import com.elveum.container.demo.feature.examples.reducer_owner.ReducerOwnerScreen
 import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerScreen
+import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerPrivatePublicStatePatternScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -99,6 +102,36 @@ sealed class Example {
 
         @Composable
         override fun Content() = ReducerOwnerScreen()
+    }
+
+    @Serializable
+    data object ReducerContainerFromFlow : Example() {
+        @Transient override val category = Category.ReducerPattern
+        @Transient override val title = "ContainerReducer"
+        @Transient override val description = "Wraps a Flow<T> into ContainerReducer<T> using toContainerReducer() extension. Two independent updateState calls mutate color and stroke width without re-loading."
+
+        @Composable
+        override fun Content() = FlowToContainerReducerScreen()
+    }
+
+    @Serializable
+    data object ContainerFlowToContainerReducer : Example() {
+        @Transient override val category = Category.ReducerPattern
+        @Transient override val title = "ContainerFlow to ContainerReducer"
+        @Transient override val description = "Converts Flow<Container<T>> into ContainerReducer<T> using containerToReducer() extension. Merges live repository updates with user-driven filter."
+
+        @Composable
+        override fun Content() = ContainerFlowToContainerReducerScreen()
+    }
+
+    @Serializable
+    data object PrivatePublicStatePattern : Example() {
+        @Transient override val category = Category.ReducerPattern
+        @Transient override val title = "Reducer Private-Public State"
+        @Transient override val description = "Uses reducers and private-public ViewModel's state to expose only final properties to the screen. Converts a tree structure into flattened and expandable list."
+
+        @Composable
+        override fun Content() = ReducerPrivatePublicStatePatternScreen()
     }
 
 }

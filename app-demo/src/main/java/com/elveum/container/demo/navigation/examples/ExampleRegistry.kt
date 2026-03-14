@@ -12,6 +12,9 @@ object ExampleRegistry {
 
         Example.ReducerFromFlow,
         Example.ReducerOwner,
+        Example.ReducerContainerFromFlow,
+        Example.ContainerFlowToContainerReducer,
+        Example.PrivatePublicStatePattern,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

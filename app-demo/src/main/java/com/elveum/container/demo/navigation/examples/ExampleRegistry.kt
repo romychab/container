@@ -15,6 +15,9 @@ object ExampleRegistry {
         Example.ReducerContainerFromFlow,
         Example.ContainerFlowToContainerReducer,
         Example.PrivatePublicStatePattern,
+
+        Example.LazyFlowSubjectBasics,
+        Example.LazySubjectLocalRemote,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

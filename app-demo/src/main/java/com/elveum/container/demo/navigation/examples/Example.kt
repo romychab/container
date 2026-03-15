@@ -12,6 +12,8 @@ import com.elveum.container.demo.feature.examples.reducer_container_flow.Contain
 import com.elveum.container.demo.feature.examples.reducer_owner.ReducerOwnerScreen
 import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerScreen
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerPrivatePublicStatePatternScreen
+import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
+import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -88,7 +90,7 @@ sealed class Example {
     data object ReducerFromFlow : Example() {
         @Transient override val category = Category.ReducerPattern
         @Transient override val title = "Reducer Basics"
-        @Transient override val description = "Reducer<T> builds the final state on input flow and manual updates."
+        @Transient override val description = "Reducer<T> builds the final state from an input flow and manual updates."
 
         @Composable
         override fun Content() = FlowToReducerScreen()
@@ -128,10 +130,30 @@ sealed class Example {
     data object PrivatePublicStatePattern : Example() {
         @Transient override val category = Category.ReducerPattern
         @Transient override val title = "Reducer Private-Public State"
-        @Transient override val description = "Uses reducers and private-public ViewModel's state to expose only final properties to the screen. Converts a tree structure into flattened and expandable list."
+        @Transient override val description = "Uses reducers and private-public ViewModel's state to expose only final properties to the screen. Converts a tree structure into a flattened, expandable list."
 
         @Composable
         override fun Content() = ReducerPrivatePublicStatePatternScreen()
+    }
+
+    @Serializable
+    data object LazyFlowSubjectBasics : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "LazyFlowSubject Basics"
+        @Transient override val description = "Turns any suspending loader function into a reactive Flow using LazyFlowSubject."
+
+        @Composable
+        override fun Content() = SubjectBasicsScreen()
+    }
+
+    @Serializable
+    data object LazySubjectLocalRemote : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "Local and Remote Cache"
+        @Transient override val description = "Emits cached local data immediately, then replaces it with fresh remote data. SourceType metadata indicates the origin of each emission."
+
+        @Composable
+        override fun Content() = LocalRemoteScreen()
     }
 
 }

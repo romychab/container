@@ -18,7 +18,7 @@ class TreeRepository @Inject constructor(
     private val deleteActions = MutableSharedFlow<Long>(extraBufferCapacity = 1)
 
     // ContainerFlow<T> is an alias to Flow<Container<T>>
-    fun getItems(): ContainerFlow<Tree> {
+    fun getTree(): ContainerFlow<Tree> {
         return flow {
             emit(pendingContainer())
             delay(2000)

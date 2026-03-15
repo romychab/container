@@ -3,26 +3,30 @@ package com.elveum.container.demo.feature.examples.reducer_state_pattern
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.elveum.container.Container
+import com.elveum.container.demo.di.StateProducerDispatcher
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.TreeRepository.Node
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.TreeRepository.Tree
 import com.elveum.container.reducer.ContainerReducer
 import com.elveum.container.reducer.containerToReducer
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.plus
 import javax.inject.Inject
 
 @HiltViewModel
 class ReducerPrivatePublicStatePatternViewModel @Inject constructor(
     private val repository: TreeRepository,
+    @StateProducerDispatcher dispatcher: CoroutineDispatcher,
 ) : ViewModel() {
 
     private val reducer: ContainerReducer<StateImpl> = repository
-        .getItems() // Flow<Container<Tree>>
+        .getTree() // Flow<Container<Tree>>
         .containerToReducer(
             initialState = ::StateImpl,
             nextState = StateImpl::copy,
-            scope = viewModelScope,
+            scope = viewModelScope + dispatcher,
             started = SharingStarted.WhileSubscribed(
                 stopTimeoutMillis = 1000,
                 replayExpirationMillis = 1000,

@@ -14,6 +14,7 @@ import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerS
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerPrivatePublicStatePatternScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
+import com.elveum.container.demo.feature.examples.subject_pulltorefresh.PullToRefreshScreen
 import kotlinx.serialization.Serializable
 
 @Serializable()
@@ -155,5 +156,17 @@ sealed class Example {
         @Composable
         override fun Content() = LocalRemoteScreen()
     }
+
+    @Serializable
+    data object LazySubjectPullToRefresh : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "Pull to Refresh"
+        @Transient override val description = "Demonstrates silent reloading via LoadConfig.SilentLoading. Uses backgroundLoadState metadata to drive the pull-to-refresh indicator without hiding existing content."
+
+        @Composable
+        override fun Content() = PullToRefreshScreen()
+    }
+
+
 
 }

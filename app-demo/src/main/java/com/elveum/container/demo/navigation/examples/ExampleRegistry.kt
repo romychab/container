@@ -19,6 +19,7 @@ object ExampleRegistry {
         Example.LazyFlowSubjectBasics,
         Example.LazySubjectLocalRemote,
         Example.LazySubjectPullToRefresh,
+        Example.LazySubjectErrorHandling,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

@@ -14,10 +14,11 @@ import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerS
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerPrivatePublicStatePatternScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
+import com.elveum.container.demo.feature.examples.subject_errors.ErrorHandlingScreen
 import com.elveum.container.demo.feature.examples.subject_pulltorefresh.PullToRefreshScreen
 import kotlinx.serialization.Serializable
 
-@Serializable()
+@Serializable
 sealed class Example {
 
     abstract val title: String
@@ -168,5 +169,14 @@ sealed class Example {
     }
 
 
+    @Serializable
+    data object LazySubjectErrorHandling : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "Error Handling"
+        @Transient override val description = "Shows how Container enters the Error state on failure. Demonstrates silent reload from the action bar, disabled while a background load is in progress."
+
+        @Composable
+        override fun Content() = ErrorHandlingScreen()
+    }
 
 }

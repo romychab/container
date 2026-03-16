@@ -40,8 +40,8 @@ fun ReducerOwnerScreen() = DemoScaffold(
         Creating **Reducer<T>** instances is much simpler with the **ReducerOwner** interface.
 
         Implement **ReducerOwner** in an abstract ViewModel to specify the coroutine scope
-        and **SharingStarted** strategy once — all **toReducer()**, **stateIn()**, and
-        **shareIn()** calls in subclasses reuse them automatically.
+        and **SharingStarted** strategy once. The following functions - **toReducer()**, **stateIn()**, 
+        and **shareIn()** reuse the provided values automatically.
     """.trimIndent()
 ) {
     val viewModel = hiltViewModel<ReducerOwnerViewModel>()

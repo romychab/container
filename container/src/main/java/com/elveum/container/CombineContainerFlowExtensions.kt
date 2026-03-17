@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.combine
 public fun <T1, T2, R> combineContainerFlows(
     flow1: Flow<Container<T1>>,
     flow2: Flow<Container<T2>>,
-    transform: CombineContainerFlowScope.(T1, T2) -> R,
+    transform: (T1, T2) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2)) { input ->
         @Suppress("UNCHECKED_CAST")
@@ -25,7 +25,7 @@ public fun <T1, T2, T3, R> combineContainerFlows(
     flow1: Flow<Container<T1>>,
     flow2: Flow<Container<T2>>,
     flow3: Flow<Container<T3>>,
-    transform: CombineContainerFlowScope.(T1, T2, T3) -> R,
+    transform: (T1, T2, T3) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2, flow3)) { input ->
         @Suppress("UNCHECKED_CAST")
@@ -41,7 +41,7 @@ public fun <T1, T2, T3, T4, R> combineContainerFlows(
     flow2: Flow<Container<T2>>,
     flow3: Flow<Container<T3>>,
     flow4: Flow<Container<T4>>,
-    transform: CombineContainerFlowScope.(T1, T2, T3, T4) -> R,
+    transform: (T1, T2, T3, T4) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2, flow3, flow4)) { input ->
         @Suppress("UNCHECKED_CAST")
@@ -58,7 +58,7 @@ public fun <T1, T2, T3, T4, T5, R> combineContainerFlows(
     flow3: Flow<Container<T3>>,
     flow4: Flow<Container<T4>>,
     flow5: Flow<Container<T5>>,
-    transform: CombineContainerFlowScope.(T1, T2, T3, T4, T5) -> R,
+    transform: (T1, T2, T3, T4, T5) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2, flow3, flow4, flow5)) { input ->
         @Suppress("UNCHECKED_CAST")
@@ -115,13 +115,13 @@ public fun <R> combineContainerFlows(
  */
 public fun <T0, T1, R> Flow<Container<T0>>.containerCombineWith(
     flow: Flow<T1>,
-    transform: suspend CombineContainerFlowScope.(T0, T1) -> R
+    transform: suspend (T0, T1) -> R
 ): Flow<Container<R>> {
     return containerCombineWith(
         flows = listOf(flow),
         transform = { input ->
             @Suppress("UNCHECKED_CAST")
-            transform(this, input[0] as T0, input[1] as T1)
+            transform(input[0] as T0, input[1] as T1)
         },
     )
 }
@@ -133,13 +133,13 @@ public fun <T0, T1, R> Flow<Container<T0>>.containerCombineWith(
 public fun <T0, T1, T2, R> Flow<Container<T0>>.containerCombineWith(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
-    transform: suspend CombineContainerFlowScope.(T0, T1, T2) -> R
+    transform: suspend (T0, T1, T2) -> R
 ): Flow<Container<R>> {
     return containerCombineWith(
         flows = listOf(flow1, flow2),
         transform = { input ->
             @Suppress("UNCHECKED_CAST")
-            transform(this, input[0] as T0, input[1] as T1, input[2] as T2)
+            transform(input[0] as T0, input[1] as T1, input[2] as T2)
         },
     )
 }
@@ -152,13 +152,13 @@ public fun <T0, T1, T2, T3, R> Flow<Container<T0>>.containerCombineWith(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
     flow3: Flow<T3>,
-    transform: suspend CombineContainerFlowScope.(T0, T1, T2, T3) -> R
+    transform: suspend (T0, T1, T2, T3) -> R
 ): Flow<Container<R>> {
     return containerCombineWith(
         flows = listOf(flow1, flow2, flow3),
         transform = { input ->
             @Suppress("UNCHECKED_CAST")
-            transform(this, input[0] as T0, input[1] as T1, input[2] as T2, input[3] as T3)
+            transform(input[0] as T0, input[1] as T1, input[2] as T2, input[3] as T3)
         },
     )
 }

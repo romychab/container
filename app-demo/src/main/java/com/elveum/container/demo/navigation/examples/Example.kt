@@ -12,6 +12,8 @@ import com.elveum.container.demo.feature.examples.reducer_container_flow.Contain
 import com.elveum.container.demo.feature.examples.reducer_owner.ReducerOwnerScreen
 import com.elveum.container.demo.feature.examples.reducer_pattern.FlowToReducerScreen
 import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerPrivatePublicStatePatternScreen
+import com.elveum.container.demo.feature.examples.subject_args.ArgsScreen
+import com.elveum.container.demo.feature.examples.subject_chunks.ChunksScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
 import com.elveum.container.demo.feature.examples.subject_errors.ErrorHandlingScreen
@@ -177,6 +179,27 @@ sealed class Example {
 
         @Composable
         override fun Content() = ErrorHandlingScreen()
+    }
+
+
+    @Serializable
+    data object LazySubjectArgs : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "Reactive Arguments"
+        @Transient override val description = "Uses dependsOnFlow() to declare reactive loader arguments. The loader re-executes automatically when a dependency emits a new value."
+
+        @Composable
+        override fun Content() = ArgsScreen()
+    }
+
+    @Serializable
+    data object LazySubjectChunks : Example() {
+        @Transient override val category = Category.LazyFlowSubject
+        @Transient override val title = "Parallel Loading"
+        @Transient override val description = "Fetches mosaic basic info first, then loads all 144 pixel-art tiles in parallel. Each tile appears as soon as its data arrives."
+
+        @Composable
+        override fun Content() = ChunksScreen()
     }
 
 }

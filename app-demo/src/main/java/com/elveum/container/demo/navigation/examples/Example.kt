@@ -15,6 +15,7 @@ import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerP
 import com.elveum.container.demo.feature.examples.subject_args.ArgsScreen
 import com.elveum.container.demo.feature.examples.subject_chunks.ChunksScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
+import com.elveum.container.demo.feature.examples.pagination_basic.BasicPaginationScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
 import com.elveum.container.demo.feature.examples.subject_errors.ErrorHandlingScreen
 import com.elveum.container.demo.feature.examples.subject_pulltorefresh.PullToRefreshScreen
@@ -200,6 +201,16 @@ sealed class Example {
 
         @Composable
         override fun Content() = ChunksScreen()
+    }
+
+    @Serializable
+    data object PaginationBasics : Example() {
+        @Transient override val category = Category.Pagination
+        @Transient override val title = "Pagination Basics"
+        @Transient override val description = "Uses pageLoader with a nullable initial key to fetch pages on demand. New pages load automatically as the user scrolls near the end of the list."
+
+        @Composable
+        override fun Content() = BasicPaginationScreen()
     }
 
 }

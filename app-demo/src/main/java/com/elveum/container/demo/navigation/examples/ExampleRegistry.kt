@@ -22,6 +22,8 @@ object ExampleRegistry {
         Example.LazySubjectErrorHandling,
         Example.LazySubjectArgs,
         Example.LazySubjectChunks,
+
+        Example.PaginationBasics,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

@@ -34,14 +34,21 @@ import kotlinx.coroutines.flow.StateFlow
  * metadata values:
  * - `Container.metadata.nextPageState` - see [PageLoader.nextPageState]
  * - `Container.metadata.onItemRendered(index)` - see [PageLoader.onItemRendered]
+ *
+ * @param threshold fraction of the last loaded page that must be rendered before the
+ * next page load is triggered. For example, if a page has 20 items and [threshold] is
+ * `0.5`, the next page starts loading when the 10th item is rendered. Must be in
+ * the range `[0.0, 1.0]`. Defaults to `0.5`.
  */
 public fun <Key, T> pageLoader(
     initialKey: Key,
+    threshold: Float = 0.5f,
     emitMetadata: Boolean = true,
     block: suspend PageEmitter<Key, T>.(Key) -> Unit
 ): PageLoader<Key, T> {
     return PageLoaderImpl(
         initialKey = initialKey,
+        threshold = threshold,
         emitMetadata = emitMetadata,
         block = block,
     )

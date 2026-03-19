@@ -6,7 +6,9 @@ import com.elveum.container.getOrNull
 import com.elveum.container.pendingContainer
 import kotlinx.coroutines.sync.Mutex
 
-internal class PageLoaderRecordStore<Key, T> {
+internal class PageLoaderRecordStore<Key, T>(
+    private val threshold: Float
+) {
 
     private val orderedRecords = LinkedHashMap<Key, PageKeyRecord<Key, T>>()
 
@@ -23,18 +25,29 @@ internal class PageLoaderRecordStore<Key, T> {
         val totalItemsCount = orderedRecords.values
             .sumOf { (it.container as? Container.Success)?.value?.size ?: 0 }
         if (index !in 0..<totalItemsCount) return@synchronized NextKeyLoadResult.Skip
-        var pageStartIndex = 0
         if (firstOrNull { it.container is Container.Error } != null) {
             return@synchronized NextKeyLoadResult.Skip
         }
+        var pageStartIndex = 0
+        var lastPageSize = 0
         orderedRecords.values.forEach { record ->
             if (index < pageStartIndex) {
-                return@synchronized NextKeyLoadResult.Key(record.key)
+                // 'record' is a pending next page; only trigger if threshold reached in previous page
+                val thresholdIndex = getThresholdIndex(pageStartIndex, lastPageSize)
+                return@synchronized if (index >= thresholdIndex) {
+                    NextKeyLoadResult.Key(record.key)
+                } else {
+                    NextKeyLoadResult.Skip
+                }
             }
             val pageList = record.container.getOrNull() ?: return@synchronized NextKeyLoadResult.Skip
+            lastPageSize = pageList.size
             pageStartIndex += pageList.size
         }
-        return@synchronized if (index == pageStartIndex - 1) {
+        // No pending next-page record; schedule immediate load when threshold is reached
+        if (lastPageSize == 0) return@synchronized NextKeyLoadResult.Skip
+        val thresholdIndex = getThresholdIndex(pageStartIndex, lastPageSize)
+        return@synchronized if (index >= thresholdIndex) {
             NextKeyLoadResult.ScheduleImmediateLoad
         } else {
             NextKeyLoadResult.Skip
@@ -122,6 +135,12 @@ internal class PageLoaderRecordStore<Key, T> {
             counter--
         }
     }
+
+    private fun getThresholdIndex(
+        pageStartIndex: Int,
+        lastPageSize: Int,
+    ) = pageStartIndex - lastPageSize + (threshold * lastPageSize).toInt()
+        .coerceIn(0, pageStartIndex - 1)
 
     sealed class NextKeyLoadResult<out Key> {
         data object Skip : NextKeyLoadResult<Nothing>()

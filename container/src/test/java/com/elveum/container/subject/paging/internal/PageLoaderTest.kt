@@ -56,7 +56,7 @@ class PageLoaderTest {
         block = mockk(relaxed = true)
         every { factory.createState(any(), any(), any()) } returns state
         every { factory.createLauncher(any(), any(), any()) } returns launcher
-        loader = PageLoaderImpl(initialKey, true, block, factory)
+        loader = PageLoaderImpl(initialKey, threshold = 0.5f, emitMetadata = true, block = block, factory = factory)
     }
 
     @Test

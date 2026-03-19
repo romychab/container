@@ -26,7 +26,7 @@ class PageLoaderRecordStoreTest {
 
     @Before
     fun setUp() {
-        store = PageLoaderRecordStore()
+        store = PageLoaderRecordStore(threshold = 0.5f)
     }
 
     @Test
@@ -206,14 +206,23 @@ class PageLoaderRecordStoreTest {
     }
 
     @Test
-    fun findNextKeyForIndex_whenIndexInLoadedPage_returnsNextPageKey() {
+    fun findNextKeyForIndex_whenIndexInLoadedPageAtThreshold_returnsNextPageKey() {
         store.getOrPut(1) { PageKeyRecord(1) }
         store.getOrPut(2) { PageKeyRecord(2) }
-        store.updateContainer(1, successContainer(listOf("a", "b", "c")))
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
         store.updateContainer(2, successContainer(listOf("d", "e")))
 
-        // index 0 is in page 1 (items 0-2), next page key is 2
-        assertEquals(NextKeyLoadResult.Key(2), store.findNextKeyForIndex(0))
+        assertEquals(NextKeyLoadResult.Key(2), store.findNextKeyForIndex(2))
+    }
+
+    @Test
+    fun findNextKeyForIndex_whenIndexInLoadedPageBelowThreshold_returnsSkip() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("d", "e")))
+
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(1))
     }
 
     @Test
@@ -233,10 +242,10 @@ class PageLoaderRecordStoreTest {
     @Test
     fun findNextKeyForIndex_whenIndexInMiddleOfLastPage_returnsSkip() {
         store.getOrPut(1) { PageKeyRecord(1) }
-        store.updateContainer(1, successContainer(listOf("a", "b", "c")))
+        // 10-item page: threshold=0.5f -> thresholdIndex = 5; index=4 is below threshold
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d", "e", "f", "g", "h", "i", "j")))
 
-        // index 1 is not the last item (index 2)
-        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(1))
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(4))
     }
 
     @Test
@@ -283,6 +292,102 @@ class PageLoaderRecordStoreTest {
             NextKeyLoadResult.ScheduleImmediateLoad,
             store.findNextKeyForIndex(1),
         )
+    }
+
+    @Test
+    fun findNextKeyForIndex_singlePage_whenIndexBelowThreshold_returnsSkip() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=1 is below threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(1))
+    }
+
+    @Test
+    fun findNextKeyForIndex_singlePage_whenIndexAtThreshold_returnsScheduleImmediateLoad() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=2 is at threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+
+        assertEquals(NextKeyLoadResult.ScheduleImmediateLoad, store.findNextKeyForIndex(2))
+    }
+
+    @Test
+    fun findNextKeyForIndex_singlePage_whenIndexAboveThreshold_returnsScheduleImmediateLoad() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=3 is above threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+
+        assertEquals(NextKeyLoadResult.ScheduleImmediateLoad, store.findNextKeyForIndex(3))
+    }
+
+    @Test
+    fun findNextKeyForIndex_pendingNextPage_whenIndexBelowThreshold_returnsSkip() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=1 is below threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(1))
+    }
+
+    @Test
+    fun findNextKeyForIndex_pendingNextPage_whenIndexAtThreshold_returnsNextKey() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=2 is at threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Key(2), store.findNextKeyForIndex(2))
+    }
+
+    @Test
+    fun findNextKeyForIndex_pendingNextPage_whenIndexAboveThreshold_returnsNextKey() {
+        // 4-item page: threshold=0.5 -> thresholdIndex=2; index=3 is above threshold
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Key(2), store.findNextKeyForIndex(3))
+    }
+
+    @Test
+    fun findNextKeyForIndex_withThreshold1_whenIndexBeforeLastItem_returnsSkip() {
+        val storeWithThreshold1 = PageLoaderRecordStore<Int, String>(threshold = 1.0f)
+        storeWithThreshold1.getOrPut(1) { PageKeyRecord(1) }
+        storeWithThreshold1.getOrPut(2) { PageKeyRecord(2) }
+        // 4-item page: threshold=1.0 -> thresholdIndex=3 (last item only)
+        storeWithThreshold1.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Skip, storeWithThreshold1.findNextKeyForIndex(2))
+    }
+
+    @Test
+    fun findNextKeyForIndex_withThreshold1_whenIndexAtLastItem_returnsNextKey() {
+        val storeWithThreshold1 = PageLoaderRecordStore<Int, String>(threshold = 1.0f)
+        storeWithThreshold1.getOrPut(1) { PageKeyRecord(1) }
+        storeWithThreshold1.getOrPut(2) { PageKeyRecord(2) }
+        // 4-item page: threshold=1.0 -> thresholdIndex=3 (last item only)
+        storeWithThreshold1.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Key(2), storeWithThreshold1.findNextKeyForIndex(3))
+    }
+
+    @Test
+    fun findNextKeyForIndex_withThreshold0_whenIndexAtFirstItem_returnsNextKey() {
+        val storeWithThreshold0 = PageLoaderRecordStore<Int, String>(threshold = 0.0f)
+        storeWithThreshold0.getOrPut(1) { PageKeyRecord(1) }
+        storeWithThreshold0.getOrPut(2) { PageKeyRecord(2) }
+        // 4-item page: threshold=0.0 -> thresholdIndex=0 (fires on first rendered item)
+        storeWithThreshold0.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        // key 2 stays pending
+
+        assertEquals(NextKeyLoadResult.Key(2), storeWithThreshold0.findNextKeyForIndex(0))
     }
 
     @Test
@@ -506,6 +611,81 @@ class PageLoaderRecordStoreTest {
         store.updateContainer(1, successContainer(emptyList()))
 
         assertEquals(emptyList<String>(), store.buildOutputList())
+    }
+
+    // 3 pages loaded (4 items each, indices 0-11), threshold=0.5:
+    // getThresholdIndex(pageStartIndex=12, lastPageSize=4) = 12-4 + floor(0.5*4)=2 -> 10
+    // So 4th page load triggers at index 10 (3rd item of page 3).
+
+    @Test
+    fun findNextKeyForIndex_multiplePages_pendingNextPage_whenIndexBelowThresholdOfLastPage_returnsSkip() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.getOrPut(3) { PageKeyRecord(3) }
+        store.getOrPut(4) { PageKeyRecord(4) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("e", "f", "g", "h")))
+        store.updateContainer(3, successContainer(listOf("i", "j", "k", "l")))
+        // key 4 stays pending
+
+        // index 9 is the 2nd item of page 3, below thresholdIndex=10
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(9))
+    }
+
+    @Test
+    fun findNextKeyForIndex_multiplePages_pendingNextPage_whenIndexAtThresholdOfLastPage_returnsNextKey() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.getOrPut(3) { PageKeyRecord(3) }
+        store.getOrPut(4) { PageKeyRecord(4) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("e", "f", "g", "h")))
+        store.updateContainer(3, successContainer(listOf("i", "j", "k", "l")))
+        // key 4 stays pending
+
+        // index 10 is the 3rd item of page 3, at thresholdIndex=10
+        assertEquals(NextKeyLoadResult.Key(4), store.findNextKeyForIndex(10))
+    }
+
+    @Test
+    fun findNextKeyForIndex_multiplePages_pendingNextPage_whenIndexInEarlierPage_returnsSkip() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.getOrPut(3) { PageKeyRecord(3) }
+        store.getOrPut(4) { PageKeyRecord(4) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("e", "f", "g", "h")))
+        store.updateContainer(3, successContainer(listOf("i", "j", "k", "l")))
+        // key 4 stays pending
+
+        // index 5 is in page 2, which is before the last page — below thresholdIndex=10
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(5))
+    }
+
+    @Test
+    fun findNextKeyForIndex_multiplePages_noPendingPage_whenIndexBelowThresholdOfLastPage_returnsSkip() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.getOrPut(3) { PageKeyRecord(3) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("e", "f", "g", "h")))
+        store.updateContainer(3, successContainer(listOf("i", "j", "k", "l")))
+
+        // index 9 is the 2nd item of page 3, below thresholdIndex=10
+        assertEquals(NextKeyLoadResult.Skip, store.findNextKeyForIndex(9))
+    }
+
+    @Test
+    fun findNextKeyForIndex_multiplePages_noPendingPage_whenIndexAtThresholdOfLastPage_returnsScheduleImmediateLoad() {
+        store.getOrPut(1) { PageKeyRecord(1) }
+        store.getOrPut(2) { PageKeyRecord(2) }
+        store.getOrPut(3) { PageKeyRecord(3) }
+        store.updateContainer(1, successContainer(listOf("a", "b", "c", "d")))
+        store.updateContainer(2, successContainer(listOf("e", "f", "g", "h")))
+        store.updateContainer(3, successContainer(listOf("i", "j", "k", "l")))
+
+        // index 10 is the 3rd item of page 3, at thresholdIndex=10
+        assertEquals(NextKeyLoadResult.ScheduleImmediateLoad, store.findNextKeyForIndex(10))
     }
 
 }

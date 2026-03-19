@@ -16,9 +16,10 @@ import kotlinx.coroutines.supervisorScope
 
 internal class PageLoaderImpl<Key, T>(
     private val initialKey: Key,
+    private val threshold: Float,
     private val emitMetadata: Boolean,
     private val block: suspend PageEmitter<Key, T>.(Key) -> Unit,
-    private val factory: Factory<Key, T> = Factory(block),
+    private val factory: Factory<Key, T> = Factory(block, threshold),
 ) : PageLoader<Key, T> {
 
     override val nextPageState: MutableStateFlow<PageState> = MutableStateFlow(PageState.Idle)
@@ -76,6 +77,7 @@ internal class PageLoaderImpl<Key, T>(
 
     class Factory<Key, T>(
         private val block: suspend PageEmitter<Key, T>.(Key) -> Unit,
+        private val threshold: Float,
     ) {
 
         fun createState(
@@ -83,7 +85,7 @@ internal class PageLoaderImpl<Key, T>(
             onNextPageStateChanged: (PageState) -> Unit,
             metadataProvider: () -> ContainerMetadata,
         ): PageLoaderState<Key, T> {
-            val store = PageLoaderRecordStore<Key, T>()
+            val store = PageLoaderRecordStore<Key, T>(threshold)
             val pageResultsEmitter = PageResultsEmitter(
                 store = store,
                 emitter = emitter,

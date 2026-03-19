@@ -1,5 +1,7 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.BackgroundLoadMetadata
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.errorContainer
@@ -168,7 +170,7 @@ class PageResultsEmitterTest {
 
         pageResultsEmitter.emitResults()
 
-        coVerify(exactly = 1) { emitter.emit(listOf("a", "b"), customMetadata) }
+        coVerify(exactly = 1) { emitter.emit(listOf("a", "b"), customMetadata + BackgroundLoadMetadata(BackgroundLoadState.Idle)) }
     }
 
     @Test
@@ -196,7 +198,7 @@ class PageResultsEmitterTest {
 
         pageResultsEmitter.emitResults()
 
-        coVerify(exactly = 1) { emitter.emit(listOf("a"), customMetadata) }
+        coVerify(exactly = 1) { emitter.emit(listOf("a"), customMetadata + BackgroundLoadMetadata(BackgroundLoadState.Idle)) }
     }
 
     @Test
@@ -224,7 +226,7 @@ class PageResultsEmitterTest {
 
         pageResultsEmitter.emitResults()
 
-        coVerify(exactly = 1) { emitter.emit(listOf("a", "b"), customMetadata) }
+        coVerify(exactly = 1) { emitter.emit(listOf("a", "b"), customMetadata + BackgroundLoadMetadata(BackgroundLoadState.Idle)) }
     }
 
     @Test

@@ -6,7 +6,7 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
-import com.elveum.container.reloadDependencies
+import com.elveum.container.isReloadDependencies
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
 import kotlinx.coroutines.CompletableDeferred
@@ -40,7 +40,7 @@ internal class MockLoadTask private constructor(
     override fun execute(executeParams: ExecuteParams<String>): Flow<Container<String>> {
         return channelFlow {
             executeParams.flowDependencyStore.begin(
-                reloadDependencies = metadata.reloadDependencies,
+                reloadDependencies = metadata.isReloadDependencies,
                 loadConfig = LoadConfig.Normal,
             )
             try {

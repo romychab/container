@@ -1,8 +1,11 @@
 package com.elveum.container.subject.paging
 
+import androidx.compose.runtime.Immutable
+
 /**
  * The loading state of the next page.
  */
+@Immutable
 public sealed class PageState {
 
     /**

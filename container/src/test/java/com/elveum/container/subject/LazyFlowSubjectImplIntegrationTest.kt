@@ -7,7 +7,7 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
-import com.elveum.container.ReloadDependenciesMetadata
+import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.ReloadFunctionMetadata
 import com.elveum.container.RemoteSourceType
@@ -818,7 +818,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
         // 7. reload without dependencies
         clearMocks(reloadFunction)
-        subject.reloadAsync(metadata = ReloadDependenciesMetadata(false))
+        subject.reloadAsync(metadata = IsReloadDependenciesMetadata(false))
         runCurrent()
         verify(exactly = 0) { reloadFunction(any()) }
     }

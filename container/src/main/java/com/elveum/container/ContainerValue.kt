@@ -1,9 +1,12 @@
 package com.elveum.container
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents an unwrapped value from a container along with
  * the [sourceType] where has the value arrived from.
  */
+@Immutable
 public data class ContainerValue<out T>(
     val value: T,
     val metadata: ContainerMetadata,

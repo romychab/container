@@ -9,7 +9,7 @@ import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LoadConfig
-import com.elveum.container.ReloadDependenciesMetadata
+import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
@@ -106,7 +106,7 @@ internal class LazyFlowSubjectImpl<T>(
                 valueLoader = lastLoader,
                 metadata = loadTaskManager.getLastRealMetadata() +
                         LoadTriggerMetadata(LoadTrigger.Reload) +
-                        ReloadDependenciesMetadata(true) +
+                        IsReloadDependenciesMetadata(true) +
                         metadata,
             )
         } ?: emptyFlow()
@@ -143,7 +143,7 @@ internal class LazyFlowSubjectImpl<T>(
         scope = coroutineScopeFactory.createScope()
             .also { scope ->
                 flowDependencyStore.initialize(scope) { reloadDependencies ->
-                    reloadAsync(LoadConfig.SilentLoading, metadata = ReloadDependenciesMetadata(reloadDependencies))
+                    reloadAsync(LoadConfig.SilentLoading, metadata = IsReloadDependenciesMetadata(reloadDependencies))
                 }
                 loadTaskManager.startProcessingLoads(
                     scope = scope,

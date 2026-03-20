@@ -1,11 +1,14 @@
 package com.elveum.container
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Represents the current status of async fetch/operation.
  * @see Container.Pending
  * @see Container.Error
  * @see Container.Success
  */
+@Immutable
 public sealed class Container<out T> {
 
     public abstract val metadata: ContainerMetadata
@@ -68,6 +71,7 @@ public sealed class Container<out T> {
     /**
      * A container representing already completed operation (either success, or error).
      */
+    @Immutable
     public sealed class Completed<out T> : Container<T>(), ContainerMapperScope {
 
         /**

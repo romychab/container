@@ -5,7 +5,7 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.pendingContainer
-import com.elveum.container.reloadDependencies
+import com.elveum.container.isReloadDependencies
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
@@ -108,7 +108,7 @@ internal interface LoadTask<T> {
             val statefulLoader = StatefulValueLoader.wrap(loader)
             try {
                 executeParams.flowDependencyStore.begin(
-                    reloadDependencies = metadata.reloadDependencies,
+                    reloadDependencies = metadata.isReloadDependencies,
                     loadConfig = config,
                 )
                 with(statefulLoader) { statefulEmitter.statefulInvoke() }

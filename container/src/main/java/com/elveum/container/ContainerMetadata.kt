@@ -1,9 +1,12 @@
 package com.elveum.container
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Any container can have additional attached metadata represented
  * by instances of this interface.
  */
+@Immutable
 public interface ContainerMetadata {
 
     /**
@@ -83,8 +86,8 @@ public val ContainerMetadata.sourceType: SourceType
 public val ContainerMetadata.loadTrigger: LoadTrigger
     get() = get<LoadTriggerMetadata>()?.loadTrigger ?: LoadTrigger.NewLoad
 
-public val ContainerMetadata.reloadDependencies: Boolean
-    get() = get<ReloadDependenciesMetadata>()?.reloadDependencies ?: false
+public val ContainerMetadata.isReloadDependencies: Boolean
+    get() = get<IsReloadDependenciesMetadata>()?.isReloadDependencies ?: false
 
 public fun ContainerMetadata.reload(config: LoadConfig) {
     reloadFunction.invoke(config)
@@ -106,8 +109,8 @@ public data class LoadTriggerMetadata(
     public val loadTrigger: LoadTrigger,
 ) : ContainerMetadata, ContainerMetadata.Hidden
 
-public data class ReloadDependenciesMetadata(
-    public val reloadDependencies: Boolean,
+public data class IsReloadDependenciesMetadata(
+    public val isReloadDependencies: Boolean,
 ) : ContainerMetadata, ContainerMetadata.Hidden
 
 public data object EmptyMetadata : ContainerMetadata {

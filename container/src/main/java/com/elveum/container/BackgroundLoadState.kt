@@ -1,9 +1,12 @@
 package com.elveum.container
 
+import androidx.compose.runtime.Immutable
+
 /**
  * The background load state that can be observed via
  * container's metadata.
  */
+@Immutable
 public sealed class BackgroundLoadState {
 
     /**

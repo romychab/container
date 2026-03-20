@@ -5,7 +5,7 @@ import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LoadConfig
-import com.elveum.container.ReloadDependenciesMetadata
+import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
@@ -111,7 +111,7 @@ class LazyFlowSubjectTest {
             loadTaskFactory.create(
                 config = LoadConfig.SilentLoading,
                 valueLoader = refEq(valueLoader),
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + ReloadDependenciesMetadata(true),
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + IsReloadDependenciesMetadata(true),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 
@@ -137,7 +137,7 @@ class LazyFlowSubjectTest {
                 config = LoadConfig.Normal,
                 valueLoader = refEq(valueLoader),
                 metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
-                        ReloadDependenciesMetadata(true) +
+                        IsReloadDependenciesMetadata(true) +
                         customMetadata,
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)

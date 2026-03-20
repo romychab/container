@@ -1,5 +1,7 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.BackgroundLoadMetadata
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
@@ -45,7 +47,9 @@ internal class PageResultsEmitter<Key, T>(
             val outputList = store.buildOutputList()
             emitter.emit(
                 value = outputList,
-                metadata = metadataProvider(),
+                // override background load state to Idle after outputList emitted, since
+                // the pageLoader uses its own PageLoaderState for tracking the current load state:
+                metadata = metadataProvider() + BackgroundLoadMetadata(BackgroundLoadState.Idle),
             )
         }
     }

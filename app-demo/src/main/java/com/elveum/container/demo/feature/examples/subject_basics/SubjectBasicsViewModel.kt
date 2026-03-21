@@ -1,6 +1,7 @@
 package com.elveum.container.demo.feature.examples.subject_basics
 
 import com.elveum.container.Container
+import com.elveum.container.demo.errors.ErrorFlagRepository
 import com.elveum.container.demo.feature.examples.reducer_owner.AbstractViewModel
 import com.elveum.container.demo.feature.examples.subject_basics.UserProfileRepository.UserProfile
 import com.elveum.container.pendingContainer
@@ -12,19 +13,20 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SubjectBasicsViewModel @Inject constructor(
-    private val repository: UserProfileRepository
+    private val errorFlagRepository: ErrorFlagRepository,
+    userProfileRepository: UserProfileRepository,
 ) : AbstractViewModel() {
 
     private val reducer: Reducer<State> = combineToReducer(
-        repository.getUserProfile(),
-        repository.isErrorsEnabled(),
+        userProfileRepository.getUserProfile(),
+        errorFlagRepository.getErrorFlag(),
         initialState = State(),
         nextState = State::copy,
     )
     val stateFlow: StateFlow<State> = reducer.stateFlow
 
     fun toggleLoadErrors() {
-        repository.toggleLoadErrors()
+        errorFlagRepository.toggle()
     }
 
     data class State(

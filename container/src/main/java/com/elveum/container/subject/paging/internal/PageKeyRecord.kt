@@ -9,5 +9,6 @@ internal class PageKeyRecord<Key, T>(
     val key: Key,
     var job: Job? = null,
     var container: Container<List<T>> = pendingContainer(),
+    var completed: Boolean = false,
     var retryContinuation: Continuation<Unit>? = null,
 )

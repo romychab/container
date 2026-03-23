@@ -126,6 +126,7 @@ public fun <T> Container<T>.update(
 }
 
 public fun <T> Container<T>.isSuccess(): Boolean = this is Container.Success<T>
+public fun <T> Container<T>.isCompleted(): Boolean = this is Container.Completed<T>
 public fun <T> Container<T>.isError(): Boolean = this is Container.Error
 public fun <T> Container<T>.isPending(): Boolean = this is Container.Pending
 public fun <T> Container<T>.isDataLoading(): Boolean = isPending() || backgroundLoadState == BackgroundLoadState.Loading

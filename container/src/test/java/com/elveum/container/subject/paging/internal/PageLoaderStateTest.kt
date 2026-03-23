@@ -87,7 +87,7 @@ class PageLoaderStateTest {
 
         pageLoaderState.processKey(1, job) { }
 
-        coVerify(exactly = 1) { store.onKeyCompleted() }
+        coVerify(exactly = 1) { store.onKeyCompleted(1) }
     }
 
     @Test
@@ -331,7 +331,7 @@ class PageLoaderStateTest {
 
         assertFalse(blockCalled)
         coVerify(exactly = 0) { store.onKeyContinued(any()) }
-        coVerify(exactly = 0) { store.onKeyCompleted() }
+        coVerify(exactly = 0) { store.onKeyCompleted(1) }
     }
 
     @Test

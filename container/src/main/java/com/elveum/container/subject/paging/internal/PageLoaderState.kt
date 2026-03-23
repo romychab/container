@@ -25,7 +25,7 @@ internal class PageLoaderState<Key, T>(
             try {
                 continueKey(key)
                 block()
-                completeKey()
+                completeKey(key)
                 break
             } catch (e: CancellationException) {
                 throw e
@@ -81,8 +81,8 @@ internal class PageLoaderState<Key, T>(
         pageResultsEmitter.emitResults()
     }
 
-    private fun completeKey() {
-        store.onKeyCompleted()
+    private fun completeKey(key: Key) {
+        store.onKeyCompleted(key)
     }
 
     private suspend fun failKey(key: Key, exception: Exception) {

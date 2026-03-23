@@ -2,6 +2,7 @@ package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.container.subject.paging.PageLoader
 import com.elveum.container.subject.paging.PageState
 import com.elveum.container.subject.paging.nextPageState
@@ -36,7 +37,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenLoadStarted_emitsPendingStateAndNothingElse() = runFlowTest {
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             awaitCancellation()
         }
 
@@ -49,7 +50,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenLoadStarted_setsNextPageStateToIdle() = runFlowTest {
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             awaitCancellation()
         }
 
@@ -63,7 +64,7 @@ class PageLoaderIntegrationTest {
         val expectedInitialKey = 0
         var execCount = 0
         var actualInitialKey = -1
-        val pageLoader = pageLoader<Int, String>(initialKey = expectedInitialKey) {
+        val pageLoader = createPageLoader(initialKey = expectedInitialKey) {
             execCount++
             actualInitialKey = it
             awaitCancellation()
@@ -77,7 +78,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenOnlyOnePageExists_completes() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             emitPage(listOf("a", "b"))
         }
 
@@ -91,7 +92,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenPageEmitted_emitsList() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             delay(10)
             emitPage(listOf("a1", "b1"))
             delay(20)
@@ -119,7 +120,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenPageLoadFails_emitsError() = runFlowTest {
         val expectedException = IllegalArgumentException("Oops")
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             throw expectedException
         }
 
@@ -133,7 +134,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenPageLoadFails_completes() = runFlowTest {
         val expectedException = IllegalArgumentException("Oops")
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             throw expectedException
         }
 
@@ -144,7 +145,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenNoPagesEmitted_emitsFailureAndCompletes() = runFlowTest {
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {}
+        val pageLoader = createPageLoader(initialKey = 0) {}
 
         val state = executeInBackground { pageLoader.statefulInvoke() }
 
@@ -160,7 +161,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenNextKeyEmitted_doesNotLoadsItImmediately() = runFlowTest {
         val triggeredIndexes = mutableSetOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             triggeredIndexes.add(index)
             emitPage(listOf("a", "b"))
             if (index == 0) emitNextKey(1)
@@ -173,7 +174,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenNextKeyEmitted_doesNotUpdateNextPageState() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             emitPage(listOf("a", "b"))
             if (index == 0) emitNextKey(1)
         }
@@ -184,89 +185,8 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_whenItemBelowThresholdFromFirstPageRendered_doesNotStartLoadingNextPage() = runFlowTest {
-        var nextPageLoadCalls = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
-            if (index == 0) {
-                emitPage(listOf("a", "b"))
-                emitNextKey(1)
-            } else {
-                nextPageLoadCalls++
-                awaitCancellation()
-            }
-        }
-
-        executeInBackground { pageLoader.statefulInvoke() }
-        pageLoader.onItemRendered(0)
-
-        assertEquals(0, nextPageLoadCalls)
-    }
-
-    @Test
-    fun pageLoader_whenItemAtThresholdFromFirstPageRendered_startsLoadingNextPage() = runFlowTest {
-        var nextPageLoadCalls = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
-            if (index == 0) {
-                emitPage(listOf("a", "b"))
-                emitNextKey(1)
-            } else {
-                nextPageLoadCalls++
-                awaitCancellation()
-            }
-        }
-
-        executeInBackground { pageLoader.statefulInvoke() }
-        pageLoader.onItemRendered(1)
-
-        assertEquals(1, nextPageLoadCalls)
-    }
-
-    @Test
-    fun pageLoader_whenItemBelowThresholdFromFirstPageRenderedByMetadata_doesNotStartLoadingNextPage() = runFlowTest {
-        var nextPageLoadCalls = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
-            if (index == 0) {
-                emitPage(listOf("a", "b"))
-                emitNextKey(1)
-            } else {
-                nextPageLoadCalls++
-                awaitCancellation()
-            }
-        }
-        val slot = slot<ContainerMetadata>()
-        coEvery { emitter.emit(any(), capture(slot)) } just runs
-
-        executeInBackground { pageLoader.statefulInvoke() }
-        slot.captured.onItemRendered(0)
-
-        assertEquals(0, nextPageLoadCalls)
-    }
-
-
-    @Test
-    fun pageLoader_whenItemAtThresholdFromFirstPageRenderedByMetadata_startsLoadingNextPage() = runFlowTest {
-        var nextPageLoadCalls = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
-            if (index == 0) {
-                emitPage(listOf("a", "b"))
-                emitNextKey(1)
-            } else {
-                nextPageLoadCalls++
-                awaitCancellation()
-            }
-        }
-        val slot = slot<ContainerMetadata>()
-        coEvery { emitter.emit(any(), capture(slot)) } just runs
-
-        executeInBackground { pageLoader.statefulInvoke() }
-        slot.captured.onItemRendered(1)
-
-        assertEquals(1, nextPageLoadCalls)
-    }
-
-    @Test
     fun pageLoader_whenItemFromFirstPageRendered_showsNextPageLoadingIndicator() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -283,7 +203,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenItemFromFirstPageRendered_showsNextPageLoadingIndicatorInMetadata() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -303,7 +223,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenNextPageLoadFails_updatesNextPageStateAndAwaitsForRetry() = runFlowTest {
         val expectedException = IllegalArgumentException("oops")
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -328,7 +248,7 @@ class PageLoaderIntegrationTest {
     fun pageLoader_whenRetryNextPageLoadAfterError_reloadsPageAndCompletes() = runFlowTest {
         val expectedException = IllegalArgumentException("oops")
         var callIndex = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -360,7 +280,7 @@ class PageLoaderIntegrationTest {
     fun pageLoader_whenRetryLoadNextPageFromMetadata_reloadsPageAndCompletes() = runFlowTest {
         val expectedException = IllegalArgumentException("oops")
         var callIndex = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -391,7 +311,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenMultiplePagesExists_loadsEachPageAfterItemRenderingFromPreviousPage() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             emitPage(listOf("item-$index"))
             if (index < 3) emitNextKey(index + 1)
         }
@@ -435,7 +355,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenEmitPageCalledMultipleTimes_updatesPageData() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             emitPage(listOf("local-a", "local-b"))
             delay(10)
             emitPage(listOf("remote-a", "remote-b", "remote-c"))
@@ -457,7 +377,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenEmitNextKeyCalledTwice_throwsException() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             emitPage(listOf("a"))
             emitNextKey(1)
             emitNextKey(2)
@@ -475,7 +395,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenOnItemRenderedCalledBeforeLoad_doesNotCrash() {
-        val pageLoader = pageLoader(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             emitPage(listOf("a"))
         }
 
@@ -486,7 +406,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenOnItemRenderedForMiddleOfLastPage_doesNotTriggerLoad() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c"))
             if (index == 0) emitNextKey(1)
@@ -506,7 +426,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_afterCompletion_nextPageStateResetsToIdle() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a"))
                 emitNextKey(1)
@@ -524,7 +444,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_afterInitialPageFailure_nextPageStateResetsToIdle() = runFlowTest {
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             throw RuntimeException("fail")
         }
 
@@ -540,7 +460,7 @@ class PageLoaderIntegrationTest {
         // and there's no next key yet, ScheduleImmediateLoad is triggered.
         // When the block then emits a next key, it should launch immediately.
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             loadedKeys.add(index)
             if (index == 0) {
                 emitPage(listOf("a", "b"))
@@ -565,7 +485,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenNextPageLoadedSuccessfully_emitsConcatenatedList() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -586,7 +506,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenSameItemRenderedMultipleTimes_loadsNextPageOnlyOnce() = runFlowTest {
         var page1LoadCount = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -609,7 +529,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_withEmptyPageList_emitsEmptyList() = runFlowTest {
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             emitPage(emptyList())
         }
 
@@ -623,7 +543,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenNextPageCompletes_nextPageStateBecomesIdle() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a"))
                 emitNextKey(1)
@@ -648,7 +568,7 @@ class PageLoaderIntegrationTest {
     fun pageLoader_whenMultipleNextPagesFail_emitsFailureAndCompletes() = runFlowTest {
         // When page 0 fails initially (all containers are error) -> shutdown -> complete with failure
         val exception = RuntimeException("initial fail")
-        val pageLoader = pageLoader<Int, String>(initialKey = 0) {
+        val pageLoader = createPageLoader(initialKey = 0) {
             throw exception
         }
 
@@ -663,7 +583,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenRetryAfterNextPageError_resetsNextPageStateToPending() = runFlowTest {
         var callIndex = 0
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a"))
                 emitNextKey(1)
@@ -689,7 +609,10 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_withStringKeys_worksCorrectly() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = "first") { key ->
+        val pageLoader = pageLoader<String, String>(
+            initialKey = "first",
+            itemId = { it },
+        ) { key ->
             when (key) {
                 "first" -> {
                     emitPage(listOf("a"))
@@ -712,7 +635,7 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenNextPageFailsAfterFirstPageSucceeded_firstPageDataIsPreserved() = runFlowTest {
-        val pageLoader = pageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
             if (index == 0) {
                 emitPage(listOf("a", "b"))
                 emitNextKey(1)
@@ -731,15 +654,56 @@ class PageLoaderIntegrationTest {
         assertTrue(pageLoader.nextPageState.value is PageState.Error)
     }
 
-    // Threshold Tests
-
-    // 4-item page, threshold=0.5 -> thresholdIndex = (0.5 * 4).toInt() = 2
+    // Fetch Distance Tests:
+    // 4-item page, fetchDistance=2 -> thresholdIndex = 2
     // Indices 0..1 are below threshold; indices 2..3 are at/above threshold.
 
     @Test
-    fun pageLoader_withThreshold_whenItemBelowThresholdRendered_doesNotLoadNextPage() = runFlowTest {
+    fun pageLoader_whenItemBelowThresholdFromFirstPageRenderedByMetadata_doesNotStartLoadingNextPage() = runFlowTest {
+        var nextPageLoadCalls = 0
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
+            if (index == 0) {
+                emitPage(listOf("a", "b", "c", "d"))
+                emitNextKey(1)
+            } else {
+                nextPageLoadCalls++
+                awaitCancellation()
+            }
+        }
+        val slot = slot<ContainerMetadata>()
+        coEvery { emitter.emit(any(), capture(slot)) } just runs
+
+        executeInBackground { pageLoader.statefulInvoke() }
+        slot.captured.onItemRendered(1)
+
+        assertEquals(0, nextPageLoadCalls)
+    }
+
+    @Test
+    fun pageLoader_whenItemAtThresholdFromFirstPageRenderedByMetadata_startsLoadingNextPage() = runFlowTest {
+        var nextPageLoadCalls = 0
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
+            if (index == 0) {
+                emitPage(listOf("a", "b", "c", "d"))
+                emitNextKey(1)
+            } else {
+                nextPageLoadCalls++
+                awaitCancellation()
+            }
+        }
+        val slot = slot<ContainerMetadata>()
+        coEvery { emitter.emit(any(), capture(slot)) } just runs
+
+        executeInBackground { pageLoader.statefulInvoke() }
+        slot.captured.onItemRendered(2)
+
+        assertEquals(1, nextPageLoadCalls)
+    }
+
+    @Test
+    fun pageLoader_whenItemBelowFetchDistanceRendered_doesNotLoadNextPage() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 0.5f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c", "d"))
             if (index == 0) emitNextKey(1)
@@ -753,9 +717,9 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_withThreshold_whenItemAtThresholdRendered_loadsNextPage() = runFlowTest {
+    fun pageLoader_whenItemAtFetchDistanceRendered_loadsNextPage() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 0.5f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c", "d"))
             if (index == 0) emitNextKey(1)
@@ -769,9 +733,9 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_withThreshold_whenItemAboveThresholdRendered_loadsNextPage() = runFlowTest {
+    fun pageLoader_whenItemAboveFetchDistanceRendered_loadsNextPage() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 0.5f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c", "d"))
             if (index == 0) emitNextKey(1)
@@ -785,9 +749,9 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_withThresholdOne_whenItemBeforeLastRendered_doesNotLoadNextPage() = runFlowTest {
+    fun pageLoader_withMinFetchDistance_whenItemBeforeLastRendered_doesNotLoadNextPage() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 1.0f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 0) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c", "d"))
             if (index == 0) emitNextKey(1)
@@ -803,9 +767,9 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_withThresholdOne_whenLastItemRendered_loadsNextPage() = runFlowTest {
+    fun pageLoader_withMinFetchDistance_whenLastItemRendered_loadsNextPage() = runFlowTest {
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 1.0f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 0) { index ->
             loadedKeys.add(index)
             emitPage(listOf("a", "b", "c", "d"))
             if (index == 0) emitNextKey(1)
@@ -813,18 +777,18 @@ class PageLoaderIntegrationTest {
 
         executeInBackground { pageLoader.statefulInvoke() }
 
-        pageLoader.onItemRendered(3) // index 3 is the last item (threshold = 1.0)
+        pageLoader.onItemRendered(3) // index 3 is the last item
 
         assertEquals(listOf(0, 1), loadedKeys)
     }
 
     @Test
-    fun pageLoader_withThreshold_andDelayedNextKey_whenItemBelowThreshold_nextKeyNotLoadedImmediately() = runFlowTest {
+    fun pageLoader_withDelayedNextKeyWhenItemBelowThreshold_nextKeyNotLoadedImmediately() = runFlowTest {
         // ScheduleImmediateLoad path: emitNextKey is called after the user renders an item.
         // When the item is below threshold, ScheduleImmediateLoad is NOT set,
         // so emitNextKey registers the key as pending rather than launching immediately.
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 0.5f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
             loadedKeys.add(index)
             if (index == 0) {
                 emitPage(listOf("a", "b", "c", "d"))
@@ -853,11 +817,11 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_withThreshold_andDelayedNextKey_whenItemAtThreshold_nextKeyLoadedImmediately() = runFlowTest {
+    fun pageLoader_withDelayedNextKey_whenItemAtThreshold_nextKeyLoadedImmediately() = runFlowTest {
         // ScheduleImmediateLoad path: when the item at/above threshold is rendered before
         // emitNextKey, ScheduleImmediateLoad IS set, so emitNextKey launches immediately.
         val loadedKeys = mutableListOf<Int>()
-        val pageLoader = pageLoader(initialKey = 0, threshold = 0.5f) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 2) { index ->
             loadedKeys.add(index)
             if (index == 0) {
                 emitPage(listOf("a", "b", "c", "d"))
@@ -878,6 +842,19 @@ class PageLoaderIntegrationTest {
 
     private suspend fun PageLoader<Int, String>.statefulInvoke() {
         emitter.statefulInvoke()
+    }
+
+    private fun createPageLoader(
+        initialKey: Int,
+        fetchDistance: Int = 10,
+        block: suspend PageEmitter<Int, String>.(Int) -> Unit,
+    ): PageLoader<Int, String> {
+        return pageLoader(
+            initialKey = initialKey,
+            itemId = { it },
+            block = block,
+            fetchDistance = fetchDistance,
+        )
     }
 
 }

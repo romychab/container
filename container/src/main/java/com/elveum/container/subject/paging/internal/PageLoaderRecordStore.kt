@@ -3,12 +3,18 @@ package com.elveum.container.subject.paging.internal
 import com.elveum.container.Container
 import com.elveum.container.errorContainer
 import com.elveum.container.getOrNull
+import com.elveum.container.isCompleted
 import com.elveum.container.pendingContainer
 import kotlinx.coroutines.sync.Mutex
+import kotlin.math.max
 
 internal class PageLoaderRecordStore<Key, T>(
-    private val threshold: Float
+    private val fetchDistance: Int,
+    itemId: (T) -> Any,
 ) {
+
+    private val outputList = mutableListOf<T>()
+    private val listMerger = ListMerger(outputList, itemId)
 
     private val orderedRecords = LinkedHashMap<Key, PageKeyRecord<Key, T>>()
 
@@ -22,35 +28,33 @@ internal class PageLoaderRecordStore<Key, T>(
     }
 
     fun findNextKeyForIndex(index: Int): NextKeyLoadResult<Key> = synchronized(this) {
-        val totalItemsCount = orderedRecords.values
-            .sumOf { (it.container as? Container.Success)?.value?.size ?: 0 }
-        if (index !in 0..<totalItemsCount) return@synchronized NextKeyLoadResult.Skip
+        val totalSize = orderedRecords.values.sumOf {
+            it.container.getOrNull()?.size ?: 0
+        }
+        if (totalSize == 0) return@synchronized NextKeyLoadResult.Skip
+        if (index !in 0..<totalSize) return@synchronized NextKeyLoadResult.Skip
         if (firstOrNull { it.container is Container.Error } != null) {
             return@synchronized NextKeyLoadResult.Skip
         }
-        var pageStartIndex = 0
-        var lastPageSize = 0
-        orderedRecords.values.forEach { record ->
-            if (index < pageStartIndex) {
-                // 'record' is a pending next page; only trigger if threshold reached in previous page
-                val thresholdIndex = getThresholdIndex(pageStartIndex, lastPageSize)
-                return@synchronized if (index >= thresholdIndex) {
-                    NextKeyLoadResult.Key(record.key)
-                } else {
-                    NextKeyLoadResult.Skip
-                }
-            }
-            val pageList = record.container.getOrNull() ?: return@synchronized NextKeyLoadResult.Skip
-            lastPageSize = pageList.size
-            pageStartIndex += pageList.size
-        }
-        // No pending next-page record; schedule immediate load when threshold is reached
-        if (lastPageSize == 0) return@synchronized NextKeyLoadResult.Skip
-        val thresholdIndex = getThresholdIndex(pageStartIndex, lastPageSize)
-        return@synchronized if (index >= thresholdIndex) {
-            NextKeyLoadResult.ScheduleImmediateLoad
-        } else {
+
+        val adjustedFetchDistance = max(1, fetchDistance)
+        val thresholdIndex = max(0, totalSize - adjustedFetchDistance)
+        if (index < thresholdIndex) {
             NextKeyLoadResult.Skip
+        } else {
+            val firstNonLaunchedPendingPage = orderedRecords.values.firstOrNull {
+                it.container == pendingContainer() && it.job == null
+            }
+            val hasLaunchedNonSuccessfulPages = orderedRecords.values.any {
+                it.container !is Container.Success && it.job != null
+            }
+            if (firstNonLaunchedPendingPage != null) {
+                NextKeyLoadResult.Key(firstNonLaunchedPendingPage.key)
+            } else if (hasLaunchedNonSuccessfulPages) {
+                NextKeyLoadResult.Skip
+            } else {
+                NextKeyLoadResult.ScheduleImmediateLoad
+            }
         }
     }
 
@@ -63,7 +67,12 @@ internal class PageLoaderRecordStore<Key, T>(
     }
 
     fun updateContainer(key: Key, container: Container<List<T>>) = synchronized(this) {
+        val nonFinalOldItems = getNonFinalItems()
         orderedRecords[key]?.container = container
+        if (container.isCompleted()) {
+            val nonFinalNewItems = getNonFinalItems()
+            listMerger.mergeFrom(nonFinalOldItems, nonFinalNewItems)
+        }
     }
 
     fun hasLaunchedKey(key: Key) = synchronized(this) {
@@ -74,8 +83,9 @@ internal class PageLoaderRecordStore<Key, T>(
         orderedRecords[key]?.container = pendingContainer()
     }
 
-    fun onKeyCompleted() = synchronized(this) {
+    fun onKeyCompleted(key: Key) = synchronized(this) {
         counter--
+        orderedRecords[key]?.completed = true
         if (counter == 0 && awaitMutex.isLocked) {
             awaitMutex.unlock()
         }
@@ -85,13 +95,16 @@ internal class PageLoaderRecordStore<Key, T>(
         counter = 0
         isFinished = true
         orderedRecords.clear()
+        outputList.clear()
         if (awaitMutex.isLocked) {
             awaitMutex.unlock()
         }
     }
 
     fun onKeyFailed(key: Key, exception: Exception) = synchronized(this) {
+        val nonFinalOldItems = getNonFinalItems()
         orderedRecords[key]?.container = errorContainer(exception)
+        val nonFinalNewItems = emptyList<T>()
         val keysList = orderedRecords.keys.toList()
         val startIndex = keysList.indexOf(key)
         if (startIndex != -1 && startIndex != keysList.lastIndex) {
@@ -101,13 +114,11 @@ internal class PageLoaderRecordStore<Key, T>(
                 cancelKey(key)
             }
         }
+        listMerger.mergeFrom(nonFinalOldItems, nonFinalNewItems)
     }
 
     fun buildOutputList(): List<T> = synchronized(this) {
-        return orderedRecords.values
-            .map { record -> record.container }
-            .mapNotNull { container -> container.getOrNull() }
-            .flatten()
+        return outputList.toList()
     }
 
     fun getAllContainers() = synchronized(this) {
@@ -136,11 +147,11 @@ internal class PageLoaderRecordStore<Key, T>(
         }
     }
 
-    private fun getThresholdIndex(
-        pageStartIndex: Int,
-        lastPageSize: Int,
-    ) = pageStartIndex - lastPageSize + (threshold * lastPageSize).toInt()
-        .coerceIn(0, pageStartIndex - 1)
+    private fun getNonFinalItems() = orderedRecords.values
+        .mapNotNull { record ->
+            record.container.getOrNull().takeIf { !record.completed }
+        }
+        .flatten()
 
     sealed class NextKeyLoadResult<out Key> {
         data object Skip : NextKeyLoadResult<Nothing>()

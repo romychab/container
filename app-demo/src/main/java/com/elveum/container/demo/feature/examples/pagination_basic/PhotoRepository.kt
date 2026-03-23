@@ -12,7 +12,10 @@ class PhotoRepository @Inject constructor(
 ) {
 
     private val subject = LazyFlowSubject.create(
-        valueLoader = pageLoader<Int?, Photo>(initialKey = null) { pageKey ->
+        valueLoader = pageLoader<Int?, Photo>(
+            initialKey = null,
+            itemId = Photo::id,
+        ) { pageKey ->
             val result = dataSource.fetchPage(pageKey)
             emitPage(result.photos)
             if (result.nextPageKey != null) emitNextKey(result.nextPageKey)

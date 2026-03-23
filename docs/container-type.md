@@ -10,6 +10,7 @@ Kotlin Flows.
 - [Creating Containers](#creating-containers)
 - [Extracting Values](#extracting-values)
 - [Pattern Matching with when / fold](#pattern-matching-with-when-fold)
+- [Pattern Matching with isXXX extensions](#pattern-matching-with-isxxx-extensions)
 - [Transformations](#transformations)
   - [map](#map)
   - [transform](#transform)
@@ -156,6 +157,25 @@ val text: String? = container.foldNullable(
 )
 ```
 
+## Pattern Matching with isXXX extensions
+
+The following extensions can be used for pattern-matching:
+
+- `isSuccess`
+- `isError`
+- `isPending`
+- `isCompleted`
+
+All of them are compatible with Kotlin Smartcast.
+
+For example:
+
+```kotlin
+val container: Container<String> = ...
+if (container.isSuccess()) {
+    println(container.value)
+}
+```
 
 ## Transformations
 

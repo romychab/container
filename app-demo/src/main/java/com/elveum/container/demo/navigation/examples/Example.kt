@@ -15,7 +15,9 @@ import com.elveum.container.demo.feature.examples.reducer_state_pattern.ReducerP
 import com.elveum.container.demo.feature.examples.subject_args.ArgsScreen
 import com.elveum.container.demo.feature.examples.subject_chunks.ChunksScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
+import com.elveum.container.demo.feature.examples.pagination_args.PaginationArgsScreen
 import com.elveum.container.demo.feature.examples.pagination_basic.BasicPaginationScreen
+import com.elveum.container.demo.feature.examples.pagination_statuses.PaginationStatusesScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
 import com.elveum.container.demo.feature.examples.subject_errors.ErrorHandlingScreen
 import com.elveum.container.demo.feature.examples.subject_pulltorefresh.PullToRefreshScreen
@@ -211,6 +213,26 @@ sealed class Example {
 
         @Composable
         override fun Content() = BasicPaginationScreen()
+    }
+
+    @Serializable
+    data object PaginationStatuses : Example() {
+        @Transient override val category = Category.Pagination
+        @Transient override val title = "Pagination Statuses"
+        @Transient override val description = "Combines pull-to-refresh, incremental paging, and error handling. A checkbox toggles simulated failures to demonstrate all error states."
+
+        @Composable
+        override fun Content() = PaginationStatusesScreen()
+    }
+
+    @Serializable
+    data object PaginationArgs : Example() {
+        @Transient override val category = Category.Pagination
+        @Transient override val title = "Pagination with Args"
+        @Transient override val description = "Adds a category filter as a reactive argument via dependsOnFlow(). Toggling a chip restarts paging from the first page with the new filter applied."
+
+        @Composable
+        override fun Content() = PaginationArgsScreen()
     }
 
 }

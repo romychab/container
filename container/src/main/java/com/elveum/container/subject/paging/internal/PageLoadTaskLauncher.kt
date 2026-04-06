@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.subject.paging.PageEmitter
 import kotlinx.coroutines.CoroutineScope
@@ -29,6 +30,10 @@ internal class PageLoadTaskLauncher<Key, T>(
 
     fun findNextKeyForIndex(index: Int): Key? {
         return state.findNextKeyForIndex(index)
+    }
+
+    fun intercept(container: Container<List<T>>): Container<List<T>> {
+        return state.intercept(container)
     }
 
     class PageEmitterFactory<Key, T>(

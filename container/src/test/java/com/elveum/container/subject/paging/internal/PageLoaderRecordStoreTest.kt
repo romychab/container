@@ -4,6 +4,8 @@ package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.Container
 import com.elveum.container.errorContainer
+import com.elveum.container.getOrNull
+import com.elveum.container.pendingContainer
 import com.elveum.container.subject.paging.internal.PageLoaderRecordStore.NextKeyLoadResult
 import com.elveum.container.successContainer
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -14,6 +16,7 @@ import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNotSame
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -689,6 +692,51 @@ class PageLoaderRecordStoreTest {
 
         // index 10 is the 3rd item of page 3, at thresholdIndex=10
         assertEquals(NextKeyLoadResult.ScheduleImmediateLoad, store.findNextKeyForIndex(10))
+    }
+
+    @Test
+    fun intercept_withSuccessContainer_returnsDifferentInstance() {
+        val input = successContainer(listOf("a", "b"))
+
+        val output = store.intercept(input)
+
+        assertNotSame(input, output)
+    }
+
+    @Test
+    fun intercept_withSuccessContainer_replacesOutputList() {
+        val input = successContainer(listOf("a", "b"))
+
+        store.intercept(input)
+
+        assertEquals(input.value, store.buildOutputList())
+    }
+
+    @Test
+    fun intercept_withSuccessContainer_containsInputValue() {
+        val input = successContainer(listOf("a", "b"))
+
+        val output = store.intercept(input)
+
+        assertEquals(listOf("a", "b"), output.getOrNull())
+    }
+
+    @Test
+    fun intercept_withPendingContainer_returnsSameInstance() {
+        val input = pendingContainer()
+
+        val output = store.intercept(input)
+
+        assertSame(input, output)
+    }
+
+    @Test
+    fun intercept_withErrorContainer_returnsSameInstance() {
+        val input = errorContainer(RuntimeException("error"))
+
+        val output = store.intercept(input)
+
+        assertSame(input, output)
     }
 
 }

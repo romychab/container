@@ -155,6 +155,7 @@ class LazyFlowSubjectTest {
         val expectedValueLoader = mockk<ValueLoader<String>>()
         val expectedMetadata = SourceTypeMetadata(RemoteSourceType)
         val loadTaskSlot = slot<LoadTask<String>>()
+        every { loadTaskManager.interceptByLoader(any()) } returns false
         every { loadTaskManager.getLastRealLoader() } returns expectedValueLoader
         every { loadTaskManager.getLastRealMetadata() } returns expectedMetadata
 
@@ -167,6 +168,21 @@ class LazyFlowSubjectTest {
         assertSame(expectedContainer, resultLoadTask.initialContainer)
         assertSame(expectedValueLoader, resultLoadTask.lastRealLoader)
         assertSame(expectedMetadata, resultLoadTask.lastRealMetadata)
+    }
+
+    @Test
+    fun updateWith_withInterceptedParam_doesNotExecuteInstantTask() {
+        val expectedContainer = successContainer("123")
+        every { loadTaskManager.interceptByLoader(any()) } returns true
+
+        subject.updateWith(expectedContainer)
+
+        verify(exactly = 1) {
+            loadTaskManager.interceptByLoader(refEq(expectedContainer))
+        }
+        verify(exactly = 0) {
+            loadTaskManager.submitNewLoadTask(any())
+        }
     }
 
     @Test

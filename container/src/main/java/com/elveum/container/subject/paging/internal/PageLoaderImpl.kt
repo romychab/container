@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
@@ -37,6 +38,10 @@ internal class PageLoaderImpl<Key, T>(
         if (nextKey != null) {
             launcher.launch(nextKey)
         }
+    }
+
+    override fun intercept(container: Container<List<T>>): Container<List<T>> {
+        return launcher?.intercept(container) ?: container
     }
 
     override suspend fun Emitter<List<T>>.invoke(): Unit = Unit

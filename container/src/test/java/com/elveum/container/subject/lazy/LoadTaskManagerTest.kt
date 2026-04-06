@@ -6,6 +6,9 @@ import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.get
+import com.elveum.container.getOrNull
+import com.elveum.container.map
+import com.elveum.container.pendingContainer
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
@@ -18,8 +21,11 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -251,5 +257,32 @@ class LoadTaskManagerTest {
         loadTask2.controller.emit(successContainer("2"))
         assertEquals(successContainer("2"), loadTaskManager.listen().value)
     }
+
+    @Test
+    fun interceptByLoader_withInterceptedUpdatedValue_changesOutput() = runTest {
+        val loadTask = MockLoadTask(this)
+        val controller = loadTask.controller
+        loadTaskManager.submitNewLoadTask(loadTask)
+        controller.mockIntercept { container -> container.map { "$it-updated" } }
+
+        val result = loadTaskManager.interceptByLoader(successContainer("1"))
+
+        assertEquals("1-updated", loadTaskManager.listen().value.getOrNull())
+        assertTrue(result)
+    }
+
+    @Test
+    fun interceptByLoader_withInterceptedNonUpdatedValue_doesNothing() = runTest {
+        val loadTask = MockLoadTask(this)
+        val controller = loadTask.controller
+        loadTaskManager.submitNewLoadTask(loadTask)
+        controller.mockIntercept { container -> container }
+
+        val result = loadTaskManager.interceptByLoader(successContainer("1"))
+
+        assertEquals(pendingContainer(), loadTaskManager.listen().value)
+        assertFalse(result)
+    }
+
 
 }

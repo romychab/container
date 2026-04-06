@@ -2,12 +2,15 @@
 
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.map
 import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.container.subject.paging.PageState
 import com.elveum.container.subject.paging.nextPageState
 import com.elveum.container.subject.paging.onItemRendered
+import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.awaits
 import io.mockk.coEvery
@@ -222,5 +225,34 @@ class PageLoaderTest {
             launcher.launch(10)
         }
     }
+
+    @Test
+    fun intercept_withoutLauncher_returnsInputParam() {
+        val input = successContainer(listOf("1"))
+        val output = loader.intercept(input)
+        assertSame(input, output)
+    }
+
+    @Test
+    fun intercept_withLauncher_delegatesCall() = runTest {
+        coEvery { state.await() } just awaits
+        every { launcher.intercept(any()) } answers {
+            firstArg<Container<List<String>>>().map { it.reversed() }
+        }
+        val input = successContainer(listOf("1", "2"))
+
+        backgroundScope.launch {
+            with(loader) { statefulEmitter.statefulInvoke() }
+        }
+        runCurrent()
+        val output = loader.intercept(input)
+
+        assertEquals(successContainer(listOf("2", "1")), output)
+        verify(exactly = 1) {
+            launcher.intercept(input)
+        }
+    }
+
+
 
 }

@@ -2,8 +2,11 @@
 
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.map
 import com.elveum.container.subject.paging.PageEmitter
+import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -135,6 +138,18 @@ class PageLoadTaskLauncherTest {
 
         assertEquals(2, result)
         verify { state.findNextKeyForIndex(5) }
+    }
+
+    @Test
+    fun intercept_delegatesToState() = testScope.runTest {
+        val input = successContainer(listOf("a", "b"))
+        val expected = input.map { it.reversed() }
+        every { state.intercept(input) } returns expected
+
+        val result = launcher.intercept(input)
+
+        assertEquals(expected, result)
+        verify(exactly = 1) { state.intercept(input) }
     }
 
 }

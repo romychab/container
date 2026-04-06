@@ -15,9 +15,12 @@ import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.errorContainer
 import com.elveum.container.exceptionOrNull
 import com.elveum.container.get
+import com.elveum.container.getOrNull
 import com.elveum.container.loadTrigger
+import com.elveum.container.map
 import com.elveum.container.sourceType
 import com.elveum.container.subject.FlowSubject
+import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
 import com.elveum.container.successContainer
@@ -622,14 +625,49 @@ class LoadTaskTest {
         }
     }
 
+    @Test
+    fun loadTask_intercept_delegatesToStatefulLoader() {
+        val loader = mockk<StatefulValueLoader<String>>()
+        val loadTask = makeLoadTask(loader)
+        val input = successContainer("123")
+        every { loader.intercept(any()) } answers {
+            firstArg<Container<String>>().map { "$it-mapped" }
+        }
+
+        val output = loadTask.intercept(input)
+
+        assertEquals("123-mapped", output.getOrNull())
+    }
+
+    @Test
+    fun loadTask_intercept_withStatelessLoaderReturnsInputParam() {
+        val instant = makeLoadTask()
+        val input = successContainer("2")
+
+        val output = instant.intercept(input)
+
+        assertSame(input, output)
+    }
+
+    @Test
+    fun loadTask_interceptDefault_returnsInputParam() {
+        val instant = LoadTask.Instant(successContainer("1"))
+        val input = successContainer("2")
+
+        val output = instant.intercept(input)
+
+        assertSame(input, output)
+    }
+
     private fun makeLoadTask(
+        loader: ValueLoader<String> = valueLoader,
         metadata: ContainerMetadata = EmptyMetadata,
         config: LoadConfig = LoadConfig.Normal,
         onFlowEmitterCreated: (FlowCollector<Container<String>>, ExecuteParams<String>) -> Unit = { _, _ -> },
     ): LoadTask<String> {
         return LoadTask.Load(
             metadata = metadata,
-            loader = valueLoader,
+            loader = loader,
             config = config,
             flowSubject = flowSubject,
             flowEmitterCreator = object : LoadTask.FlowEmitterCreator<String>(flowSubject, metadata) {

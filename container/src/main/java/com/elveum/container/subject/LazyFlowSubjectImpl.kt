@@ -73,6 +73,7 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun updateWith(container: Container<T>) = synchronized(loadTaskManager) {
+        if (loadTaskManager.interceptByLoader(container)) return@synchronized
         loadTaskManager.submitNewLoadTask(
             LoadTask.Instant(
                 initialContainer = container,

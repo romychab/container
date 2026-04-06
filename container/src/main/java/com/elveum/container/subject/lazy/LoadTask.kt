@@ -24,6 +24,7 @@ internal interface LoadTask<T> {
     fun execute(executeParams: ExecuteParams<T>): Flow<Container<T>>
     fun cancel(reason: String)
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
+    fun intercept(container: Container<T>): Container<T> = container
 
     class ExecuteParams<T>(
         val flowDependencyStore: FlowDependencyStore,
@@ -128,6 +129,13 @@ internal interface LoadTask<T> {
             )
         }
 
+        override fun intercept(container: Container<T>): Container<T> {
+            return if (loader is StatefulValueLoader<T>) {
+                loader.intercept(container)
+            } else {
+                container
+            }
+        }
     }
 
 }

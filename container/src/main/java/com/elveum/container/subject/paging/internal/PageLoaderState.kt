@@ -37,6 +37,9 @@ internal class PageLoaderState<Key, T>(
                 } else {
                     suspendCancellableCoroutine<Unit> { continuation ->
                         record.retryContinuation = continuation
+                        continuation.invokeOnCancellation {
+                            record.retryContinuation = null
+                        }
                     }
                 }
             }
@@ -96,6 +99,10 @@ internal class PageLoaderState<Key, T>(
 
     fun isImmediateLaunchScheduled(): Boolean {
         return isImmediateLaunchScheduled
+    }
+
+    fun intercept(container: Container<List<T>>): Container<List<T>> {
+        return store.intercept(container)
     }
 
 }

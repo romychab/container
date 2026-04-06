@@ -1,5 +1,6 @@
 package com.elveum.container.subject
 
+import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.StatefulEmitter
 
@@ -7,6 +8,11 @@ import com.elveum.container.StatefulEmitter
  * Loader function for [LazyFlowSubject] which can emit loaded values.
  */
 public fun interface ValueLoader<T> {
+
+    /**
+     * The body of value loader which can emit new items at any time
+     * during the load.
+     */
     public suspend operator fun Emitter<T>.invoke()
 }
 
@@ -18,6 +24,8 @@ public fun interface ValueLoader<T> {
 public interface StatefulValueLoader<T> : ValueLoader<T> {
 
     public suspend fun StatefulEmitter<T>.statefulInvoke()
+
+    public fun intercept(container: Container<T>): Container<T> = container
 
     public companion object {
         internal fun <T> wrap(valueLoader: ValueLoader<T>): StatefulValueLoader<T> {

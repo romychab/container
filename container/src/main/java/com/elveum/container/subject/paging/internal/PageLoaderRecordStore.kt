@@ -4,6 +4,8 @@ import com.elveum.container.Container
 import com.elveum.container.errorContainer
 import com.elveum.container.getOrNull
 import com.elveum.container.isCompleted
+import com.elveum.container.isSuccess
+import com.elveum.container.map
 import com.elveum.container.pendingContainer
 import kotlinx.coroutines.sync.Mutex
 import kotlin.math.max
@@ -137,6 +139,16 @@ internal class PageLoaderRecordStore<Key, T>(
 
     fun keys(): List<Key> = synchronized(this) {
         orderedRecords.keys.toList()
+    }
+
+    fun intercept(container: Container<List<T>>): Container<List<T>> = synchronized(this) {
+        if (container.isSuccess()) {
+            outputList.clear()
+            outputList.addAll(container.value)
+            container.map { buildOutputList() }
+        } else {
+            container
+        }
     }
 
     private fun cancelKey(key: Key) {

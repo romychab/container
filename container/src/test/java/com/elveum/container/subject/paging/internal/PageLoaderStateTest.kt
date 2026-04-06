@@ -1,5 +1,8 @@
+@file:OptIn(ExperimentalCoroutinesApi::class)
+
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
@@ -12,11 +15,13 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -422,6 +427,38 @@ class PageLoaderStateTest {
     @Test
     fun isImmediateLaunchScheduled_initiallyFalse() {
         assertFalse(pageLoaderState.isImmediateLaunchScheduled())
+    }
+
+    @Test
+    fun intercept_delegatesToStore() {
+        val input = successContainer(listOf("a"))
+        val expected = successContainer(listOf("b"))
+        every { store.intercept(input) } returns expected
+
+        val result = pageLoaderState.intercept(input)
+
+        assertEquals(expected, result)
+        verify(exactly = 1) { store.intercept(input) }
+    }
+
+    @Test
+    fun processKey_onCancellation_clearsRetryContinuation() = runTest {
+        val job = coroutineContext.job
+        val record = PageKeyRecord<Int, String>(1, job = job)
+        every { store.getOrPut(1, any()) } returns record
+        every { store.getAllContainers() } returns listOf(pendingContainer())
+
+        val processJob = backgroundScope.launch {
+            pageLoaderState.processKey(1, job) {
+                throw RuntimeException("error")
+            }
+        }
+        runCurrent()
+        assertNotNull(record.retryContinuation)
+
+        processJob.cancel()
+        runCurrent()
+        assertNull(record.retryContinuation)
     }
 
 }

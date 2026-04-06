@@ -60,6 +60,16 @@ internal class LoadTaskManager<T>(
         }
     }
 
+    fun interceptByLoader(container: Container<T>): Boolean {
+        val transformedContainer = inputFlow.value.intercept(container)
+        if (transformedContainer !== container) {
+            outputFlow.value = transformedContainer
+            return true
+        } else {
+            return false
+        }
+    }
+
     fun submitNewLoadTask(loadTask: LoadTask<T>) = synchronized(this) {
         if (job != null) {
             loadTask.initialContainer?.let { outputFlow.value = it }

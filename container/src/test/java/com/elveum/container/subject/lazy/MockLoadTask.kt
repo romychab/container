@@ -62,6 +62,11 @@ internal class MockLoadTask private constructor(
     }
 
     override fun cancel(reason: String) = Unit
+
+    override fun intercept(container: Container<String>): Container<String> {
+        return _controller.interceptor(container)
+    }
+
 }
 
 internal interface LoadTaskController {
@@ -70,6 +75,7 @@ internal interface LoadTaskController {
     suspend fun emit(container: Container<String>)
     fun complete()
     fun reset()
+    fun mockIntercept(block: (Container<String>) -> Container<String>)
 }
 
 private class LoadTaskControllerImpl(
@@ -79,6 +85,8 @@ private class LoadTaskControllerImpl(
     private var startContinuation = CompletableDeferred<Unit>()
     private var endContinuation = CompletableDeferred<Unit>()
     private val flow = MutableSharedFlow<Container<String>>()
+
+    var interceptor: (Container<String>) -> Container<String> = { it }
 
     override var executeParams: ExecuteParams<String>? = null
 
@@ -112,4 +120,7 @@ private class LoadTaskControllerImpl(
         endContinuation = CompletableDeferred()
     }
 
+    override fun mockIntercept(block: (Container<String>) -> Container<String>) {
+        this.interceptor = block
+    }
 }

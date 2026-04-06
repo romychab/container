@@ -6,11 +6,13 @@ import com.elveum.container.Container
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.get
+import com.elveum.container.getOrNull
+import com.elveum.container.map
+import com.elveum.container.pendingContainer
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.every
-import io.mockk.impl.annotations.MockK
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.mockk
 import io.mockk.spyk
@@ -19,15 +21,15 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import org.junit.Assert
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 class LoadTaskManagerTest {
-
-    @MockK
-    private lateinit var uuidProvider: () -> String
 
     @RelaxedMockK
     private lateinit var flowDependencyStore: FlowDependencyStore
@@ -37,8 +39,7 @@ class LoadTaskManagerTest {
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
-        every { uuidProvider.invoke() } returns ""
-        loadTaskManager = LoadTaskManager(uuidProvider = uuidProvider)
+        loadTaskManager = LoadTaskManager()
     }
 
     @Test
@@ -258,26 +259,30 @@ class LoadTaskManagerTest {
     }
 
     @Test
-    fun startProcessingLoads_attachesUniqueLoadUuid() = runTest {
-        val loadTask1 = MockLoadTask(this)
-        val loadTask2 = MockLoadTask(this)
-        loadTaskManager.startProcessingLoads(backgroundScope, flowDependencyStore)
-        every { uuidProvider.invoke() } returns "uuid1" andThen "uuid2"
+    fun interceptByLoader_withInterceptedUpdatedValue_changesOutput() = runTest {
+        val loadTask = MockLoadTask(this)
+        val controller = loadTask.controller
+        loadTaskManager.submitNewLoadTask(loadTask)
+        controller.mockIntercept { container -> container.map { "$it-updated" } }
 
-        loadTaskManager.submitNewLoadTask(loadTask1)
-        loadTask1.controller.start()
+        val result = loadTaskManager.interceptByLoader(successContainer("1"))
 
-        loadTaskManager.submitNewLoadTask(loadTask2)
-        loadTask2.controller.start()
-
-        assertEquals(
-            "uuid1",
-            loadTask1.controller.executeParams?.loadUuid
-        )
-        assertEquals(
-            "uuid2",
-            loadTask2.controller.executeParams?.loadUuid
-        )
+        assertEquals("1-updated", loadTaskManager.listen().value.getOrNull())
+        assertTrue(result)
     }
+
+    @Test
+    fun interceptByLoader_withInterceptedNonUpdatedValue_doesNothing() = runTest {
+        val loadTask = MockLoadTask(this)
+        val controller = loadTask.controller
+        loadTaskManager.submitNewLoadTask(loadTask)
+        controller.mockIntercept { container -> container }
+
+        val result = loadTaskManager.interceptByLoader(successContainer("1"))
+
+        assertEquals(pendingContainer(), loadTaskManager.listen().value)
+        assertFalse(result)
+    }
+
 
 }

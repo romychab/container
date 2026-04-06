@@ -2,12 +2,14 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.LoadConfig
 import com.elveum.container.cache.LazyCacheImpl.LazyFlowSubjectFactory
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
+import com.elveum.container.utils.invokeOn
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
@@ -85,7 +87,7 @@ class LazyCacheTest {
         verify(exactly = 1) {
             subjectFactory.create(capture(valueLoader))
         }
-        valueLoader.captured.invoke(expectedEmitter)
+        valueLoader.captured.invokeOn(expectedEmitter)
         coVerify(exactly = 1) {
             loader(refEq(expectedEmitter), expectedKey)
         }
@@ -300,14 +302,14 @@ class LazyCacheTest {
     fun reload_withActiveCacheSlot_reloadsValue() = scope.runFlowTest {
         val subject = mockSubject()
         val expectedFlow = flowOf("")
-        every { subject.reload(silently = true) } returns expectedFlow
+        every { subject.reload(config = LoadConfig.SilentLoading) } returns expectedFlow
         lazyCache.listen(key).startCollecting()
 
-        val flow = lazyCache.reload(key, silently = true)
+        val flow = lazyCache.reload(key, config = LoadConfig.SilentLoading)
 
         assertSame(expectedFlow, flow)
         verify(exactly = 1) {
-            subject.reload(silently = true)
+            subject.reload(config = LoadConfig.SilentLoading)
         }
     }
 

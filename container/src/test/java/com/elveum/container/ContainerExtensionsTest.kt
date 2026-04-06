@@ -2,7 +2,6 @@ package com.elveum.container
 
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -417,17 +416,17 @@ class ContainerExtensionsTest {
     @Test
     fun unwrapContainerValue_forSuccessContainer_returnsValue() {
         val expectedValue = "value"
-        val expectedSource = LocalSourceType
-        val expectedIsLoadingInBackground = true
-        val expectedReloadFunction = mockk<ReloadFunction>()
-        val container = successContainer(expectedValue, expectedSource,
-            expectedIsLoadingInBackground, expectedReloadFunction)
+        val expectedSource = SourceTypeMetadata(LocalSourceType)
+        val expectedIsLoadingInBackground = BackgroundLoadMetadata(BackgroundLoadState.Loading)
+        val expectedReloadFunction = ReloadFunctionMetadata(mockk<ReloadFunction>())
+        val container = successContainer(expectedValue, expectedSource +
+                expectedIsLoadingInBackground + expectedReloadFunction)
 
         val value = container.unwrapContainerValue()
 
-        assertEquals(expectedSource, value.source)
-        assertEquals(expectedIsLoadingInBackground, value.isLoadingInBackground)
-        assertSame(expectedReloadFunction, value.reloadFunction)
+        assertEquals(expectedSource.sourceType, value.sourceType)
+        assertEquals(expectedIsLoadingInBackground.backgroundLoadState, value.backgroundLoadState)
+        assertSame(expectedReloadFunction.reloadFunction, value.reloadFunction)
         assertEquals(expectedValue, value.value)
     }
 
@@ -435,60 +434,34 @@ class ContainerExtensionsTest {
     fun test_getContainerValueOrNull() {
         val reloadFunction = mockk<ReloadFunction>()
         val pending: Container<String> = pendingContainer()
-        val success: Container<String> = successContainer("test", RemoteSourceType, true, reloadFunction)
-        val error: Container<String> = errorContainer(IllegalStateException(), RemoteSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) + BackgroundLoadMetadata(BackgroundLoadState.Loading) + ReloadFunctionMetadata(reloadFunction)
+        val success: Container<String> = successContainer("test", metadata)
+        val error: Container<String> = errorContainer(IllegalStateException(), metadata)
 
         assertNull(pending.getContainerValueOrNull())
         assertNull(error.getContainerValueOrNull())
         val successValue = success.getContainerValueOrNull()
         assertSame(reloadFunction, successValue?.reloadFunction)
         assertEquals("test", successValue?.value)
-        assertEquals(RemoteSourceType, successValue?.source)
-        assertTrue(successValue!!.isLoadingInBackground)
+        assertEquals(RemoteSourceType, successValue?.sourceType)
+        assertEquals(BackgroundLoadState.Loading, successValue!!.backgroundLoadState)
     }
 
     @Test
     fun test_getContainerExceptionOrNull() {
         val reloadFunction = mockk<ReloadFunction>()
         val pending: Container<String> = pendingContainer()
-        val success: Container<String> = successContainer("test", RemoteSourceType, true, reloadFunction)
-        val error: Container<String> = errorContainer(IllegalStateException(), RemoteSourceType, true, reloadFunction)
+        val metadata = SourceTypeMetadata(RemoteSourceType) + BackgroundLoadMetadata(BackgroundLoadState.Loading) + ReloadFunctionMetadata(reloadFunction)
+        val success: Container<String> = successContainer("test", metadata)
+        val error: Container<String> = errorContainer(IllegalStateException(), metadata)
 
         assertNull(pending.getContainerExceptionOrNull())
         assertNull(success.getContainerExceptionOrNull())
         val errorValue = error.getContainerExceptionOrNull()
         assertSame(reloadFunction, errorValue?.reloadFunction)
         assertTrue(errorValue?.value is IllegalStateException)
-        assertEquals(RemoteSourceType, errorValue?.source)
-        assertTrue(errorValue!!.isLoadingInBackground)
-    }
-
-    @Test
-    fun test_update() {
-        val originReloadFunction = mockk<ReloadFunction>()
-        val newReloadFunction = mockk<ReloadFunction>()
-        val origin = successContainer("1", LocalSourceType, isLoadingInBackground = false, originReloadFunction)
-
-        // update source
-        val updatedSource = origin.update(source = RemoteSourceType)
-        assertEquals(
-            successContainer("1", RemoteSourceType, isLoadingInBackground = false, originReloadFunction),
-            updatedSource,
-        )
-
-        // update isLoading
-        val updatedLoading = origin.update(isLoadingInBackground = true)
-        assertEquals(
-            successContainer("1", LocalSourceType, isLoadingInBackground = true, originReloadFunction),
-            updatedLoading,
-        )
-
-        // update reloadFunction
-        val updatedReloadFunction = origin.update(reloadFunction = newReloadFunction)
-        assertEquals(
-            successContainer("1", LocalSourceType, isLoadingInBackground = false, newReloadFunction),
-            updatedReloadFunction,
-        )
+        assertEquals(RemoteSourceType, errorValue?.sourceType)
+        assertEquals(BackgroundLoadState.Loading, errorValue!!.backgroundLoadState)
     }
 
     @Test
@@ -497,27 +470,28 @@ class ContainerExtensionsTest {
         val expectedReloadFunction: ReloadFunction = mockk()
         val expectedSource = RemoteSourceType
         val expectedValue = "value"
+        val expectedBackgroundLoadState = BackgroundLoadState.Error(RuntimeException(""))
         val container = successContainer(
             value = "value",
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunctionBefore,
+            metadata = SourceTypeMetadata(LocalSourceType) +
+                    BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                    ReloadFunctionMetadata(reloadFunctionBefore),
         )
 
         val updatedContainer = container.update {
-            assertSame(LocalSourceType, source)
-            assertTrue(isLoadingInBackground)
+            assertSame(LocalSourceType, sourceType)
+            assertEquals(BackgroundLoadState.Loading, backgroundLoadState)
             assertSame(reloadFunctionBefore, reloadFunction)
 
-            source = expectedSource
-            isLoadingInBackground = false
+            sourceType = expectedSource
+            backgroundLoadState = expectedBackgroundLoadState
             reloadFunction = expectedReloadFunction
         } as Container.Success<String>
 
         assertEquals(expectedValue, updatedContainer.value)
-        assertSame(expectedSource, updatedContainer.source)
+        assertSame(expectedSource, updatedContainer.sourceType)
         assertSame(expectedReloadFunction, updatedContainer.reloadFunction)
-        assertFalse(updatedContainer.isLoadingInBackground)
+        assertEquals(expectedBackgroundLoadState, updatedContainer.backgroundLoadState)
     }
 
     @Test
@@ -526,27 +500,28 @@ class ContainerExtensionsTest {
         val expectedException = IllegalStateException()
         val expectedReloadFunction: ReloadFunction = mockk()
         val expectedSource = RemoteSourceType
+        val expectedBackgroundLoadState = BackgroundLoadState.Error(RuntimeException(""))
         val container = errorContainer(
             exception = expectedException,
-            source = LocalSourceType,
-            isLoadingInBackground = false,
-            reloadFunction = reloadFunctionBefore,
+            metadata = SourceTypeMetadata(LocalSourceType) +
+                    BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                    ReloadFunctionMetadata(reloadFunctionBefore),
         )
 
         val updatedContainer = container.update {
-            assertSame(LocalSourceType, source)
-            assertFalse(isLoadingInBackground)
+            assertSame(LocalSourceType, sourceType)
+            assertEquals(BackgroundLoadState.Loading, backgroundLoadState)
             assertSame(reloadFunctionBefore, reloadFunction)
 
-            source = expectedSource
-            isLoadingInBackground = true
+            sourceType = expectedSource
+            backgroundLoadState = expectedBackgroundLoadState
             reloadFunction = expectedReloadFunction
         } as Container.Error
 
         assertEquals(expectedException, updatedContainer.exception)
-        assertSame(expectedSource, updatedContainer.source)
+        assertSame(expectedSource, updatedContainer.sourceType)
         assertSame(expectedReloadFunction, updatedContainer.reloadFunction)
-        assertTrue(updatedContainer.isLoadingInBackground)
+        assertEquals(expectedBackgroundLoadState, updatedContainer.backgroundLoadState)
     }
 
 }

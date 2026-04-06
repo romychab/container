@@ -29,7 +29,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.0.0-beta15"
+implementation "com.elveum:container:2.1.0-beta01"
 ```
 
 ## Core Concepts

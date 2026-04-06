@@ -128,19 +128,6 @@ public inline fun <T> Flow<Container<T>>.containerFilterNot(
  * Update additional data in all containers emitted by the flow.
  */
 public fun <T> Flow<Container<T>>.containerUpdate(
-    source: SourceType? = null,
-    reloadFunction: ReloadFunction? = null,
-    isLoadingInBackground: Boolean? = null,
-): Flow<Container<T>> {
-    return map { container ->
-        container.update(source, reloadFunction, isLoadingInBackground)
-    }
-}
-
-/**
- * Update additional data in all containers emitted by the flow.
- */
-public fun <T> Flow<Container<T>>.containerUpdate(
     block: ContainerUpdater.() -> Unit,
 ): Flow<Container<T>> {
     return map { container ->

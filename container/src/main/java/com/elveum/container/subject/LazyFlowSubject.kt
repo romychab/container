@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
@@ -13,11 +14,6 @@ import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
-
-/**
- * Loader function for [LazyFlowSubject] which can emit loaded values.
- */
-public typealias ValueLoader<T> = suspend Emitter<T>.() -> Unit
 
 /**
  * Represents the infinite flow which acts as an async container for
@@ -104,7 +100,7 @@ public interface LazyFlowSubject<T> {
      * Also the returned flow is cancelled if the last subscriber stops collecting
      * the flow returned by [listen] method.
      *
-     * @param silently if set to TRUE, [Container.Pending] is not emitted by the [listen] flow.
+     * @param config defines how the loading state will be propagated to subsequent containers.
      *
      * @return Flow with values only emitted by the [valueLoader].
      *         The flow completes when the last value is emitted or when the
@@ -112,7 +108,7 @@ public interface LazyFlowSubject<T> {
      *         been unsubscribed or a new load has been submitted)
      */
     public fun newLoad(
-        silently: Boolean = false,
+        config: LoadConfig = LoadConfig.Normal,
         metadata: ContainerMetadata = EmptyMetadata,
         valueLoader: ValueLoader<T>
     ): Flow<T>
@@ -142,7 +138,7 @@ public interface LazyFlowSubject<T> {
      * @see newLoad
      */
     public fun reload(
-        silently: Boolean = false,
+        config: LoadConfig = LoadConfig.Normal,
         metadata: ContainerMetadata = EmptyMetadata,
     ): Flow<T>
 

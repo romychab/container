@@ -1,6 +1,7 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
+import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.transform
@@ -29,10 +30,10 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateWith(
  */
 public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
     arg: Arg,
-    silently: Boolean = false,
+    config: LoadConfig = LoadConfig.Normal,
 ) {
     @Suppress("UnusedFlow")
-    reload(arg, silently)
+    reload(arg, config)
 }
 
 /**
@@ -63,13 +64,13 @@ public fun <Arg, T> LazyCache.Companion.createSimple(
  */
 public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
     arg: Arg,
-    source: SourceType? = null,
+    sourceType: SourceType? = null,
     updater: (T) -> T,
 ) {
     updateWith(arg) { oldContainer ->
         oldContainer.transform(
             onSuccess = {
-                successContainer(updater(it), source)
+                successContainer(updater(it), sourceType)
             }
         )
     }

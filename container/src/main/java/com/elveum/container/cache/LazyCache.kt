@@ -2,6 +2,7 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultCacheTimeoutMillis
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
@@ -61,12 +62,12 @@ public interface LazyCache<Arg, T> {
      * This method does not have effect if there is no active collectors (because data
      * loading is started when at least 1 collector collects a flow returned by [listen] call).
      *
-     * @param silently set to TRUE if you don't want to emit [Container.Pending] to a flow returned by [listen] call.
+     * @param config defines how the loading state will be propagated to subsequent containers.
      *
      * @return a finite flow emitting loaded items; it may complete with error if load
      *         function throws an exception.
      */
-    public fun reload(arg: Arg, silently: Boolean = false): Flow<T>
+    public fun reload(arg: Arg, config: LoadConfig = LoadConfig.Normal): Flow<T>
 
     /**
      * Put the specified [container] value into the cache.

@@ -11,14 +11,15 @@ class ContainerOfTest {
     @Test
     fun containerOf_forCompletedBlock_returnsSuccessContainer() {
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(LocalSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val container = containerOf(
-            source = LocalSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         ) { "hello" }
 
         assertEquals(
-            successContainer("hello", LocalSourceType, true, reloadFunction),
+            successContainer("hello", metadata),
             container,
         )
     }
@@ -27,14 +28,15 @@ class ContainerOfTest {
     fun containerOf_forFailedBlock_returnsErrorContainer() {
         val exception = IllegalStateException()
         val reloadFunction = mockk<ReloadFunction>()
+        val metadata = SourceTypeMetadata(RemoteSourceType) +
+                BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                ReloadFunctionMetadata(reloadFunction)
         val container = containerOf(
-            source = RemoteSourceType,
-            isLoadingInBackground = true,
-            reloadFunction = reloadFunction,
+            metadata = metadata,
         ) { throw exception }
 
         assertEquals(
-            errorContainer(exception, RemoteSourceType, true, reloadFunction),
+            errorContainer(exception, metadata),
             container,
         )
     }

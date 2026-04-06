@@ -3,15 +3,17 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.errorContainer
-import com.elveum.container.reloadDependencies
+import com.elveum.container.LoadConfig
+import com.elveum.container.pendingContainer
+import com.elveum.container.isReloadDependencies
 import com.elveum.container.subject.FlowSubject
+import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
-import com.elveum.container.update
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.flowOf
 
 internal interface LoadTask<T> {
@@ -22,16 +24,16 @@ internal interface LoadTask<T> {
     fun execute(executeParams: ExecuteParams<T>): Flow<Container<T>>
     fun cancel(reason: String)
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
+    fun intercept(container: Container<T>): Container<T> = container
 
     class ExecuteParams<T>(
-        val loadUuid: String = "",
         val flowDependencyStore: FlowDependencyStore,
-        val currentContainer: () -> Container<T>? = { null }
+        val currentContainer: () -> Container<T> = { pendingContainer() },
     )
 
     open class FlowEmitterCreator<T>(
-        private val flowSubject: FlowSubject<T>?,
-        private val metadata: ContainerMetadata,
+        protected val flowSubject: FlowSubject<T>?,
+        protected val metadata: ContainerMetadata,
     ) {
         open fun create(
             flowCollector: FlowCollector<Container<T>>,
@@ -66,13 +68,13 @@ internal interface LoadTask<T> {
     class Load<T> private constructor(
         override val metadata: ContainerMetadata,
         private val loader: ValueLoader<T>,
-        private val silently: Boolean = false,
+        private val config: LoadConfig = LoadConfig.Normal,
         private val flowSubject: FlowSubject<T>? = null,
         private val flowEmitterCreator: FlowEmitterCreator<T> = FlowEmitterCreator(flowSubject, metadata),
     ) : LoadTask<T> {
 
         override val initialContainer: Container<T>? =
-            if (silently) null else Container.Pending
+            if (config.isSilentLoadingEnabled) null else Container.Pending
 
         override val lastRealLoader: ValueLoader<T> = loader
         override val lastRealMetadata: ContainerMetadata = metadata
@@ -80,53 +82,41 @@ internal interface LoadTask<T> {
         constructor(
             loader: ValueLoader<T>,
             metadata: ContainerMetadata,
-            silent: Boolean = false,
+            config: LoadConfig = LoadConfig.Normal,
             flowSubject: FlowSubject<T>? = null,
-        ) : this(metadata, loader, silent, flowSubject)
+        ) : this(metadata, loader, config, flowSubject)
 
         constructor(
             loader: ValueLoader<T>,
             metadata: ContainerMetadata,
-            silent: Boolean = false,
+            config: LoadConfig = LoadConfig.Normal,
             flowSubject: FlowSubject<T>? = null,
             flowEmitterCreator: FlowEmitterCreator<T>,
-        ) : this(metadata, loader, silent, flowSubject, flowEmitterCreator)
+        ) : this(metadata, loader, config, flowSubject, flowEmitterCreator)
 
         override fun execute(
             executeParams: ExecuteParams<T>,
-        ) = flow {
+        ) = channelFlow {
+            val channelFlowCollector = ChannelFlowCollector<Container<T>>(this)
+            val emitter = flowEmitterCreator.create(channelFlowCollector, executeParams)
+            val statefulEmitter = StatefulEmitterImpl(
+                emitter = emitter,
+                executeParams = executeParams,
+                loadConfig = config,
+                flowCollector = channelFlowCollector,
+                flowSubject = flowSubject,
+            )
+            val statefulLoader = StatefulValueLoader.wrap(loader)
             try {
-                if (!silently) {
-                    emit(Container.Pending)
-                } else {
-                    executeParams.currentContainer()?.update(isLoadingInBackground = true)?.let {
-                        emit(it)
-                    }
-                }
-                val emitter = flowEmitterCreator.create(this, executeParams)
-                try {
-                    executeParams.flowDependencyStore.begin(
-                        reloadDependencies = metadata.reloadDependencies,
-                        silently = silently,
-                    )
-                    loader(emitter)
-                } finally {
-                    executeParams.flowDependencyStore.end()
-                }
-                if (!emitter.hasEmittedValues) {
-                    throw IllegalStateException("Value Loader should emit at least one item or " +
-                            "throw exception. If you don't want to emit values (e.g. it's okay for " +
-                            "you to have an infinite Container.Pending state), you can call " +
-                            "awaitCancellation() in the end of your loader function.")
-                }
-                flowSubject?.onComplete()
-                emitter.emitLastItem()
-            } catch (e: Exception) {
-                flowSubject?.onError(e)
-                if (e is CancellationException) throw e
-                emit(errorContainer(e))
+                executeParams.flowDependencyStore.begin(
+                    reloadDependencies = metadata.isReloadDependencies,
+                    loadConfig = config,
+                )
+                with(statefulLoader) { statefulEmitter.statefulInvoke() }
+            } finally {
+                executeParams.flowDependencyStore.end()
             }
-        }
+        }.conflate()
 
         override fun cancel(reason: String) {
             flowSubject?.onError(CancellationException(reason))
@@ -139,6 +129,13 @@ internal interface LoadTask<T> {
             )
         }
 
+        override fun intercept(container: Container<T>): Container<T> {
+            return if (loader is StatefulValueLoader<T>) {
+                loader.intercept(container)
+            } else {
+                container
+            }
+        }
     }
 
 }

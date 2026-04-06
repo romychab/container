@@ -1,7 +1,6 @@
 package com.elveum.container
 
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
@@ -12,94 +11,94 @@ class ContainerMetadataTest {
 
     @Test
     fun plus_withNull_returnsSelf() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
         val result = metadata + null
         assertSame(metadata, result)
     }
 
     @Test
     fun plus_twoDistinctSingleMetadata_returnsCombinedMetadata() {
-        val first = IsLoadingInBackgroundMetadata(true)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Loading)
         val second = SourceTypeMetadata(LocalSourceType)
 
         val result = first + second
 
         assertTrue(result is CombinedMetadata)
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
         assertEquals(SourceTypeMetadata(LocalSourceType), result.get<SourceTypeMetadata>())
     }
 
     @Test
     fun plus_combinedMetadataPlusSingleMetadata_includesAllEntries() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
         val extra = ReloadFunctionMetadata { }
 
         val result = combined + extra
 
-        assertNotNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNotNull(result.get<BackgroundLoadMetadata>())
         assertNotNull(result.get<SourceTypeMetadata>())
         assertNotNull(result.get<ReloadFunctionMetadata>())
     }
 
     @Test
     fun plus_singleMetadataPlusCombinedMetadata_includesAllEntries() {
-        val single = IsLoadingInBackgroundMetadata(true)
+        val single = BackgroundLoadMetadata(BackgroundLoadState.Loading)
         val combined = SourceTypeMetadata(LocalSourceType) + ReloadFunctionMetadata { }
 
         val result = single + combined
 
-        assertNotNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNotNull(result.get<BackgroundLoadMetadata>())
         assertNotNull(result.get<SourceTypeMetadata>())
         assertNotNull(result.get<ReloadFunctionMetadata>())
     }
 
     @Test
     fun plus_twoCombinedMetadata_includesAllEntries() {
-        val first = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
-        val second = ReloadFunctionMetadata { } + LoadUuidMetadata("uuid-1")
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
+        val second = ReloadFunctionMetadata { } + CustomMetadata("uuid-1")
 
         val result = first + second
 
-        assertNotNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNotNull(result.get<BackgroundLoadMetadata>())
         assertNotNull(result.get<SourceTypeMetadata>())
         assertNotNull(result.get<ReloadFunctionMetadata>())
-        assertNotNull(result.get<LoadUuidMetadata>())
+        assertNotNull(result.get<CustomMetadata>())
     }
 
     @Test
     fun plus_sameType_latestReplacesEarlier() {
-        val first = IsLoadingInBackgroundMetadata(false)
-        val second = IsLoadingInBackgroundMetadata(true)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Idle)
+        val second = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = first + second
 
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
     }
 
     @Test
     fun plus_sameTypeInCombined_latestReplacesEarlier() {
-        val base = IsLoadingInBackgroundMetadata(false) + SourceTypeMetadata(LocalSourceType)
-        val override = IsLoadingInBackgroundMetadata(true)
+        val base = BackgroundLoadMetadata(BackgroundLoadState.Idle) + SourceTypeMetadata(LocalSourceType)
+        val override = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = base + override
 
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
         assertEquals(SourceTypeMetadata(LocalSourceType), result.get<SourceTypeMetadata>())
     }
 
     @Test
     fun plus_allSameType_resultIsSingleMetadata() {
-        val first = IsLoadingInBackgroundMetadata(false)
-        val second = IsLoadingInBackgroundMetadata(true)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Idle)
+        val second = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = first + second
 
-        assertTrue(result is IsLoadingInBackgroundMetadata)
+        assertTrue(result is BackgroundLoadMetadata)
     }
 
     @Test
     fun filter_predicateTrue_returnsSelf() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = metadata.filter { true }
 
@@ -108,7 +107,7 @@ class ContainerMetadataTest {
 
     @Test
     fun filter_predicateFalse_returnsEmptyMetadata() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = metadata.filter { false }
 
@@ -117,27 +116,27 @@ class ContainerMetadataTest {
 
     @Test
     fun combinedMetadataFilter_predicateMatchesSome_returnsMatchingEntries() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
-        val result = combined.filter { it is IsLoadingInBackgroundMetadata }
+        val result = combined.filter { it is BackgroundLoadMetadata }
 
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
         assertNull(result.get<SourceTypeMetadata>())
     }
 
     @Test
     fun combinedMetadataFilter_predicateMatchesAll_returnsAllEntries() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
         val result = combined.filter { true }
 
-        assertNotNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNotNull(result.get<BackgroundLoadMetadata>())
         assertNotNull(result.get<SourceTypeMetadata>())
     }
 
     @Test
     fun combinedMetadataFilter_predicateMatchesNone_returnsEmptyMetadata() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
         val result = combined.filter { false }
 
@@ -146,7 +145,7 @@ class ContainerMetadataTest {
 
     @Test
     fun combinedMetadataFilter_singleEntryLeft_returnsSingleMetadata() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
         val result = combined.filter { it is SourceTypeMetadata }
 
@@ -155,16 +154,16 @@ class ContainerMetadataTest {
 
     @Test
     fun get_directTypeMatch_returnsInstance() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
-        val result = metadata.get<IsLoadingInBackgroundMetadata>()
+        val result = metadata.get<BackgroundLoadMetadata>()
 
-        assertEquals(IsLoadingInBackgroundMetadata(true), result)
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result)
     }
 
     @Test
     fun get_noDirectTypeMatch_returnsNull() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = metadata.get<SourceTypeMetadata>()
 
@@ -173,7 +172,7 @@ class ContainerMetadataTest {
 
     @Test
     fun get_combinedMetadataWithMatchingType_returnsMatchingInstance() {
-        val metadata = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(RemoteSourceType)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(RemoteSourceType)
 
         val result = metadata.get<SourceTypeMetadata>()
 
@@ -182,16 +181,16 @@ class ContainerMetadataTest {
 
     @Test
     fun get_combinedMetadataWithoutMatchingType_returnsNull() {
-        val metadata = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(RemoteSourceType)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(RemoteSourceType)
 
-        val result = metadata.get<LoadUuidMetadata>()
+        val result = metadata.get<CustomMetadata>()
 
         assertNull(result)
     }
 
     @Test
     fun emptyMetadataGet_anyType_returnsNull() {
-        val result = EmptyMetadata.get<IsLoadingInBackgroundMetadata>()
+        val result = EmptyMetadata.get<BackgroundLoadMetadata>()
 
         assertNull(result)
     }
@@ -205,23 +204,23 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withSource_containsSourceTypeMetadata() {
-        val result = defaultMetadata(source = LocalSourceType)
+        val result = defaultMetadata(sourceType = LocalSourceType)
 
         assertEquals(SourceTypeMetadata(LocalSourceType), result.get<SourceTypeMetadata>())
     }
 
     @Test
-    fun defaultMetadata_withIsLoadingInBackgroundTrue_containsIsLoadingInBackgroundMetadata() {
-        val result = defaultMetadata(isLoadingInBackground = true)
+    fun defaultMetadata_withBackgroundLoadLoading_containsBackgroundLoadMetadata() {
+        val result = defaultMetadata(backgroundLoadState = BackgroundLoadState.Loading)
 
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
     }
 
     @Test
-    fun defaultMetadata_withIsLoadingInBackgroundFalse_containsIsLoadingInBackgroundMetadata() {
-        val result = defaultMetadata(isLoadingInBackground = false)
+    fun defaultMetadata_withBackgroundLoadEmpty_containsBackgroundLoadMetadata() {
+        val result = defaultMetadata(backgroundLoadState = BackgroundLoadState.Idle)
 
-        assertEquals(IsLoadingInBackgroundMetadata(false), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Idle), result.get<BackgroundLoadMetadata>())
     }
 
     @Test
@@ -238,27 +237,27 @@ class ContainerMetadataTest {
         val fn: ReloadFunction = { }
 
         val result = defaultMetadata(
-            source = RemoteSourceType,
-            isLoadingInBackground = true,
+            sourceType = RemoteSourceType,
+            backgroundLoadState = BackgroundLoadState.Loading,
             reloadFunction = fn,
         )
 
         assertEquals(SourceTypeMetadata(RemoteSourceType), result.get<SourceTypeMetadata>())
-        assertEquals(IsLoadingInBackgroundMetadata(true), result.get<IsLoadingInBackgroundMetadata>())
+        assertEquals(BackgroundLoadMetadata(BackgroundLoadState.Loading), result.get<BackgroundLoadMetadata>())
         assertEquals(fn, result.get<ReloadFunctionMetadata>()?.reloadFunction)
     }
 
     @Test
     fun defaultMetadata_withOnlySource_doesNotContainOtherMetadata() {
-        val result = defaultMetadata(source = LocalSourceType)
+        val result = defaultMetadata(sourceType = LocalSourceType)
 
-        assertNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNull(result.get<BackgroundLoadMetadata>())
         assertNull(result.get<ReloadFunctionMetadata>())
     }
 
     @Test
     fun defaultMetadata_withOnlyLoading_doesNotContainOtherMetadata() {
-        val result = defaultMetadata(isLoadingInBackground = true)
+        val result = defaultMetadata(backgroundLoadState = BackgroundLoadState.Loading)
 
         assertNull(result.get<SourceTypeMetadata>())
         assertNull(result.get<ReloadFunctionMetadata>())
@@ -269,48 +268,48 @@ class ContainerMetadataTest {
     fun defaultMetadata_withOnlyReloadFunction_doesNotContainOtherMetadata() {
         val result = defaultMetadata(reloadFunction = {})
 
-        assertNull(result.get<IsLoadingInBackgroundMetadata>())
+        assertNull(result.get<BackgroundLoadMetadata>())
         assertNull(result.get<SourceTypeMetadata>())
     }
 
     @Test
-    fun isLoadingInBackground_emptyMetadata_returnsFalse() {
-        assertFalse(EmptyMetadata.isLoadingInBackground)
+    fun backgroundLoad_emptyMetadata_returnsEmpty() {
+        assertEquals(BackgroundLoadState.Idle, EmptyMetadata.backgroundLoadState)
     }
 
     @Test
-    fun isLoadingInBackground_withTrueValue_returnsTrue() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+    fun backgroundLoad_withLoadingValue_returnsLoading() {
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
-        assertTrue(metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Loading, metadata.backgroundLoadState)
     }
 
     @Test
-    fun isLoadingInBackground_withFalseValue_returnsFalse() {
-        val metadata = IsLoadingInBackgroundMetadata(false)
+    fun backgroundLoad_withEmptyValue_returnsEmpty() {
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Idle)
 
-        assertFalse(metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Idle, metadata.backgroundLoadState)
     }
 
     @Test
-    fun isLoadingInBackground_combinedMetadataWithTrue_returnsTrue() {
-        val metadata = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+    fun backgroundLoad_combinedMetadataWithLoading_returnsLoading() {
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
-        assertTrue(metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Loading, metadata.backgroundLoadState)
     }
 
     @Test
-    fun isLoadingInBackground_combinedMetadataWithoutIsLoadingMetadata_returnsFalse() {
-        val metadata = SourceTypeMetadata(LocalSourceType) + LoadUuidMetadata("uuid")
+    fun backgroundLoad_combinedMetadataWithoutBackgroundLoadMetadata_returnsEmpty() {
+        val metadata = SourceTypeMetadata(LocalSourceType) + CustomMetadata("uuid")
 
-        assertFalse(metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Idle, metadata.backgroundLoadState)
     }
 
     @Test
-    fun isLoadingInBackground_unrelatedMetadataType_returnsFalse() {
+    fun backgroundLoad_unrelatedMetadataType_returnsEmpty() {
         val metadata = SourceTypeMetadata(RemoteSourceType)
 
-        assertFalse(metadata.isLoadingInBackground)
+        assertEquals(BackgroundLoadState.Idle, metadata.backgroundLoadState)
     }
 
     @Test
@@ -348,7 +347,7 @@ class ContainerMetadataTest {
 
     @Test
     fun sourceType_unrelatedMetadata_returnsUnknownSourceType() {
-        val metadata = IsLoadingInBackgroundMetadata(true)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         assertEquals(UnknownSourceType, metadata.sourceType)
     }
@@ -369,7 +368,7 @@ class ContainerMetadataTest {
 
     @Test
     fun sourceType_combinedMetadataWithSource_returnsCorrectSourceType() {
-        val metadata = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(FakeSourceType)
+        val metadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(FakeSourceType)
 
         assertEquals(FakeSourceType, metadata.sourceType)
     }
@@ -383,7 +382,7 @@ class ContainerMetadataTest {
 
     @Test
     fun emptyMetadataPlus_otherMetadata_returnsOther() {
-        val other = IsLoadingInBackgroundMetadata(true)
+        val other = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = EmptyMetadata + other
 
@@ -399,7 +398,7 @@ class ContainerMetadataTest {
 
     @Test
     fun emptyMetadataPlus_combinedMetadata_returnsCombinedMetadata() {
-        val combined = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
+        val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
 
         val result = EmptyMetadata + combined
 
@@ -408,24 +407,24 @@ class ContainerMetadataTest {
 
     @Test
     fun combinedMetadataEquals_sameEntriesDifferentOrder_returnsTrue() {
-        val first = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
-        val second = SourceTypeMetadata(LocalSourceType) + IsLoadingInBackgroundMetadata(true)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
+        val second = SourceTypeMetadata(LocalSourceType) + BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         assertEquals(first, second)
     }
 
     @Test
     fun combinedMetadataEquals_differentEntries_returnsFalse() {
-        val first = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
-        val second = IsLoadingInBackgroundMetadata(false) + SourceTypeMetadata(LocalSourceType)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
+        val second = BackgroundLoadMetadata(BackgroundLoadState.Idle) + SourceTypeMetadata(LocalSourceType)
 
         assertTrue(first != second)
     }
 
     @Test
     fun combinedMetadataHashCode_sameEntriesDifferentOrder_returnsSameHash() {
-        val first = IsLoadingInBackgroundMetadata(true) + SourceTypeMetadata(LocalSourceType)
-        val second = SourceTypeMetadata(LocalSourceType) + IsLoadingInBackgroundMetadata(true)
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
+        val second = SourceTypeMetadata(LocalSourceType) + BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         assertEquals(first.hashCode(), second.hashCode())
     }
@@ -439,7 +438,7 @@ class ContainerMetadataTest {
 
     @Test
     fun plus_emptyMetadataWithSingleEntry_returnsSingleEntry() {
-        val single = IsLoadingInBackgroundMetadata(true)
+        val single = BackgroundLoadMetadata(BackgroundLoadState.Loading)
 
         val result = EmptyMetadata + single
 
@@ -448,14 +447,17 @@ class ContainerMetadataTest {
 
     @Test
     fun plus_duplicateTypeAcrossCombined_latestValueWins() {
-        val first = IsLoadingInBackgroundMetadata(false) + SourceTypeMetadata(LocalSourceType)
-        val second = SourceTypeMetadata(RemoteSourceType) + LoadUuidMetadata("uuid-1")
+        val first = BackgroundLoadMetadata(BackgroundLoadState.Idle) + SourceTypeMetadata(LocalSourceType)
+        val second = SourceTypeMetadata(RemoteSourceType) + CustomMetadata("uuid-1")
 
         val result = first + second
 
         assertEquals(RemoteSourceType, result.sourceType)
-        assertFalse(result.isLoadingInBackground)
-        assertNotNull(result.get<LoadUuidMetadata>())
+        assertEquals(BackgroundLoadState.Idle, result.backgroundLoadState)
+        assertNotNull(result.get<CustomMetadata>())
     }
 
+    private data class CustomMetadata(
+        val id: String,
+    ) : ContainerMetadata
 }

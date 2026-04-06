@@ -26,7 +26,7 @@ that threads cross-cutting information through containers.
   - [ContainerMetadata](#containermetadata)
   - [SourceType](#sourcetype)
   - [ReloadFunctionMetadata](#reloadfunctionmetadata)
-  - [IsLoadingInBackgroundMetadata](#isloadinginbackgroundmetadata)
+  - [BackgroundLoadStateMetadata](#backgroundLoadStateMetadata)
   - [LoadTrigger](#loadtrigger)
   - [Custom Metadata](#custom-metadata)
 - [Flow Dependencies in Loader Functions](#flow-dependencies-in-loader-functions)
@@ -111,7 +111,7 @@ You can reload silently (the existing cached value is kept visible while the
 new load runs in the background):
 
 ```kotlin
-subject.reloadAsync(silently = true)
+subject.reloadAsync(LoadConfig.SilentLoading)
 ```
 
 ### Pushing Values Directly
@@ -155,19 +155,20 @@ val result: T = subject.newSimpleLoad { fetchData() }
 subject.newSimpleAsyncLoad { fetchData() }
 ```
 
-The `newLoad` / `newSimpleLoad` functions also accept a `silently` flag and
+The `newLoad` / `newSimpleLoad` functions also accept a `loadConfig` argument and
 an optional `metadata` argument:
 
-- `silently = true`: the existing cached value stays visible while the new load
-  runs in the background. Emitted containers carry `isLoadingInBackground = true`
-  when `emitBackgroundLoads` is enabled (e.g. via `listenReloadable()`).
+- `loadConfig = LoadConfig.SilentLoading`: the existing cached value stays visible
+  while the new load runs in the background. Emitted containers carry
+  `backgroundLoadState = BackgroundLoadState.Loading` when `emitBackgroundLoads` is
+  enabled (e.g. via `listenReloadable()`).
 - `metadata`: arbitrary data attached to this load call; accessible inside the
   loader function via the `metadata` property on the `Emitter` receiver.
   See [Metadata](#metadata) for available types and how to define custom ones.
 
 ```kotlin
 subject.newAsyncLoad(
-    silently = true,
+    loadConfig = LoadConfig.SilentLoading,
     metadata = SourceTypeMetadata(RemoteSourceType),
 ) {
     emit(fetchRemote())
@@ -207,7 +208,7 @@ is attached to emitted containers:
 val flow: Flow<Container<List<Product>>> = subject.listen(
     configuration = ContainerConfiguration(
         emitReloadFunction    = true,  // attach a reload function to each container
-        emitBackgroundLoads   = true,  // set isLoadingInBackground = true while reloading silently
+        emitBackgroundLoads   = true,  // set BackgroundLoadState metadata value to Loading while reloading silently
     )
 )
 ```
@@ -217,7 +218,7 @@ val flow: Flow<Container<List<Product>>> = subject.listen(
   the subject. Useful for UI components that need to offer a "retry" button
   without knowing about the subject directly.
 - `emitBackgroundLoads` - while a silent reload is in progress, emitted
-  containers have `isLoadingInBackground = true`. Useful when you want to
+  containers have `backgroundLoadState` metadata property. Useful when you want to
   display the current loaded data along with an additional indication that something is being loaded
   right now (for example, PullToRefresh behavior)
 
@@ -275,7 +276,7 @@ val current: Container<User> = usersCache.get(id)
 // Reload:
 usersCache.reload(id)
 usersCache.reloadAsync(id)
-usersCache.reloadAsync(id, silently = true)
+usersCache.reloadAsync(id, LoadConfig.SilentLoading)
 
 // Push a value directly:
 usersCache.updateWith(id, successContainer(user))
@@ -410,9 +411,9 @@ val sourceMeta: SourceTypeMetadata? = container.metadata.get<SourceTypeMetadata>
 Or use the shorthand extension properties available on containers:
 
 ```kotlin
-val source: SourceType  = container.source
-val isLoading: Boolean  = container.isLoadingInBackground
-val reloadFn            = container.reloadFunction
+val source: SourceType  = container.sourceType
+val bgLoadState: BackgroundLoadState = container.backgroundLoadState
+val reloadFn = container.reloadFunction
 ```
 
 ### SourceType
@@ -443,14 +444,14 @@ Set a source type on an existing container:
 val container = successContainer("data", SourceTypeMetadata(RemoteSourceType))
 
 // or update metadata on an existing container:
-val updated = container.update { source = RemoteSourceType }
+val updated = container.update { sourceType = RemoteSourceType }
 ```
 
 Read the source type:
 
 ```kotlin
 val success: Container.Success<String> = ...
-println(success.source)  // RemoteSourceType
+println(success.sourceType)  // RemoteSourceType
 ```
 
 ### ReloadFunctionMetadata
@@ -481,21 +482,21 @@ Calling the reload function from UI code:
 ```kotlin
 val container: Container<String> = ...
 container.fold(
-    onError   = { ex -> Button(onClick = { container.reload(silently = false) }) { Text("Retry") } },
+    onError   = { ex -> Button(onClick = { container.reload() }) { Text("Retry") } },
     onSuccess = { value -> /* ... */ },
 )
 ```
 
-### IsLoadingInBackgroundMetadata
+### BackgroundLoadStateMetadata
 
 When a silent reload is in progress and `emitBackgroundLoads = true` is set,
-emitted containers carry `isLoadingInBackground = true`. UI can use this to
+emitted containers carry `backgroundLoadState = Loading` metadata value. UI can use this to
 show an indicator (e.g. pull-to-refresh) while still displaying the stale data:
 
 ```kotlin
 container.fold(
     onSuccess = { value ->
-        if (isLoadingInBackground) ShowRefreshIndicator()
+        if (backgroundLoadState == BackgroundLoadState.Loading) ShowRefreshIndicator()
         ShowContent(value)
     },
 )

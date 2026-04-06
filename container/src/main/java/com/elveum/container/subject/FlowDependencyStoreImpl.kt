@@ -4,6 +4,7 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.Container.Completed
+import com.elveum.container.LoadConfig
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.pendingContainer
@@ -61,14 +62,14 @@ internal class FlowDependencyStoreImpl<T>(
 
     override fun begin(
         reloadDependencies: Boolean,
-        silently: Boolean,
+        loadConfig: LoadConfig,
     ) = synchronized(loadTaskManager) {
         activeKeys.clear()
         if (reloadDependencies) {
             val reloadFunctions = flowDependencyRecords.values
                 .map { it.lastReloadFunction }
                 .distinct()
-            reloadFunctions.forEach { it.invoke(silently) }
+            reloadFunctions.forEach { it.invoke(loadConfig) }
         }
     }
 

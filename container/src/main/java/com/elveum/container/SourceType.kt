@@ -1,8 +1,11 @@
 package com.elveum.container
 
+import androidx.compose.runtime.Immutable
+
 /**
  * Base interface for all source types
  */
+@Immutable
 public interface SourceType
 
 /**

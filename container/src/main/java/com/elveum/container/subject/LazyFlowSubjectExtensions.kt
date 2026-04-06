@@ -3,8 +3,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.SourceType
-import com.elveum.container.SourceTypeMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.transform
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -22,18 +21,18 @@ public typealias SimpleValueLoader<T> = suspend () -> T
  * Use this method instead of [LazyFlowSubject.newLoad] if you don't want to listen for the
  * current load results.
  *
- * @param silently if set to TRUE, [Container.Pending] is not emitted by the [LazyFlowSubject.listen] flow.
+ * @param config defines how the loading state will be propagated to subsequent containers.
  *
  * Please note that the load starts only when at least one subscriber listens
  * for flow returned by [LazyFlowSubject.listen] method.
  */
 public fun <T> LazyFlowSubject<T>.newAsyncLoad(
-    silently: Boolean = false,
+    config: LoadConfig = LoadConfig.Normal,
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: ValueLoader<T>,
 ) {
     @Suppress("UnusedFlow")
-    newLoad(silently, metadata, valueLoader)
+    newLoad(config, metadata, valueLoader)
 }
 
 /**
@@ -42,11 +41,11 @@ public fun <T> LazyFlowSubject<T>.newAsyncLoad(
  * @see newAsyncLoad
  */
 public fun <T> LazyFlowSubject<T>.reloadAsync(
-    silently: Boolean = false,
+    config: LoadConfig = LoadConfig.Normal,
     metadata: ContainerMetadata = EmptyMetadata,
 ) {
     @Suppress("UnusedFlow")
-    reload(silently, metadata)
+    reload(config, metadata)
 }
 
 /**
@@ -75,33 +74,17 @@ public inline fun <T> LazyFlowSubject<T>.updateWith(
  * May throw exception if the load fails.
  */
 public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
-    silently: Boolean = false,
-    source: SourceType,
-    valueLoader: SimpleValueLoader<T>,
-): T = newSimpleLoad(silently, SourceTypeMetadata(source), valueLoader)
-
-/**
- * Start a new simple load which will replace the existing value in the flow
- * returned by [LazyFlowSubject.listen].
- *
- * Please note that the load starts only when at least one subscriber listens
- * for flow returned by [LazyFlowSubject.listen] method.
- *
- * May throw exception if the load fails.
- */
-public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
-    silently: Boolean = false,
+    config: LoadConfig = LoadConfig.Normal,
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>,
 ): T {
     val multipleLoader: ValueLoader<T> = {
         emit(valueLoader(), metadata, isLastValue = true)
     }
-    val flow = newLoad(silently, valueLoader = multipleLoader)
+    val flow = newLoad(config, valueLoader = multipleLoader)
     return flow.first()
 }
 
-
 /**
  * The same as [newSimpleLoad] but do not wait for the load result.
  *
@@ -109,35 +92,15 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
  * for flow returned by [LazyFlowSubject.listen] method.
  */
 public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
-    silently: Boolean = false,
-    source: SourceType,
-    valueLoader: SimpleValueLoader<T>
-): Unit = newSimpleAsyncLoad(silently, SourceTypeMetadata(source), valueLoader)
-
-/**
- * The same as [newSimpleLoad] but do not wait for the load result.
- *
- * Please note that the load starts only when at least one subscriber listens
- * for flow returned by [LazyFlowSubject.listen] method.
- */
-public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
-    silently: Boolean = false,
-    metadata: ContainerMetadata,
+    config: LoadConfig = LoadConfig.Normal,
+    metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>
 ) {
     val multipleLoader: ValueLoader<T> = {
         emit(valueLoader(), metadata, isLastValue = true)
     }
-    newAsyncLoad(silently, valueLoader = multipleLoader)
+    newAsyncLoad(config, valueLoader = multipleLoader)
 }
-
-/**
- * Update the value only if there is already successfully loaded old value.
- */
-public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
-    source: SourceType?,
-    updater: (T) -> T,
-): Unit = updateIfSuccess(source?.let(::SourceTypeMetadata) ?: EmptyMetadata, updater)
 
 /**
  * Update the value only if there is already successfully loaded old value.

@@ -8,7 +8,7 @@ public data class ContainerConfiguration(
      * Set to `true` if you want to receive background loading
      * indicator for [Container.Completed] instances. Background
      * loading occurs when you call either [Container.Completed.reload]
-     * or [LazyFlowSubject.reload] with flag `silently = true`. Silent
+     * or [LazyFlowSubject.reload] with `LoadConfig.SilentLoading`. Silent
      * reloading keeps the current loaded data while a new data is still being
      * loaded.
      */
@@ -17,7 +17,7 @@ public data class ContainerConfiguration(
     /**
      * Set to `true` if you want to receive reload functions
      * within [Container.Completed] instances. You can
-     * use [Container.Completed.reload] to re-fetch data
+     * use [Container.reload] to re-fetch data
      * encapsulated by the container.
      */
     val emitReloadFunction: Boolean = false,

@@ -1,4 +1,9 @@
+@file:OptIn(ExperimentalContracts::class)
+
 package com.elveum.container
+
+import kotlin.contracts.ExperimentalContracts
+import kotlin.contracts.contract
 
 public typealias ListContainer<T> = Container<List<T>>
 
@@ -109,21 +114,6 @@ public fun <T> Container<T>.unwrapContainerValue(): ContainerValue<T> {
  * Update additional metadata in the container.
  */
 public fun <T> Container<T>.update(
-    source: SourceType? = null,
-    reloadFunction: ReloadFunction? = null,
-    isLoadingInBackground: Boolean? = null,
-): Container<T> {
-    return update {
-        if (source != null) this.source = source
-        if (reloadFunction != null) this.reloadFunction = reloadFunction
-        if (isLoadingInBackground != null) this.isLoadingInBackground = isLoadingInBackground
-    }
-}
-
-/**
- * Update additional metadata in the container.
- */
-public fun <T> Container<T>.update(
     block: ContainerUpdater.() -> Unit,
 ): Container<T> {
     return transform(
@@ -139,6 +129,36 @@ public fun <T> Container<T>.update(
         }
     )
 }
+
+public fun <T> Container<T>.isSuccess(): Boolean {
+    contract {
+        returns(true) implies (this@isSuccess is Container.Success<T>)
+    }
+    return this is Container.Success<T>
+}
+
+public fun <T> Container<T>.isCompleted(): Boolean {
+    contract {
+        returns(true) implies (this@isCompleted is Container.Completed<T>)
+    }
+    return this is Container.Completed<T>
+}
+
+public fun <T> Container<T>.isError(): Boolean {
+    contract {
+        returns(true) implies (this@isError is Container.Error)
+    }
+    return this is Container.Error
+}
+
+public fun <T> Container<T>.isPending(): Boolean {
+    contract {
+        returns(true) implies (this@isPending is Container.Pending)
+    }
+    return this is Container.Pending
+}
+
+public fun <T> Container<T>.isDataLoading(): Boolean = isPending() || backgroundLoadState == BackgroundLoadState.Loading
 
 private fun ContainerMapperScope.applyUpdater(block: ContainerUpdater.() -> Unit): ContainerUpdater {
     val updater = ContainerUpdaterImpl(this)

@@ -2,6 +2,7 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
+import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.successContainer
 import com.elveum.container.utils.raw
@@ -322,7 +323,7 @@ class LazyCacheIntegrationTest {
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
-        lazyCache.reload(key, silently = false)
+        lazyCache.reload(key, config = LoadConfig.Normal)
 
         advanceTimeBy(1)
         assertEquals(Container.Pending, state.lastItem.raw())
@@ -336,7 +337,7 @@ class LazyCacheIntegrationTest {
         val state = lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
-        lazyCache.reload(key, silently = true)
+        lazyCache.reload(key, config = LoadConfig.SilentLoading)
 
         advanceTimeBy(1)
         assertEquals(successContainer(expectedLoadedValue(key, 1)), state.lastItem.raw())
@@ -346,7 +347,7 @@ class LazyCacheIntegrationTest {
 
     @Test
     fun reload_withoutActiveCollectors_doesNothing() = scope.runFlowTest {
-        lazyCache.reload(key, silently = false)
+        lazyCache.reload(key, config = LoadConfig.Normal)
         advanceTimeBy(loadDelay + 1)
 
         verify {
@@ -362,7 +363,7 @@ class LazyCacheIntegrationTest {
 
         state.cancel()
         advanceTimeBy(timeoutMillis + 1)
-        lazyCache.reload(key, silently = false)
+        lazyCache.reload(key, config = LoadConfig.Normal)
         advanceTimeBy(loadDelay + 1)
 
         coVerify(exactly = 1) { // loader should not be executed twice
@@ -376,7 +377,7 @@ class LazyCacheIntegrationTest {
         lazyCache.listen(key).startCollecting()
         advanceTimeBy(loadDelay + 1)
 
-        val state = lazyCache.reload(key, silently = false).startCollecting()
+        val state = lazyCache.reload(key, config = LoadConfig.Normal).startCollecting()
 
         advanceTimeBy(1)
         assertFalse(state.hasItems)

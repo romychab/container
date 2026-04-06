@@ -3,6 +3,7 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
+import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
 import com.elveum.container.subject.ContainerConfiguration
@@ -53,8 +54,8 @@ internal class LazyCacheImpl<Arg, T>(
         return getSubject(arg)?.activeCollectorsCount ?: 0
     }
 
-    override fun reload(arg: Arg, silently: Boolean): Flow<T> {
-        return getSubject(arg)?.reload(silently) ?: emptyFlow()
+    override fun reload(arg: Arg, config: LoadConfig): Flow<T> {
+        return getSubject(arg)?.reload(config) ?: emptyFlow()
     }
 
     override fun updateWith(arg: Arg, container: Container<T>) {

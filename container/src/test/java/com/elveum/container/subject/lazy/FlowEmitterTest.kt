@@ -2,16 +2,16 @@
 
 package com.elveum.container.subject.lazy
 
+import com.elveum.container.BackgroundLoadState
+import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.IsLoadingInBackgroundMetadata
-import com.elveum.container.LoadUuidMetadata
 import com.elveum.container.LocalSourceType
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
+import com.elveum.container.backgroundLoadState
 import com.elveum.container.get
-import com.elveum.container.isLoadingInBackground
 import com.elveum.container.sourceType
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.successContainer
@@ -65,90 +65,57 @@ class FlowEmitterTest {
     @Test
     fun emit_sendsItem_toCollectorAndSubject() = runTest {
         val flowEmitter = makeFlowEmitter()
+        val expectedMetadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                SourceTypeMetadata(LocalSourceType)
 
         flowEmitter.emit("item", LocalSourceType)
 
         coVerify(exactly = 1) {
             flowSubject.onNext("item")
-            flowCollector.emit(successContainer("item", LocalSourceType, true))
+            flowCollector.emit(successContainer("item", expectedMetadata))
         }
     }
 
     @Test
     fun emitLastItem_sendsLastItem() = runTest {
         val flowEmitter = makeFlowEmitter()
+        val loadingMetadata = BackgroundLoadMetadata(BackgroundLoadState.Loading) +
+                SourceTypeMetadata(LocalSourceType)
+        val emptyMetadata = BackgroundLoadMetadata(BackgroundLoadState.Idle) +
+                SourceTypeMetadata(LocalSourceType)
 
         flowEmitter.emit("item", LocalSourceType)
         flowEmitter.emitLastItem()
 
         coVerify(exactly = 1) {
             flowSubject.onNext("item")
-            flowCollector.emit(successContainer("item", LocalSourceType, true))
-            flowCollector.emit(successContainer("item", LocalSourceType, false))
+            flowCollector.emit(successContainer("item", loadingMetadata))
+            flowCollector.emit(successContainer("item", emptyMetadata))
         }
     }
 
     @Test
-    fun emit_withoutLoadUuid_doesNotAttachLoadUuidMetadata() = runTest {
-        val flowEmitter = makeFlowEmitter()
-
-        flowEmitter.emit("item")
-
-        coVerify {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>() == null
-            })
-        }
-    }
-
-    @Test
-    fun emit_withBlankLoadUuid_doesNotAttachLoadUuidMetadata() = runTest {
-        val flowEmitter = makeFlowEmitter(loadUuid = "  ")
-
-        flowEmitter.emit("item")
-
-        coVerify {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>() == null
-            })
-        }
-    }
-
-    @Test
-    fun emit_withNonBlankLoadUuid_attachesLoadUuidMetadataToEmittedContainer() = runTest {
-        val flowEmitter = makeFlowEmitter(loadUuid = "test-uuid")
-
-        flowEmitter.emit("item")
-
-        coVerify {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>() == LoadUuidMetadata("test-uuid")
-            })
-        }
-    }
-
-    @Test
-    fun emit_whenNotLastValue_attachesIsLoadingInBackgroundTrue() = runTest {
+    fun emit_whenNotLastValue_attachesBackgroundLoadLoading() = runTest {
         val flowEmitter = makeFlowEmitter()
 
         flowEmitter.emit("item", isLastValue = false)
 
         coVerify {
             flowCollector.emit(match { container ->
-                container.metadata.isLoadingInBackground
+                container.metadata.backgroundLoadState == BackgroundLoadState.Loading
             })
         }
     }
 
     @Test
-    fun emit_whenLastValue_attachesIsLoadingInBackgroundFalse() = runTest {
+    fun emit_whenLastValue_attachesBackgroundLoadEmpty() = runTest {
         val flowEmitter = makeFlowEmitter()
 
         flowEmitter.emit("item", isLastValue = true)
 
         coVerify {
             flowCollector.emit(match { container ->
-                !container.metadata.isLoadingInBackground
+                container.metadata.backgroundLoadState == BackgroundLoadState.Idle
             })
         }
     }
@@ -168,22 +135,6 @@ class FlowEmitterTest {
     }
 
     @Test
-    fun emitLastItem_withNonBlankLoadUuid_attachesLoadUuidMetadataToReemittedContainer() = runTest {
-        val flowEmitter = makeFlowEmitter(loadUuid = "test-uuid")
-
-        flowEmitter.emit("item") // isLastValue=false by default, stores item for re-emit
-        flowEmitter.emitLastItem()
-
-        // Only the re-emitted container (from emitLastItem) has isLoadingInBackground=false
-        coVerify(exactly = 1) {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>() == LoadUuidMetadata("test-uuid") &&
-                    !container.metadata.isLoadingInBackground
-            })
-        }
-    }
-
-    @Test
     fun emitLastItem_withCustomMetadata_propagatesMetadataToReemittedContainer() = runTest {
         val flowEmitter = makeFlowEmitter()
         val customMetadata = SourceTypeMetadata(LocalSourceType)
@@ -191,11 +142,11 @@ class FlowEmitterTest {
         flowEmitter.emit("item", customMetadata, isLastValue = false)
         flowEmitter.emitLastItem()
 
-        // Only the re-emitted container (from emitLastItem) has isLoadingInBackground=false
+        // Only the re-emitted container (from emitLastItem) has backgroundLoadState=Idle
         coVerify(exactly = 1) {
             flowCollector.emit(match { container ->
                 container.metadata.get<SourceTypeMetadata>()?.sourceType == LocalSourceType &&
-                    !container.metadata.isLoadingInBackground
+                    container.metadata.backgroundLoadState == BackgroundLoadState.Idle
             })
         }
     }
@@ -212,34 +163,16 @@ class FlowEmitterTest {
     }
 
     @Test
-    fun emit_withEmitArgMetadata_overridesBuiltInLoadUuidMetadata() = runTest {
-        val flowEmitter = makeFlowEmitter(loadUuid = "built-in-uuid")
-
-        flowEmitter.emit("item", metadata = LoadUuidMetadata("arg-uuid"))
-
-        coVerify(exactly = 0) {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>()?.uuid == "built-in-uuid"
-            })
-        }
-        coVerify(exactly = 1) {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>()?.uuid == "arg-uuid"
-            })
-        }
-    }
-
-    @Test
-    fun emit_withEmitArgMetadata_overridesBuiltInIsLoadingInBackgroundMetadata() = runTest {
+    fun emit_withEmitArgMetadata_overridesBuiltInBackgroundLoadMetadata() = runTest {
         val flowEmitter = makeFlowEmitter()
 
-        // isLastValue=false would normally produce isLoadingInBackground=true,
-        // but the emit arg overrides it to false
-        flowEmitter.emit("item", IsLoadingInBackgroundMetadata(false), isLastValue = false)
+        // isLastValue=false would normally produce BackgroundLoad.Loading,
+        // but the emit arg overrides it to Empty
+        flowEmitter.emit("item", BackgroundLoadMetadata(BackgroundLoadState.Idle), isLastValue = false)
 
         coVerify {
             flowCollector.emit(match { container ->
-                !container.metadata.isLoadingInBackground
+                container.metadata.backgroundLoadState == BackgroundLoadState.Idle
             })
         }
     }
@@ -271,36 +204,15 @@ class FlowEmitterTest {
     }
 
     @Test
-    fun emit_withConstructorMetadata_overridesBuiltInLoadUuidMetadata() = runTest {
-        val flowEmitter = makeFlowEmitter(
-            metadata = LoadUuidMetadata("constructor-uuid"),
-            loadUuid = "built-in-uuid",
-        )
-
-        flowEmitter.emit("item")
-
-        coVerify(exactly = 0) {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>()?.uuid == "built-in-uuid"
-            })
-        }
-        coVerify(exactly = 1) {
-            flowCollector.emit(match { container ->
-                container.metadata.get<LoadUuidMetadata>()?.uuid == "constructor-uuid"
-            })
-        }
-    }
-
-    @Test
-    fun emit_withConstructorMetadata_overridesBuiltInIsLoadingInBackgroundMetadata() = runTest {
-        // isLastValue=false would normally produce isLoadingInBackground=true
-        val flowEmitter = makeFlowEmitter(metadata = IsLoadingInBackgroundMetadata(false))
+    fun emit_withConstructorMetadata_overridesBuiltInBackgroundLoadMetadata() = runTest {
+        // isLastValue=false would normally produce BackgroundLoad.Loading
+        val flowEmitter = makeFlowEmitter(metadata = BackgroundLoadMetadata(BackgroundLoadState.Idle))
 
         flowEmitter.emit("item", isLastValue = false)
 
         coVerify {
             flowCollector.emit(match { container ->
-                !container.metadata.isLoadingInBackground
+                container.metadata.backgroundLoadState == BackgroundLoadState.Idle
             })
         }
     }
@@ -313,11 +225,11 @@ class FlowEmitterTest {
         flowEmitter.emitLastItem()
 
         // Both initial emit and re-emit have RemoteSourceType;
-        // only the re-emitted container (from emitLastItem) has isLoadingInBackground=false
+        // only the re-emitted container (from emitLastItem) has backgroundLoadState=Idle
         coVerify(exactly = 1) {
             flowCollector.emit(match { container ->
                 container.metadata.sourceType == RemoteSourceType &&
-                    !container.metadata.isLoadingInBackground
+                    container.metadata.backgroundLoadState == BackgroundLoadState.Idle
             })
         }
     }
@@ -368,11 +280,10 @@ class FlowEmitterTest {
 
     private fun makeFlowEmitter(
         metadata: ContainerMetadata = EmptyMetadata,
-        loadUuid: String = "",
     ) = FlowEmitter(
         metadata = metadata,
         flowCollector = flowCollector,
-        executeParams = LoadTask.ExecuteParams(loadUuid, flowDependencyStore),
+        executeParams = LoadTask.ExecuteParams(flowDependencyStore),
         flowSubject = flowSubject,
     )
 }

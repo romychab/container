@@ -10,6 +10,7 @@ Kotlin Flows.
 - [Creating Containers](#creating-containers)
 - [Extracting Values](#extracting-values)
 - [Pattern Matching with when / fold](#pattern-matching-with-when-fold)
+- [Pattern Matching with isXXX extensions](#pattern-matching-with-isxxx-extensions)
 - [Transformations](#transformations)
   - [map](#map)
   - [transform](#transform)
@@ -113,8 +114,8 @@ value and the associated metadata:
 ```kotlin
 val cv: ContainerValue<String> = container.getContainerValueOrNull() ?: return
 println(cv.value)
-println(cv.source)               // shorthand for metadata.sourceType
-println(cv.isLoadingInBackground)
+println(cv.sourceType)               // shorthand for metadata.sourceType
+println(cv.backgroundLoadState)
 ```
 
 ## Pattern Matching with when / fold
@@ -156,6 +157,25 @@ val text: String? = container.foldNullable(
 )
 ```
 
+## Pattern Matching with isXXX extensions
+
+The following extensions can be used for pattern-matching:
+
+- `isSuccess`
+- `isError`
+- `isPending`
+- `isCompleted`
+
+All of them are compatible with Kotlin Smartcast.
+
+For example:
+
+```kotlin
+val container: Container<String> = ...
+if (container.isSuccess()) {
+    println(container.value)
+}
+```
 
 ## Transformations
 
@@ -404,18 +424,18 @@ fun getProducts(): ListContainerFlow<Product> = ...
 Both `Container.Success` and `Container.Error` carry a `metadata: ContainerMetadata`
 bag. The standard metadata properties are:
 
-| Property                | Type             | Meaning |
-|-------------------------|------------------|---------|
-| `source`                | `SourceType`     | Where the data came from |
-| `isLoadingInBackground` | `Boolean`        | A newer value is being fetched in the background |
-| `reloadFunction`        | `ReloadFunction` | Call this to re-trigger the load |
+| Property                | Type                  | Meaning |
+|-------------------------|-----------------------|---------|
+| `sourceType`            | `SourceType`          | Where the data came from |
+| `backgroundLoadState`   | `BackgroundLoadState` | A state of background loading (if any) |
+| `reloadFunction`        | `ReloadFunction`      | Call this to re-trigger the load |
 
 Access them through shorthand extension properties on the container or through
 the metadata bag:
 
 ```kotlin
 val success: Container.Success<String> = ...
-val source = success.source  // shorthand
+val source = success.sourceType  // shorthand
 val source = success.metadata.sourceType  // metadata extension
 val source = success.metadata.get<SourceTypeMetadata>()?.sourceType  // explicit
 ```

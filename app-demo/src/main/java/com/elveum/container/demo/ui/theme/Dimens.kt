@@ -17,4 +17,6 @@ object Dimens {
     val ToolbarProgressIndicatorStrokeWidth = 3.dp
 
     val MediumCorners = 16.dp
+
+    val ProgressIconSize = 40.dp
 }

@@ -18,6 +18,7 @@ import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsSc
 import com.elveum.container.demo.feature.examples.pagination_args.PaginationArgsScreen
 import com.elveum.container.demo.feature.examples.pagination_basic.BasicPaginationScreen
 import com.elveum.container.demo.feature.examples.pagination_statuses.PaginationStatusesScreen
+import com.elveum.container.demo.feature.examples.pagination_updates.PaginationUpdatesScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
 import com.elveum.container.demo.feature.examples.subject_errors.ErrorHandlingScreen
 import com.elveum.container.demo.feature.examples.subject_pulltorefresh.PullToRefreshScreen
@@ -233,6 +234,16 @@ sealed class Example {
 
         @Composable
         override fun Content() = PaginationArgsScreen()
+    }
+
+    @Serializable
+    data object PaginationUpdates : Example() {
+        @Transient override val category = Category.Pagination
+        @Transient override val title = "Pagination with Updates"
+        @Transient override val description = "Paged list where each item carries a Like toggle that can be flipped independently of pagination."
+
+        @Composable
+        override fun Content() = PaginationUpdatesScreen()
     }
 
 }

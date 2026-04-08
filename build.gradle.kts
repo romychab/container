@@ -15,6 +15,5 @@ detekt {
     buildUponDefaultConfig = true
     source.setFrom(
         "container/src/main/java",
-        "app-demo/src/main/java",
     )
 }

@@ -91,6 +91,7 @@ public fun <T1, T2, T3, T4, State> combineToReducer(
         flows = listOf(flow1, flow2, flow3, flow4),
         initialState = initialState,
         nextState = { oldState, values ->
+            @Suppress("MagicNumber")
             nextState(oldState, values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4)
         },
         scope = scope,
@@ -117,6 +118,7 @@ public fun <T1, T2, T3, T4, T5, State> combineToReducer(
         flows = listOf(flow1, flow2, flow3, flow4, flow5),
         initialState = initialState,
         nextState = { oldState, values ->
+            @Suppress("MagicNumber")
             nextState(oldState, values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4, values[4] as T5)
         },
         scope = scope,
@@ -175,7 +177,8 @@ public fun <T1, T2, T3, T4, State> ReducerOwner.combineToReducer(
     initialState: State,
     nextState: suspend (State, T1, T2, T3, T4) -> State,
 ): Reducer<State> {
-    return combineToReducer(flow1, flow2, flow3, flow4, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToReducer(flow1, flow2, flow3, flow4,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }
 
 /**
@@ -191,5 +194,6 @@ public fun <T1, T2, T3, T4, T5, State> ReducerOwner.combineToReducer(
     initialState: State,
     nextState: suspend (State, T1, T2, T3, T4, T5) -> State,
 ): Reducer<State> {
-    return combineToReducer(flow1, flow2, flow3, flow4, flow5, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToReducer(flow1, flow2, flow3, flow4, flow5,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }

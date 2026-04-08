@@ -21,7 +21,10 @@ public typealias SimpleValueLoader<T> = suspend () -> T
  * Use this method instead of [LazyFlowSubject.newLoad] if you don't want to listen for the
  * current load results.
  *
- * @param config defines how the loading state will be propagated to subsequent containers.
+ * @param T the type of values held by this subject.
+ * @param config Defines how the loading state will be propagated to subsequent containers.
+ * @param metadata Additional metadata values to be attached to subsequent emitted containers.
+ * @param valueLoader A loader that loads new values asynchronously.
  *
  * Please note that the load starts only when at least one subscriber listens
  * for flow returned by [LazyFlowSubject.listen] method.
@@ -121,7 +124,7 @@ public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
 /**
  * Listen for values loaded by this subject and for each emitted container:
  * - attach a valid reload function
- * - re-emit background load indicator if data is being reloaded
+ * - re-emit background load indicator if data is being reloaded.
  */
 public fun <T> LazyFlowSubject<T>.listenReloadable(
     emitReloadFunction: Boolean = true,

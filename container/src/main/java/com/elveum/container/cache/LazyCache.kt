@@ -4,8 +4,8 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DefaultCacheTimeoutMillis
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -62,6 +62,7 @@ public interface LazyCache<Arg, T> {
      * This method does not have effect if there is no active collectors (because data
      * loading is started when at least 1 collector collects a flow returned by [listen] call).
      *
+     * @param arg the argument identifying which cached entry to reload.
      * @param config defines how the loading state will be propagated to subsequent containers.
      *
      * @return a finite flow emitting loaded items; it may complete with error if load
@@ -100,12 +101,17 @@ public interface LazyCache<Arg, T> {
          * }
          * ```
          *
+         * @param Arg the type of the argument used to identify cached entries.
+         * @param T the type of values held in the cache.
          * @param cacheTimeoutMillis how much time cached values remain in cache if there is no collectors
+         * @param reloadDependenciesPeriodMillis how often dependencies are checked for reload triggers
+         * @param coroutineScopeFactory factory used to create coroutine scopes for loading
+         * @param transformation optional transformation applied to loaded containers
          * @param valueLoader function that loads data into the cache on demand
          */
         public fun <Arg, T> create(
-            cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
-            reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+            cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
+            reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
             valueLoader: CacheValueLoader<Arg, T>,

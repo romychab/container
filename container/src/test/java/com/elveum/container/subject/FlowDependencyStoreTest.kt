@@ -3,7 +3,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.subject.lazy.FlowDependencyStore
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.successContainer
@@ -91,7 +91,7 @@ class FlowDependencyStoreTest {
             recomposeFunction.execute(any())
         }
 
-        advanceTimeBy(DefaultReloadDependenciesPeriodMillis + 1)
+        advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
 
         verify(exactly = 0) {
             recomposeFunction.execute(any())
@@ -113,7 +113,7 @@ class FlowDependencyStoreTest {
             recomposeFunction.execute(any())
         }
 
-        advanceTimeBy(DefaultReloadDependenciesPeriodMillis + 1)
+        advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
 
         verify(exactly = 1) {
             recomposeFunction.execute(false)

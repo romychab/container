@@ -6,7 +6,7 @@ import com.elveum.container.Container
 import com.elveum.container.Container.Completed
 import com.elveum.container.LoadConfig
 import com.elveum.container.ReloadFunction
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.pendingContainer
 import com.elveum.container.subject.lazy.FlowDependencyStore
 import com.elveum.container.subject.lazy.FlowDependencyStore.RecomposeFunction
@@ -31,7 +31,7 @@ import kotlinx.coroutines.launch
 
 internal class FlowDependencyStoreImpl<T>(
     private val loadTaskManager: LoadTaskManager<T>,
-    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
 ) : FlowDependencyStore {
 
     private var scope: CoroutineScope? = null
@@ -152,7 +152,7 @@ internal class FlowDependencyStoreImpl<T>(
         }
     }
 
-    private class FlowDependencyRecord<R>() {
+    private class FlowDependencyRecord<R> {
         val containerFlow = MutableStateFlow<Container<R>>(pendingContainer())
         @Volatile var lastReloadFunction: ReloadFunction = {}
         var job: Job? = null

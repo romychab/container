@@ -103,7 +103,7 @@ public fun <T1, T2, T3, T4, R> combineStates(
     transform: (T1, T2, T3, T4) -> R,
 ): StateFlow<R> {
     return combineStates(listOf(stateFlow1, stateFlow2, stateFlow3, stateFlow4)) { input ->
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "MagicNumber")
         transform(input[0] as T1, input[1] as T2, input[2] as T3, input[3] as T4)
     }
 }
@@ -121,7 +121,7 @@ public fun <T1, T2, T3, T4, T5, R> combineStates(
     transform: (T1, T2, T3, T4, T5) -> R,
 ): StateFlow<R> {
     return combineStates(listOf(stateFlow1, stateFlow2, stateFlow3, stateFlow4, stateFlow5)) { input ->
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "MagicNumber")
         transform(input[0] as T1, input[1] as T2, input[2] as T3, input[3] as T4, input[4] as T5)
     }
 }

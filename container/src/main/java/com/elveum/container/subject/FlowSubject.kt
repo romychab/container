@@ -14,7 +14,7 @@ import kotlinx.coroutines.flow.Flow
 public interface FlowSubject<T> {
 
     /**
-     * Emit a new value to the flow returned by [flow]
+     * Emit a new value to the flow returned by [flow].
      */
     public fun onNext(value: T)
 

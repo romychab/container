@@ -7,8 +7,8 @@ import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 
 public open class DefaultSubjectFactory(
-    private val cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
-    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+    private val cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
     private val coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
     private val transformationFactory: TransformationFactory = TransformationFactory,
 ) : SubjectFactory {

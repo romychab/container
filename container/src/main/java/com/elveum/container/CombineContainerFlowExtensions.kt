@@ -44,7 +44,7 @@ public fun <T1, T2, T3, T4, R> combineContainerFlows(
     transform: (T1, T2, T3, T4) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2, flow3, flow4)) { input ->
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "MagicNumber")
         transform(input[0] as T1, input[1] as T2, input[2] as T3, input[3] as T4)
     }
 }
@@ -61,7 +61,7 @@ public fun <T1, T2, T3, T4, T5, R> combineContainerFlows(
     transform: (T1, T2, T3, T4, T5) -> R,
 ): Flow<Container<R>> {
     return combineContainerFlows(listOf(flow1, flow2, flow3, flow4, flow5)) { input ->
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "MagicNumber")
         transform(input[0] as T1, input[1] as T2, input[2] as T3, input[3] as T4, input[4] as T5)
     }
 }
@@ -157,7 +157,7 @@ public fun <T0, T1, T2, T3, R> Flow<Container<T0>>.containerCombineWith(
     return containerCombineWith(
         flows = listOf(flow1, flow2, flow3),
         transform = { input ->
-            @Suppress("UNCHECKED_CAST")
+            @Suppress("UNCHECKED_CAST", "MagicNumber")
             transform(input[0] as T0, input[1] as T1, input[2] as T2, input[3] as T3)
         },
     )
@@ -238,6 +238,8 @@ internal class CombineContainerWithFlowScopeImpl(
     container: Container<*>,
 ) : CombineContainerFlowScope {
     override var sourceType = (container as? Container.Completed)?.sourceType ?: UnknownSourceType
-    override var backgroundLoadState = (container as? Container.Completed)?.backgroundLoadState ?: BackgroundLoadState.Loading
+    override var backgroundLoadState = (container as? Container.Completed)
+        ?.backgroundLoadState
+        ?: BackgroundLoadState.Loading
     override var reloadFunction = (container as? Container.Completed)?.reloadFunction ?: EmptyReloadFunction
 }

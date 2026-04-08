@@ -6,8 +6,8 @@ import com.elveum.container.Emitter
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DefaultCacheTimeoutMillis
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.subject.LazyFlowSubject.Companion.create
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -101,6 +101,8 @@ public interface LazyFlowSubject<T> {
      * the flow returned by [listen] method.
      *
      * @param config defines how the loading state will be propagated to subsequent containers.
+     * @param metadata Additional metadata values to be attached to subsequent emitted containers.
+     * @param valueLoader A loader that loads new values asynchronously.
      *
      * @return Flow with values only emitted by the [valueLoader].
      *         The flow completes when the last value is emitted or when the
@@ -145,8 +147,8 @@ public interface LazyFlowSubject<T> {
     public companion object {
 
         public fun <T> create(
-            cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
-            reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+            cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
+            reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
             valueLoader: ValueLoader<T>? = null,

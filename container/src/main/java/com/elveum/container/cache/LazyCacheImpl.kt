@@ -5,7 +5,7 @@ package com.elveum.container.cache
 import com.elveum.container.Container
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
@@ -24,7 +24,7 @@ import kotlinx.coroutines.launch
 internal class LazyCacheImpl<Arg, T>(
     private val cacheTimeoutMillis: Long,
     private val coroutineScopeFactory: CoroutineScopeFactory,
-    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
     transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
     private val valueLoader: CacheValueLoader<Arg, T>,
     private val subjectFactory: LazyFlowSubjectFactory<T> = LazyFlowSubjectFactory.Default(

@@ -13,7 +13,7 @@ import com.elveum.container.ReloadFunctionMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.LoadConfig
 import com.elveum.container.backgroundLoadState
@@ -792,7 +792,7 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(2, state.count)
 
         // 3. advance delay and check new updated item received:
-        advanceTimeBy(DefaultReloadDependenciesPeriodMillis + 1)
+        advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
         assertEquals(
             successContainer("a2:b1"),
             state.lastItem.raw()

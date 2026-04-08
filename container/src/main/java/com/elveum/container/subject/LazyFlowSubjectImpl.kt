@@ -12,7 +12,7 @@ import com.elveum.container.LoadConfig
 import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DefaultReloadDependenciesPeriodMillis
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
@@ -35,7 +35,7 @@ internal class LazyFlowSubjectImpl<T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
     private val loadTaskManager: LoadTaskManager<T>,
-    private val reloadDependenciesPeriodMillis: Long = DefaultReloadDependenciesPeriodMillis,
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
     private val loadTaskFactory: LoadTaskFactory = LoadTaskFactory.Default,
     private val flowDependencyStore: FlowDependencyStoreImpl<T> = FlowDependencyStoreImpl(
         loadTaskManager = loadTaskManager,

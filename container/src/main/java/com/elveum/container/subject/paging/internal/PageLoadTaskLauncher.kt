@@ -21,9 +21,7 @@ internal class PageLoadTaskLauncher<Key, T>(
             state.processKey(key, coroutineContext.job) {
                 val pageEmitter = emitterFactory.create(key, this@PageLoadTaskLauncher)
                 block(pageEmitter, key)
-                if (!pageEmitter.emitPageCalled) {
-                    throw IllegalStateException("emitPage() must be called at least once.")
-                }
+                check(pageEmitter.emitPageCalled) { "emitPage() must be called at least once." }
             }
         }
     }

@@ -103,9 +103,11 @@ public fun <T1, T2, T3, T4, State> combineToContainerReducer(
     return combineToContainerReducer(
         flows = listOf(flow1, flow2, flow3, flow4),
         initialState = { values ->
+            @Suppress("MagicNumber")
             initialState(values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4)
         },
         nextState = { oldState, values ->
+            @Suppress("MagicNumber")
             nextState(oldState, values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4)
         },
         scope = scope,
@@ -133,9 +135,11 @@ public fun <T1, T2, T3, T4, T5, State> combineToContainerReducer(
     return combineToContainerReducer(
         flows = listOf(flow1, flow2, flow3, flow4, flow5),
         initialState = { values ->
+            @Suppress("MagicNumber")
             initialState(values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4, values[4] as T5)
         },
         nextState = { oldState, values ->
+            @Suppress("MagicNumber")
             nextState(oldState, values[0] as T1, values[1] as T2, values[2] as T3, values[3] as T4, values[4] as T5)
         },
         scope = scope,
@@ -169,7 +173,8 @@ public fun <T1, T2, State> ReducerOwner.combineToContainerReducer(
         initialState(v1, v2)
     },
 ): ContainerReducer<State> {
-    return combineToContainerReducer(flow1, flow2, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToContainerReducer(flow1, flow2,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }
 
 /**
@@ -185,7 +190,8 @@ public fun <T1, T2, T3, State> ReducerOwner.combineToContainerReducer(
         initialState(v1, v2, v3)
     },
 ): ContainerReducer<State> {
-    return combineToContainerReducer(flow1, flow2, flow3, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToContainerReducer(flow1, flow2, flow3,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }
 
 /**
@@ -202,7 +208,8 @@ public fun <T1, T2, T3, T4, State> ReducerOwner.combineToContainerReducer(
         initialState(v1, v2, v3, v4)
     },
 ): ContainerReducer<State> {
-    return combineToContainerReducer(flow1, flow2, flow3, flow4, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToContainerReducer(flow1, flow2, flow3, flow4,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }
 
 /**
@@ -220,5 +227,6 @@ public fun <T1, T2, T3, T4, T5, State> ReducerOwner.combineToContainerReducer(
         initialState(v1, v2, v3, v4, v5)
     },
 ): ContainerReducer<State> {
-    return combineToContainerReducer(flow1, flow2, flow3, flow4, flow5, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
+    return combineToContainerReducer(flow1, flow2, flow3, flow4, flow5,
+        initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
 }

@@ -3,7 +3,7 @@ package com.elveum.container.cache
 import com.elveum.container.Container
 import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
-import com.elveum.container.factory.DefaultCacheTimeoutMillis
+import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
 import com.elveum.container.transform
 
 public typealias SimpleCacheValueLoader<Arg, T> = suspend (Arg) -> T
@@ -13,6 +13,9 @@ public typealias SimpleCacheValueLoader<Arg, T> = suspend (Arg) -> T
  *
  * This method cancels the current load.
  *
+ * @param Arg the type of the argument used to identify cached entries.
+ * @param T the type of values held in the cache.
+ * @param arg the argument identifying which cached entry to update.
  * @param updater function which makes a new value to be sent into the cache.
  */
 public inline fun <Arg, T> LazyCache<Arg, T>.updateWith(
@@ -49,7 +52,7 @@ public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
  * ``
  */
 public fun <Arg, T> LazyCache.Companion.createSimple(
-    cacheTimeoutMillis: Long = DefaultCacheTimeoutMillis,
+    cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
     valueLoader: SimpleCacheValueLoader<Arg, T>,
 ): LazyCache<Arg, T> {
     return create(

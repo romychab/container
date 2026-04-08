@@ -20,20 +20,20 @@ public enum class LoadTrigger {
 
     /**
      * LazyFlowSubject has executed a new loader function assigned
-     * via [LazyFlowSubject.newLoad]
+     * via [LazyFlowSubject.newLoad].
      */
     NewLoad,
 
     /**
      * LazyFlowSubject has re-executed an old loader function due to
-     * calling of [LazyFlowSubject.reload]
+     * calling of [LazyFlowSubject.reload].
      */
     Reload,
 
     /**
      * An old loader function has been executed due to the expiration of
      * in-memory cache (this happens when all listeners have unsubscribed
-     * and then subscribed again after the expiration period)
+     * and then subscribed again after the expiration period).
      */
     CacheExpired,
 

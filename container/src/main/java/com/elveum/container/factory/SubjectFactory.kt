@@ -6,8 +6,8 @@ import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 
-public const val DefaultCacheTimeoutMillis: Long = 1000L
-public const val DefaultReloadDependenciesPeriodMillis: Long = 50L
+public const val DEFAULT_CACHE_TIMEOUT_MILLIS: Long = 1000L
+public const val DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS: Long = 50L
 
 /**
  * Factory that can create [LazyFlowSubject] and [LazyCache] instances.
@@ -50,7 +50,8 @@ public interface SubjectFactory {
             transformation: ContainerTransformation<T>?,
             valueLoader: ValueLoader<T>
         ): LazyFlowSubject<T> {
-            return instance.createSubject(cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation, valueLoader)
+            return instance.createSubject(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
+                coroutineScopeFactory, transformation, valueLoader)
         }
 
         override fun <Arg, T> createCache(
@@ -60,7 +61,8 @@ public interface SubjectFactory {
             transformation: ContainerTransformation<T>?,
             valueLoader: CacheValueLoader<Arg, T>
         ): LazyCache<Arg, T> {
-            return instance.createCache(cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation, valueLoader)
+            return instance.createCache(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
+                coroutineScopeFactory, transformation, valueLoader)
         }
 
         /**

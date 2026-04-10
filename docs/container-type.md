@@ -62,7 +62,7 @@ sealed class Container<out T> {
 
 Both `Success` and `Error` carry an optional `metadata: ContainerMetadata`
 bag that can hold additional information such as the data source, a reload
-function, or background-load indicators. See [Subjects & Cache](subjects.md)
+function, or background-load indicators. See [Subjects](subjects.md)
 for details on metadata.
 
 ## Creating Containers
@@ -442,4 +442,4 @@ val source = success.metadata.get<SourceTypeMetadata>()?.sourceType  // explicit
 
 For detailed metadata information, including `SourceType` values,
 `LoadTrigger`, and how to attach custom metadata, see
-[Subjects & Cache](subjects.md).
+[Subjects](subjects.md).

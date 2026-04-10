@@ -64,7 +64,7 @@ val stateFlow: StateFlow<State> = reducer.stateFlow
 
 The `nextState` parameter is a function of type `(State, T) -> State`, which
 `data class`'s generated `copy(items = ...)` satisfies automatically as a
-method reference when the field names match.
+method reference when the fields match.
 
 If your state class _is_ the same type as the flow value (no wrapping needed),
 you can omit `nextState`:
@@ -81,7 +81,7 @@ private val reducer: Reducer<List<String>> = getItemsFlow()
 ### From a Flow of Containers
 
 Use `toReducer` and unwrap the input container inside `nextState` if you want
-to convert `Flow<Container<T>>` into a plain `StateFlow<State>`:
+to convert `Flow<Container<T>>` into a plain `StateFlow<State>` manually:
 
 ```kotlin
 data class State(

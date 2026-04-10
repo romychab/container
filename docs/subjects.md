@@ -1,8 +1,7 @@
-# Subjects & Cache
+# Subjects
 
-This page covers `LazyFlowSubject`, `LazyCache`, and `FlowSubject` (the
-building blocks for on-demand data loading) along with the metadata system
-that threads cross-cutting information through containers.
+This page covers `LazyFlowSubject` building block for on-demand data loading along
+with the metadata system that threads cross-cutting information through containers.
 
 ## Table of Contents
 
@@ -15,10 +14,6 @@ that threads cross-cutting information through containers.
   - [Load Triggers](#load-triggers)
   - [ContainerConfiguration](#containerconfiguration)
   - [listenReloadable](#listenreloadable)
-- [LazyCache](#lazycache)
-  - [Basic Usage](#basic-usage-1)
-  - [API Overview](#api-overview)
-- [FlowSubject](#flowsubject)
 - [SubjectFactory](#subjectfactory)
   - [Testability](#testability)
   - [Convenience Factory Functions](#convenience-factory-functions)
@@ -231,92 +226,10 @@ val flow: Flow<Container<List<Product>>> = subject.listen(
 fun listenProducts(): Flow<Container<List<Product>>> = subject.listenReloadable()
 ```
 
-## LazyCache
-
-`LazyCache<Arg, T>` is a map of `LazyFlowSubject` instances keyed by an
-argument. Each key has its own independent loading lifecycle.
-
-### Basic Usage
-
-```kotlin
-private val usersCache = LazyCache.create<Long, User> { id ->
-    val local = localDataSource.getUserById(id)
-    if (local != null) emit(local)
-    val remote = remoteDataSource.getUserById(id)
-    localDataSource.save(remote)
-    emit(remote)
-}
-
-fun getUser(id: Long): Flow<Container<User>> = usersCache.listen(id)
-
-fun reloadUser(id: Long) = usersCache.reloadAsync(id)
-```
-
-For single-value loaders (no need to emit multiple times), use the simpler
-factory:
-
-```kotlin
-private val usersCache = LazyCache.createSimple<Long, User> { id ->
-    remoteDataSource.getUserById(id)
-}
-```
-
-### API Overview
-
-All methods mirror `LazyFlowSubject` but take an additional `arg` parameter:
-
-```kotlin
-// Listen to the flow for a specific key:
-usersCache.listen(id)
-usersCache.listen(id, ContainerConfiguration(emitReloadFunction = true))
-
-// Get the current snapshot without subscribing:
-val current: Container<User> = usersCache.get(id)
-
-// Reload:
-usersCache.reload(id)
-usersCache.reloadAsync(id)
-usersCache.reloadAsync(id, LoadConfig.SilentLoading)
-
-// Push a value directly:
-usersCache.updateWith(id, successContainer(user))
-usersCache.updateWith(id) { oldContainer -> oldContainer.map { it.copy(name = newName) } }
-usersCache.updateIfSuccess(id) { old -> old.copy(name = newName) }
-
-// Subscriber counts:
-val count: Int  = usersCache.getActiveCollectorsCount(id)
-val active: Boolean = usersCache.hasActiveCollectors(id)
-
-// Remove all cached entries that have no active subscribers:
-usersCache.reset()
-```
-
-## FlowSubject
-
-`FlowSubject<T>` gives you manual control over a finite `Flow`. It is
-conceptually similar to `PublishSubject` from RxJava.
-
-Unlike `StateFlow`, `FlowSubject`:
-- Does not require an initial value
-- Can be completed (successfully or with an error)
-- Replays the latest value to new subscribers after completion
-
-```kotlin
-val subject = FlowSubject.create<String>()
-
-subject.onNext("first")
-subject.onNext("second")
-subject.onComplete()
-
-subject.flow().collect { value ->
-    println(value)
-}
-```
-
 ## SubjectFactory
 
-`SubjectFactory` is an interface for creating `LazyFlowSubject` and `LazyCache`
-instances. Use it instead of calling `LazyFlowSubject.create {}` directly.
+`SubjectFactory` is an interface for creating `LazyFlowSubject` instances.
+Use it instead of calling `LazyFlowSubject.create {}` directly.
 
 ### Testability
 
@@ -365,11 +278,6 @@ SubjectFactory.resetFactory()
 val subject: LazyFlowSubject<String> = subjectFactory.createSimpleSubject(
     sourceType  = RemoteSourceType,
 ) { fetchString() }
-
-// Create a LazyCache with a simple loader:
-val cache: LazyCache<Long, User> = subjectFactory.createSimpleCache(
-    sourceType = RemoteSourceType,
-) { id -> fetchUser(id) }
 
 // Create a StateFlow directly (backed by a LazyFlowSubject internally):
 val flow: StateFlow<Container<String>> = subjectFactory.createFlow {

@@ -10,9 +10,11 @@ that cover the most common reactive patterns: wrapping async results in a
 typed status, managing derived state from multiple flows, and lazily loading
 data on demand.
 
+<!-- docs-exclude-start -->
 ## Documentation
 
 The full documentation is available [here](https://docs.uandcode.com/container).
+<!-- docs-exclude-end -->
 
 ## Table of Contents
 
@@ -173,31 +175,10 @@ Key behaviours:
 For advanced usage (load triggers, source types, flow dependencies, and
 `SubjectFactory` for testability) see [Subjects & Cache](docs/subjects.md).
 
-### LazyCache
-
-`LazyCache<Arg, T>` is a collection of `LazyFlowSubject` instances keyed by
-an argument. Use it whenever you need to load and cache data for multiple
-distinct identifiers (e.g. user IDs, product IDs):
-
-```kotlin
-private val usersCache = LazyCache.create<Long, User> { id ->
-    val local = localDataSource.getUserById(id)
-    if (local != null) emit(local)
-    emit(remoteDataSource.getUserById(id))
-}
-
-fun getUser(id: Long): Flow<Container<User>> = usersCache.listen(id)
-
-fun reloadUser(id: Long) = usersCache.reloadAsync(id)
-```
-
-Each key has its own independent loading lifecycle, caching behaviour, and
-subscriber count. See [Subjects & Cache](docs/subjects.md) for the complete API.
-
 ## Detailed Documentation
 
 | Topic | Description |
 |-------|-------------|
 | [Container Type](docs/container-type.md) | States, value extraction, transformations, flow extensions, combining flows |
 | [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner` |
-| [Subjects & Cache](docs/subjects.md) | `LazyFlowSubject`, `LazyCache`, `FlowSubject`, metadata, source types |
+| [Subjects](docs/subjects.md) | `LazyFlowSubject`, metadata, source types |

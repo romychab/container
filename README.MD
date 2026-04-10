@@ -24,6 +24,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
   - [Reducer Pattern](#reducer-pattern)
   - [LazyFlowSubject](#lazyflowsubject)
   - [LazyCache](#lazycache)
+  - [Pagination](#pagination)
 - [Detailed Documentation](#detailed-documentation)
 
 ## Installation
@@ -175,6 +176,57 @@ Key behaviours:
 For advanced usage (load triggers, source types, flow dependencies, and
 `SubjectFactory` for testability) see [Subjects & Cache](docs/subjects.md).
 
+### Pagination
+
+`pageLoader` turns any key-based data source into a `ValueLoader` that can be
+passed directly to `LazyFlowSubject.create`. Pages are fetched on demand as
+the user scrolls, and the results are concatenated automatically into a single
+`List<T>`:
+
+```kotlin
+private val subject = LazyFlowSubject.create(
+    valueLoader = pageLoader(
+        initialKey = null as Int?,
+        itemId = Order::id,
+    ) { pageKey ->
+        val page = ordersDataSource.fetchPage(pageKey ?: 0)
+        emitPage(page.orders)
+        if (page.nextKey != null) emitNextKey(page.nextKey)
+    }
+)
+
+fun listenOrders(): Flow<Container<List<Order>>> = subject.listenReloadable()
+```
+
+In the UI, call `metadata.onItemRendered(index)` inside your `LazyColumn`
+to trigger next-page loads as the user scrolls, and read
+`container.metadata.nextPageState` to show a footer spinner or retry button:
+
+```kotlin
+container.fold(
+    onPending = { CircularProgressIndicator() },
+    onError = { exception -> /* full-screen error */ },
+    onSuccess = { orders ->
+        LazyColumn {
+            itemsIndexed(orders, key = { _, o -> o.id }) { index, order ->
+                LaunchedEffect(index) { metadata.onItemRendered(index) }
+                OrderItem(order)
+            }
+            item {
+                when (val state = container.metadata.nextPageState) {
+                    PageState.Pending -> CircularProgressIndicator()
+                    is PageState.Error -> Button(onClick = { state.retry() }) { Text("Retry") }
+                    else -> {}
+                }
+            }
+        }
+    },
+)
+```
+
+For the full guide (pull-to-refresh, error handling, flow dependencies, and
+per-item updates), see [Pagination](docs/paging.md).
+
 ## Detailed Documentation
 
 | Topic | Description |
@@ -182,3 +234,4 @@ For advanced usage (load triggers, source types, flow dependencies, and
 | [Container Type](docs/container-type.md) | States, value extraction, transformations, flow extensions, combining flows |
 | [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner` |
 | [Subjects](docs/subjects.md) | `LazyFlowSubject`, metadata, source types |
+| [Pagination](docs/paging.md) | `PageLoader`, next-page states, pull-to-refresh, flow dependencies, per-item updates |

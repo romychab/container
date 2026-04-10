@@ -30,6 +30,7 @@ nav:
   - Container Type: container-type.md
   - Reducer Pattern: reducer-pattern.md
   - Subjects & Cache: subjects.md
+  - Pagination: paging.md
 
 markdown_extensions:
   - admonition

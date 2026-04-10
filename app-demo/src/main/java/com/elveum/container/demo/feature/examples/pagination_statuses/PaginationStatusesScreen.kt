@@ -123,7 +123,7 @@ fun PaginationStatusesScreen() {
                             BookCard(book = book)
                         }
                         item {
-                            NextPageFooter(pageState = container.metadata.nextPageState)
+                            NextPageFooter(pageState = metadata.nextPageState)
                         }
                     }
                 },

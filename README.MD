@@ -23,7 +23,6 @@ The full documentation is available [here](https://docs.uandcode.com/container).
   - [Container Type](#container-type)
   - [Reducer Pattern](#reducer-pattern)
   - [LazyFlowSubject](#lazyflowsubject)
-  - [LazyCache](#lazycache)
   - [Pagination](#pagination)
 - [Detailed Documentation](#detailed-documentation)
 
@@ -185,11 +184,11 @@ the user scrolls, and the results are concatenated automatically into a single
 
 ```kotlin
 private val subject = LazyFlowSubject.create(
-    valueLoader = pageLoader(
-        initialKey = null as Int?,
+    valueLoader = pageLoader<Int, Order>(
+        initialKey = 0,
         itemId = Order::id,
     ) { pageKey ->
-        val page = ordersDataSource.fetchPage(pageKey ?: 0)
+        val page = ordersDataSource.fetchPage(pageKey)
         emitPage(page.orders)
         if (page.nextKey != null) emitNextKey(page.nextKey)
     }
@@ -200,7 +199,7 @@ fun listenOrders(): Flow<Container<List<Order>>> = subject.listenReloadable()
 
 In the UI, call `metadata.onItemRendered(index)` inside your `LazyColumn`
 to trigger next-page loads as the user scrolls, and read
-`container.metadata.nextPageState` to show a footer spinner or retry button:
+`metadata.nextPageState` to show a footer spinner or retry button:
 
 ```kotlin
 container.fold(
@@ -213,7 +212,7 @@ container.fold(
                 OrderItem(order)
             }
             item {
-                when (val state = container.metadata.nextPageState) {
+                when (val state = metadata.nextPageState) {
                     PageState.Pending -> CircularProgressIndicator()
                     is PageState.Error -> Button(onClick = { state.retry() }) { Text("Retry") }
                     else -> {}

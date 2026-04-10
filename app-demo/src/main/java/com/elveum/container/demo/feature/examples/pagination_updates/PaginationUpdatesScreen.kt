@@ -76,7 +76,7 @@ fun PaginationUpdatesScreen() = DemoScaffold(
                         )
                     }
                     item {
-                        NextPageFooter(pageState = container.metadata.nextPageState)
+                        NextPageFooter(pageState = metadata.nextPageState)
                     }
                 }
             }

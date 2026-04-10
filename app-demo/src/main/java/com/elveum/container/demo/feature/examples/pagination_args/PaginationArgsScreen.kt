@@ -87,7 +87,7 @@ fun PaginationArgsScreen() = DemoScaffold(
                         PhotoCard(photo = photo)
                     }
                     item(span = StaggeredGridItemSpan.FullLine) {
-                        NextPageFooter(pageState = container.metadata.nextPageState)
+                        NextPageFooter(pageState = metadata.nextPageState)
                     }
                 }
                 if (isReloading) {

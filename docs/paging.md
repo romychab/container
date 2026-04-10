@@ -353,7 +353,7 @@ fun OrdersScreen(viewModel: OrdersViewModel = hiltViewModel()) {
                     }
                     // Next-page loading/error indicator at the bottom:
                     item {
-                        when (val state = container.metadata.nextPageState) {
+                        when (val state = metadata.nextPageState) {
                             PageState.Pending -> {
                                 CircularProgressIndicator(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),

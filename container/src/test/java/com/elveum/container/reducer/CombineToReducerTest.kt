@@ -1,6 +1,7 @@
 package com.elveum.container.reducer
 
 import com.uandcode.flowtest.runFlowTest
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import org.junit.Assert.assertEquals
@@ -285,6 +286,143 @@ class CombineToReducerTest {
             collector.lastItem
         )
     }
+
+    @Test
+    fun `test combineToReducer with 2 input flows on ReducerOwner`() = runFlowTest {
+        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
+            val flowA = MutableSharedFlow<String>()
+            val flowB = MutableSharedFlow<String>()
+            val reducer = combineToReducer(
+                flowA, flowB,
+                initialState = State2(),
+                nextState = State2::copy,
+            )
+
+            val collector = reducer.stateFlow.startCollecting()
+            runCurrent()
+
+            flowA.emit("a1")
+            runCurrent()
+            assertEquals(State2(), collector.lastItem)
+
+            flowB.emit("b1")
+            runCurrent()
+            assertEquals(State2("a1", "b1"), collector.lastItem)
+        }
+    }
+
+    @Test
+    fun `test combineToReducer with 3 input flows on ReducerOwner`() = runFlowTest {
+        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
+            val flowA = MutableSharedFlow<String>()
+            val flowB = MutableSharedFlow<String>()
+            val flowC = MutableSharedFlow<String>()
+            val reducer = combineToReducer(
+                flowA, flowB, flowC,
+                initialState = State3(),
+                nextState = State3::copy,
+            )
+
+            val collector = reducer.stateFlow.startCollecting()
+            runCurrent()
+
+            flowA.emit("a1")
+            flowB.emit("b1")
+            runCurrent()
+            assertEquals(State3(), collector.lastItem)
+
+            flowC.emit("c1")
+            runCurrent()
+            assertEquals(State3("a1", "b1", "c1"), collector.lastItem)
+        }
+    }
+
+    @Test
+    fun `test combineToReducer with 4 input flows on ReducerOwner`() = runFlowTest {
+        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
+            val flowA = MutableSharedFlow<String>()
+            val flowB = MutableSharedFlow<String>()
+            val flowC = MutableSharedFlow<String>()
+            val flowD = MutableSharedFlow<String>()
+            val reducer = combineToReducer(
+                flowA, flowB, flowC, flowD,
+                initialState = State4(),
+                nextState = State4::copy,
+            )
+
+            val collector = reducer.stateFlow.startCollecting()
+            runCurrent()
+
+            flowA.emit("a1")
+            flowB.emit("b1")
+            flowC.emit("c1")
+            runCurrent()
+            assertEquals(State4(), collector.lastItem)
+
+            flowD.emit("d1")
+            runCurrent()
+            assertEquals(State4("a1", "b1", "c1", "d1"), collector.lastItem)
+        }
+    }
+
+    @Test
+    fun `test combineToReducer with 5 input flows on ReducerOwner`() = runFlowTest {
+        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
+            val flowA = MutableSharedFlow<String>()
+            val flowB = MutableSharedFlow<String>()
+            val flowC = MutableSharedFlow<String>()
+            val flowD = MutableSharedFlow<String>()
+            val flowE = MutableSharedFlow<String>()
+            val reducer = combineToReducer(
+                flowA, flowB, flowC, flowD, flowE,
+                initialState = State5(),
+                nextState = State5::copy,
+            )
+
+            val collector = reducer.stateFlow.startCollecting()
+            runCurrent()
+
+            flowA.emit("a1")
+            flowB.emit("b1")
+            flowC.emit("c1")
+            flowD.emit("d1")
+            runCurrent()
+            assertEquals(State5(), collector.lastItem)
+
+            flowE.emit("e1")
+            runCurrent()
+            assertEquals(State5("a1", "b1", "c1", "d1", "e1"), collector.lastItem)
+        }
+    }
+
+    @Test
+    fun `test combineToReducer with iterable on ReducerOwner`() = runFlowTest {
+        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
+            val flowA = MutableSharedFlow<String>()
+            val flowB = MutableSharedFlow<String>()
+            val reducer = combineToReducer(
+                flows = listOf(flowA, flowB),
+                initialState = State2(),
+                nextState = { state, list -> state.copy(list[0] as String, list[1] as String) },
+            )
+
+            val collector = reducer.stateFlow.startCollecting()
+            runCurrent()
+
+            flowA.emit("a1")
+            runCurrent()
+            assertEquals(State2(), collector.lastItem)
+
+            flowB.emit("b1")
+            runCurrent()
+            assertEquals(State2("a1", "b1"), collector.lastItem)
+        }
+    }
+
+    private class TestReducerOwner(
+        override val reducerCoroutineScope: CoroutineScope,
+        override val reducerSharingStarted: SharingStarted,
+    ) : ReducerOwner
 
     private data class State2(
         val a: String = "",

@@ -2,6 +2,7 @@ package com.elveum.container
 
 import io.mockk.mockk
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
@@ -492,6 +493,58 @@ class ContainerExtensionsTest {
         assertSame(expectedSource, updatedContainer.sourceType)
         assertSame(expectedReloadFunction, updatedContainer.reloadFunction)
         assertEquals(expectedBackgroundLoadState, updatedContainer.backgroundLoadState)
+    }
+
+    @Test
+    fun isError_forErrorContainer_returnsTrue() {
+        assertTrue(errorContainer(RuntimeException()).isError())
+    }
+
+    @Test
+    fun isError_forSuccessContainer_returnsFalse() {
+        assertFalse(successContainer("v").isError())
+    }
+
+    @Test
+    fun isError_forPendingContainer_returnsFalse() {
+        assertFalse(pendingContainer().isError())
+    }
+
+    @Test
+    fun isPending_forPendingContainer_returnsTrue() {
+        assertTrue(pendingContainer().isPending())
+    }
+
+    @Test
+    fun isPending_forSuccessContainer_returnsFalse() {
+        assertFalse(successContainer("v").isPending())
+    }
+
+    @Test
+    fun isPending_forErrorContainer_returnsFalse() {
+        assertFalse(errorContainer(RuntimeException()).isPending())
+    }
+
+    @Test
+    fun isDataLoading_forPendingContainer_returnsTrue() {
+        assertTrue(pendingContainer().isDataLoading())
+    }
+
+    @Test
+    fun isDataLoading_forSuccessWithBackgroundLoading_returnsTrue() {
+        val container = successContainer("v", BackgroundLoadMetadata(BackgroundLoadState.Loading))
+        assertTrue(container.isDataLoading())
+    }
+
+    @Test
+    fun isDataLoading_forSuccessWithoutBackgroundLoading_returnsFalse() {
+        assertFalse(successContainer("v").isDataLoading())
+    }
+
+    @Test
+    fun isDataLoading_forErrorWithBackgroundLoading_returnsTrue() {
+        val container = errorContainer(RuntimeException(), BackgroundLoadMetadata(BackgroundLoadState.Loading))
+        assertTrue(container.isDataLoading())
     }
 
     @Test

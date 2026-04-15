@@ -63,6 +63,35 @@ class StateFlowExtensionsTest {
     }
 
     @Test
+    fun tryUpdateValue_withMutableStateFlowContainingSuccess_updatesValue() {
+        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(successContainer(1))
+        flow.tryUpdateValue { it + 10 }
+        assertEquals(successContainer(11), flow.value)
+    }
+
+    @Test
+    fun tryUpdateValue_withMutableStateFlowContainingPending_doesNothing() {
+        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(pendingContainer())
+        flow.tryUpdateValue { it + 10 }
+        assertEquals(pendingContainer(), flow.value)
+    }
+
+    @Test
+    fun tryUpdateValue_withMutableStateFlowContainingError_doesNothing() {
+        val exception = IllegalStateException()
+        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(errorContainer(exception))
+        flow.tryUpdateValue { it + 10 }
+        assertEquals(exception, flow.value.exceptionOrNull())
+    }
+
+    @Test
+    fun tryUpdateValue_withNonMutableStateFlow_doesNothing() {
+        val flow: StateFlow<Container<Int>> = MutableStateFlow(successContainer(1)).asStateFlow()
+        flow.tryUpdateValue { it + 10 }
+        assertEquals(successContainer(1), flow.value)
+    }
+
+    @Test
     fun test_stateMap() = runFlowTest {
         val originFlow = MutableStateFlow(1)
         val mapFunction: (Int) -> String = mockk()

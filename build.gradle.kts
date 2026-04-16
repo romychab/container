@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.compose) apply false
     alias(libs.plugins.kotlin.serialization) apply false
     alias(libs.plugins.dokka) apply false
+    alias(libs.plugins.kover) apply false
     alias(libs.plugins.detekt)
 }
 

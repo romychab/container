@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
-# Parses the container JaCoCo XML report and exports coverage variables:
+# Parses the container Kover XML report and exports coverage variables:
 #   COVERED  - number of covered instructions
 #   MISSED   - number of missed instructions
 #   TOTAL    - total instructions (COVERED + MISSED)
 #   PCT      - coverage percentage rounded to 1 decimal (e.g. "87.3")
 #   PCT_INT  - coverage percentage rounded to nearest integer (e.g. "87")
 #
-# Usage: source build-scripts/jacoco-coverage.sh
+# Usage: source build-scripts/kover-coverage.sh
 
-XML="container/build/reports/jacoco/test/jacocoTestReport.xml"
+XML="container/build/reports/kover/report.xml"
 
 if [ ! -f "$XML" ]; then
-    echo "::error::Coverage report not found: $XML. Run :container:jacocoTestReport first."
+    echo "::error::Coverage report not found: $XML. Run :container:koverXmlReport first."
     exit 1
 fi
 

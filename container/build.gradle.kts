@@ -4,7 +4,7 @@ plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.maven.publish)
     alias(libs.plugins.dokka)
-    jacoco
+    alias(libs.plugins.kover)
 }
 
 kotlin {
@@ -23,14 +23,6 @@ java {
 mavenPublishing {
     publishToMavenCentral()
     signAllPublications()
-}
-
-tasks.jacocoTestReport {
-    dependsOn(tasks.test)
-    reports {
-        xml.required = true
-        html.required = true
-    }
 }
 
 dependencies {

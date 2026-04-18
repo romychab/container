@@ -11,15 +11,32 @@ internal class ListMerger<T>(
         nonFinalOldItems: List<T>,
         nonFinalNewItems: List<T>,
     ) {
-        val oldIds = nonFinalOldItems.mapTo(HashSet()) { itemId(it) }
-        val newIds = nonFinalNewItems.mapTo(HashSet()) { itemId(it) }
+        val state = State(nonFinalOldItems, nonFinalNewItems)
 
-        // step 1 - remove items from targetList that exist in old but not in new
+        state.apply {
+            // step 1 - remove items from targetList that exist in old but not in new
+            removeExpiredItems()
+
+            // step 2 - reorder non-final items in targetList to match nonFinalNewItems order;
+            // collect anchor positions of non-final items, then place the matching
+            // nonFinalNewItems at those positions in nonFinalNewItems order.
+            reorderNonFinalItems()
+
+            // step 3 - build result by interleaving final items with nonFinalNewItems;
+            // when an anchor is encountered, flush all nonFinalNewItems up to that anchor
+            val result = buildFinalList()
+
+            // step 4 - replace data in targetList by result list
+            targetList.clear()
+            targetList += result
+        }
+    }
+
+    private fun State.removeExpiredItems() {
         targetList.removeAll { itemId(it) in oldIds && itemId(it) !in newIds }
+    }
 
-        // step 2 - reorder non-final items in targetList to match nonFinalNewItems order;
-        // collect anchor positions of non-final items, then place the matching
-        // nonFinalNewItems at those positions in nonFinalNewItems order.
+    private fun State.reorderNonFinalItems() {
         val nonFinalPositions = ArrayList<Int>()
         val existingIds = HashSet<Any>()
         for (i in targetList.indices) {
@@ -33,9 +50,9 @@ internal class ListMerger<T>(
         for (i in nonFinalPositions.indices) {
             targetList[nonFinalPositions[i]] = anchors[i]
         }
+    }
 
-        // step 3 - build result by interleaving final items with nonFinalNewItems;
-        // when an anchor is encountered, flush all nonFinalNewItems up to that anchor
+    private fun State.buildFinalList(): List<T> {
         val result = ArrayList<T>(targetList.size + nonFinalNewItems.size)
         var newIdx = 0
         for (item in targetList) {
@@ -53,9 +70,15 @@ internal class ListMerger<T>(
         while (newIdx < nonFinalNewItems.size) {
             result.add(nonFinalNewItems[newIdx++])
         }
+        return result
+    }
 
-        targetList.clear()
-        targetList += result
+    private inner class State(
+        val nonFinalOldItems: List<T>,
+        val nonFinalNewItems: List<T>,
+    ) {
+        val oldIds: HashSet<Any> = nonFinalOldItems.mapTo(HashSet()) { itemId(it) }
+        val newIds: HashSet<Any> = nonFinalNewItems.mapTo(HashSet()) { itemId(it) }
     }
 
 }

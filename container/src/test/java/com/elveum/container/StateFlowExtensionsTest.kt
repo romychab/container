@@ -1,95 +1,14 @@
 package com.elveum.container
 
 import com.uandcode.flowtest.runFlowTest
-import io.mockk.called
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertSame
 import org.junit.Test
 
 class StateFlowExtensionsTest {
-
-    @Test
-    fun public_castsTypeToStateFlow() {
-        val mutableStateFlow = MutableStateFlow("test")
-        val stateFlow = mutableStateFlow.public()
-        assertSame(mutableStateFlow, stateFlow)
-    }
-
-    @Test
-    fun tryUpdate_withMutableStateFlow_updatesValue() {
-        val flow: StateFlow<Int> = MutableStateFlow(value = 1)
-        flow.tryUpdate(2)
-        assertEquals(2, flow.value)
-    }
-
-    @Test
-    fun tryUpdate_withNonMutableStateFlow_doesNothing() {
-        val flow: StateFlow<Int> = MutableStateFlow(value = 1).asStateFlow()
-        flow.tryUpdate(2)
-        assertEquals(1, flow.value)
-    }
-
-    @Test
-    fun tryUpdate_withMutableStateFlow_callsUpdater() {
-        val flow: StateFlow<Int> = MutableStateFlow(value = 1)
-        val updater = mockk<(Int) -> Int>()
-        every { updater(1) } returns 2
-
-        flow.tryUpdate(updater)
-
-        assertEquals(2, flow.value)
-        verify(exactly = 1) {
-            updater(1)
-        }
-    }
-
-    @Test
-    fun tryUpdate_withNonMutableStateFlow_doesNotCallUpdater() {
-        val flow: StateFlow<Int> = MutableStateFlow(value = 1).asStateFlow()
-        val updater = mockk<(Int) -> Int>()
-
-        flow.tryUpdate(updater)
-
-        assertEquals(1, flow.value)
-        verify(exactly = 1) {
-            updater wasNot called
-        }
-    }
-
-    @Test
-    fun tryUpdateValue_withMutableStateFlowContainingSuccess_updatesValue() {
-        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(successContainer(1))
-        flow.tryUpdateValue { it + 10 }
-        assertEquals(successContainer(11), flow.value)
-    }
-
-    @Test
-    fun tryUpdateValue_withMutableStateFlowContainingPending_doesNothing() {
-        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(pendingContainer())
-        flow.tryUpdateValue { it + 10 }
-        assertEquals(pendingContainer(), flow.value)
-    }
-
-    @Test
-    fun tryUpdateValue_withMutableStateFlowContainingError_doesNothing() {
-        val exception = IllegalStateException()
-        val flow: MutableStateFlow<Container<Int>> = MutableStateFlow(errorContainer(exception))
-        flow.tryUpdateValue { it + 10 }
-        assertEquals(exception, flow.value.exceptionOrNull())
-    }
-
-    @Test
-    fun tryUpdateValue_withNonMutableStateFlow_doesNothing() {
-        val flow: StateFlow<Container<Int>> = MutableStateFlow(successContainer(1)).asStateFlow()
-        flow.tryUpdateValue { it + 10 }
-        assertEquals(successContainer(1), flow.value)
-    }
 
     @Test
     fun test_stateMap() = runFlowTest {

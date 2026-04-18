@@ -9,10 +9,8 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 internal class PageLoaderState<Key, T>(
     private val pageResultsEmitter: PageResultsEmitter<Key, T>,
     private val store: PageLoaderRecordStore<Key, T>,
+    private val pageKeyProcessor: PageKeyProcessor<Key, T> = PageKeyProcessor(pageResultsEmitter, store),
 ) {
-
-    @Volatile
-    private var isImmediateLaunchScheduled = false
 
     suspend fun processKey(
         key: Key,
@@ -20,30 +18,20 @@ internal class PageLoaderState<Key, T>(
         block: suspend () -> Unit,
     ) {
         val record = registerKey(key, job) ?: return
-        isImmediateLaunchScheduled = false
-        while (true) {
-            try {
-                continueKey(key)
+        pageKeyProcessor.resetScheduledImmediateLaunch()
+
+        do {
+            val isFinished: Boolean = try {
+                pageKeyProcessor.continueKey(key)
                 block()
-                completeKey(key)
-                break
+                pageKeyProcessor.completeKey(key)
+                true
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                failKey(key, e)
-                if (store.getAllContainers().all { it is Container.Error }) {
-                    store.shutdown()
-                    break
-                } else {
-                    suspendCancellableCoroutine<Unit> { continuation ->
-                        record.retryContinuation = continuation
-                        continuation.invokeOnCancellation {
-                            record.retryContinuation = null
-                        }
-                    }
-                }
+                processFailure(key, record, e)
             }
-        }
+        } while (!isFinished)
     }
 
     suspend fun onKeyLoaded(key: Key, list: List<T>) {
@@ -71,7 +59,7 @@ internal class PageLoaderState<Key, T>(
             is PageLoaderRecordStore.NextKeyLoadResult.Key<Key> -> result.key
             PageLoaderRecordStore.NextKeyLoadResult.Skip -> null
             PageLoaderRecordStore.NextKeyLoadResult.ScheduleImmediateLoad -> {
-                scheduleImmediateLaunch()
+                pageKeyProcessor.scheduleImmediateLaunch()
                 null
             }
         }
@@ -79,30 +67,32 @@ internal class PageLoaderState<Key, T>(
 
     fun hasLaunchedKey(key: Key): Boolean = store.hasLaunchedKey(key)
 
-    private suspend fun continueKey(key: Key) {
-        store.onKeyContinued(key)
-        pageResultsEmitter.emitResults()
-    }
-
-    private fun completeKey(key: Key) {
-        store.onKeyCompleted(key)
-    }
-
-    private suspend fun failKey(key: Key, exception: Exception) {
-        store.onKeyFailed(key, exception)
-        pageResultsEmitter.emitResults()
-    }
-
-    private fun scheduleImmediateLaunch() {
-        isImmediateLaunchScheduled = true
+    fun intercept(container: Container<List<T>>): Container<List<T>> {
+        return store.intercept(container)
     }
 
     fun isImmediateLaunchScheduled(): Boolean {
-        return isImmediateLaunchScheduled
+        return pageKeyProcessor.isImmediateLaunchScheduled()
     }
 
-    fun intercept(container: Container<List<T>>): Container<List<T>> {
-        return store.intercept(container)
+    private suspend fun processFailure(
+        key: Key,
+        record: PageKeyRecord<Key, T>,
+        e: Exception,
+    ): Boolean {
+        pageKeyProcessor.failKey(key, e)
+        return if (store.getAllContainers().all { it is Container.Error }) {
+            store.shutdown()
+            true
+        } else {
+            suspendCancellableCoroutine<Unit> { continuation ->
+                record.retryContinuation = continuation
+                continuation.invokeOnCancellation {
+                    record.retryContinuation = null
+                }
+            }
+            false
+        }
     }
 
 }

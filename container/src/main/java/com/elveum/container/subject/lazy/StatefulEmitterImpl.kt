@@ -56,15 +56,13 @@ internal class StatefulEmitterImpl<T>(
         exception: Exception,
     ) = with(flowCollector) {
         if (loadConfig.isSilentErrorsEnabled) {
-            executeParams.currentContainer()
-                .let { currentContainer ->
-                    if (currentContainer is Container.Success) {
-                        val errorBackgroundMetadata = BackgroundLoadMetadata(BackgroundLoadState.Error(exception))
-                        emit(currentContainer + errorBackgroundMetadata + metadata)
-                    } else {
-                        emit(errorContainer(exception, metadata))
-                    }
-                }
+            val currentContainer = executeParams.currentContainer()
+            if (currentContainer is Container.Success) {
+                val errorBackgroundMetadata = BackgroundLoadMetadata(BackgroundLoadState.Error(exception))
+                emit(currentContainer + errorBackgroundMetadata + metadata)
+            } else {
+                emit(errorContainer(exception, metadata))
+            }
         } else {
             emit(errorContainer(exception, metadata))
         }

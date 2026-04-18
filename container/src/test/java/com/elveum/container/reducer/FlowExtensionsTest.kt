@@ -93,7 +93,7 @@ class FlowExtensionsTest {
             collector.lastItem
         )
 
-        // 1nd item -> update existing state
+        // 2nd item -> update existing state
         inputFlow.emit(successContainer(2))
         runCurrent()
         assertEquals(
@@ -145,121 +145,6 @@ class FlowExtensionsTest {
     }
 
     @Test
-    fun `test toReducer with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<Int>()
-            val reducer = inputFlow.toReducer(
-                initialState = "",
-                nextState = { state, value -> "$state:$value" },
-            )
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals("", collector.lastItem)
-
-            inputFlow.emit(1)
-            runCurrent()
-            assertEquals(":1", collector.lastItem)
-        }
-    }
-
-    @Test
-    fun `test toReducer without mapping with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<String>()
-            val reducer = inputFlow.toReducer(initialState = "init")
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals("init", collector.lastItem)
-
-            inputFlow.emit("value")
-            runCurrent()
-            assertEquals("value", collector.lastItem)
-        }
-    }
-
-    @Test
-    fun `test toContainerReducer with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<Int>()
-            val reducer = inputFlow.toContainerReducer(
-                initialState = { it.toString() },
-                nextState = { state, value -> "$state:$value" },
-            )
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals(pendingContainer(), collector.lastItem)
-
-            inputFlow.emit(1)
-            runCurrent()
-            assertEquals(successContainer("1"), collector.lastItem)
-
-            inputFlow.emit(2)
-            runCurrent()
-            assertEquals(successContainer("1:2"), collector.lastItem)
-        }
-    }
-
-    @Test
-    fun `test toContainerReducer without mapping with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<Int>()
-            val reducer = inputFlow.toContainerReducer<Int>()
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals(pendingContainer(), collector.lastItem)
-
-            inputFlow.emit(5)
-            runCurrent()
-            assertEquals(successContainer(5), collector.lastItem)
-        }
-    }
-
-    @Test
-    fun `test containerToReducer with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<Container<Int>>()
-            val reducer = inputFlow.containerToReducer(
-                initialState = { it.toString() },
-                nextState = { state, value -> "$state:$value" },
-            )
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals(pendingContainer(), collector.lastItem)
-
-            inputFlow.emit(successContainer(1))
-            runCurrent()
-            assertEquals(successContainer("1"), collector.lastItem)
-        }
-    }
-
-    @Test
-    fun `test containerToReducer without mapping with ReducerOwner`() = runFlowTest {
-        TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
-            val inputFlow = MutableSharedFlow<Container<Int>>()
-            val reducer = inputFlow.containerToReducer<Int>()
-
-            val collector = reducer.stateFlow.startCollecting()
-            runCurrent()
-
-            assertEquals(pendingContainer(), collector.lastItem)
-
-            inputFlow.emit(successContainer(7))
-            runCurrent()
-            assertEquals(successContainer(7), collector.lastItem)
-        }
-    }
-
-    @Test
     fun `test containerToReducer without mapping`() = runFlowTest {
         val inputFlow = MutableSharedFlow<Container<Int>>()
         val reducer = inputFlow.containerToReducer(
@@ -303,8 +188,4 @@ class FlowExtensionsTest {
         )
     }
 
-    private class TestReducerOwner(
-        override val reducerCoroutineScope: CoroutineScope,
-        override val reducerSharingStarted: SharingStarted,
-    ) : ReducerOwner
 }

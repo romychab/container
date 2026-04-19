@@ -21,7 +21,7 @@ with the metadata system that threads cross-cutting information through containe
   - [ContainerMetadata](#containermetadata)
   - [SourceType](#sourcetype)
   - [ReloadFunctionMetadata](#reloadfunctionmetadata)
-  - [BackgroundLoadStateMetadata](#backgroundLoadStateMetadata)
+  - [BackgroundLoadStateMetadata](#backgroundloadstatemetadata)
   - [LoadTrigger](#loadtrigger)
   - [Custom Metadata](#custom-metadata)
 - [Flow Dependencies in Loader Functions](#flow-dependencies-in-loader-functions)

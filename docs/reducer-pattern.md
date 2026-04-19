@@ -9,11 +9,11 @@ patterns.
 
 - [Reducer vs ContainerReducer](#reducer-vs-containerreducer)
 - [Creating a Reducer](#creating-a-reducer)
+  - [Reducer from a Plain Flow](#reducer-from-a-plain-flow)
+  - [Reducer from a Flow of Containers](#reducer-from-a-flow-of-containers)
+- [Creating a ContainerReducer](#creating-a-containerreducer)
   - [From a Plain Flow](#from-a-plain-flow)
   - [From a Flow of Containers](#from-a-flow-of-containers)
-- [Creating a ContainerReducer](#creating-a-containerreducer)
-  - [From a Plain Flow](#from-a-plain-flow-1)
-  - [From a Flow of Containers](#from-a-flow-of-containers-1)
 - [Combining Multiple Flows](#combining-multiple-flows)
   - [combineToReducer](#combinetoreducer)
   - [combineToContainerReducer](#combinetocontainerreducer)
@@ -22,7 +22,7 @@ patterns.
 - [ReducerOwner Interface](#reducerowner-interface)
   - [Setting Up AbstractViewModel](#setting-up-abstractviewmodel)
   - [Simplified Reducer Creation](#simplified-reducer-creation)
-- [Public Interface / Private Implementation Pattern](#public-interface--private-implementation-pattern)
+- [Public Interface Private Implementation Pattern](#public-interface-private-implementation-pattern)
 - [API Reference](#api-reference)
 
 ## Reducer vs ContainerReducer
@@ -40,7 +40,7 @@ value inside a `Container.Success` (and is a no-op for other states).
 
 ## Creating a Reducer
 
-### From a Plain Flow
+### Reducer from a Plain Flow
 
 Convert any `Flow<T>` to a `Reducer<State>` by specifying an initial state
 and a `nextState` function that merges the latest flow value into your state:
@@ -78,7 +78,7 @@ private val reducer: Reducer<List<String>> = getItemsFlow()
     )
 ```
 
-### From a Flow of Containers
+### Reducer from a Flow of Containers
 
 Use `toReducer` and unwrap the input container inside `nextState` if you want
 to convert `Flow<Container<T>>` into a plain `StateFlow<State>` manually:
@@ -331,7 +331,7 @@ val derived: StateFlow<String> = someFlow.stateIn(initialValue = "")
 val shared: SharedFlow<String> = someFlow.shareIn(replay = 1)
 ```
 
-## Public Interface / Private Implementation Pattern
+## Public Interface Private Implementation Pattern
 
 A useful pattern for keeping your ViewModel's public API clean is to separate
 the public `State` interface from a private implementation class. The

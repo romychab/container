@@ -172,6 +172,19 @@ if [ "$cygwin" = "true" -o "$msys" = "true" ] ; then
     esac
 fi
 
+# Merge gradle.properties from public + secret parts
+PROPS_PUBLIC="$APP_HOME/gradle-public.properties"
+PROPS_SECRET="$APP_HOME/gradle-secret.properties"
+PROPS_OUT="$APP_HOME/gradle.properties"
+if [ -f "$PROPS_PUBLIC" ] || [ -f "$PROPS_SECRET" ]; then
+    cat /dev/null > "$PROPS_OUT"
+    [ -f "$PROPS_PUBLIC" ] && cat "$PROPS_PUBLIC" >> "$PROPS_OUT"
+    if [ -f "$PROPS_SECRET" ]; then
+        echo "" >> "$PROPS_OUT"
+        cat "$PROPS_SECRET" >> "$PROPS_OUT"
+    fi
+fi
+
 # Escape application args
 save () {
     for i do printf %s\\n "$i" | sed "s/'/'\\\\''/g;1s/^/'/;\$s/\$/' \\\\/" ; done

@@ -1,0 +1,11 @@
+<?xml version='1.0' encoding='UTF-8'?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>CognitiveComplexMethod:PageLoaderRecordStore.kt$PageLoaderRecordStore$fun findNextKeyForIndex(index: Int): NextKeyLoadResult&lt;Key></ID>
+    <ID>NestedBlockDepth:ListMerger.kt$ListMerger$private fun State.buildFinalList(): List&lt;T></ID>
+    <ID>TooManyFunctions:LazyCacheImpl.kt$LazyCacheImpl&lt;Arg, T> : LazyCache</ID>
+    <ID>TooManyFunctions:LazyFlowSubjectImpl.kt$LazyFlowSubjectImpl&lt;T> : LazyFlowSubject</ID>
+    <ID>TooManyFunctions:PageLoaderRecordStore.kt$PageLoaderRecordStore&lt;Key, T></ID>
+  </CurrentIssues>
+</SmellBaseline>

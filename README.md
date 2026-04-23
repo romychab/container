@@ -1,6 +1,6 @@
 # Container
 
-[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/container.svg?label=Maven%20Central)](https://uandcode.com/sh/container)
+[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/container.svg?label=Maven%20Central&color=dark-green)](https://uandcode.com/sh/container)
 ![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
 [![License: Apache 2](https://img.shields.io/github/license/romychab/container)](LICENSE)
 [![PR Check](https://github.com/romychab/container/actions/workflows/pr-check.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/pr-check.yml)

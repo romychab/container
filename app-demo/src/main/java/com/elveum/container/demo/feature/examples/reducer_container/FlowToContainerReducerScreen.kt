@@ -35,6 +35,7 @@ import com.elveum.container.demo.ui.components.DemoScaffold
 @Composable
 fun FlowToContainerReducerScreen() = DemoScaffold(
     title = "ContainerReducer",
+    scrollable = false,
     description = """
         **ContainerReducer<T>** is a subtype of Reducer that handles values encapsulated into
         Container<T> out of the box. 
@@ -51,7 +52,7 @@ fun FlowToContainerReducerScreen() = DemoScaffold(
     container.fold(
         onPending = { CircularProgressIndicator() },
         onSuccess = { state ->
-            RoseCanvas { state }
+            RoseCanvas(Modifier.weight(1f)) { state }
             RoseStylePanel(
                 currentColor = state.color,
                 currentStrokeWidth = state.strokeWidth,
@@ -66,12 +67,11 @@ fun FlowToContainerReducerScreen() = DemoScaffold(
 
 @Composable
 private fun RoseCanvas(
+    modifier: Modifier,
     stateProvider: () -> State,
 ) {
     Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(1f),
+        modifier = modifier.aspectRatio(1f),
     ) {
         val state = stateProvider()
         if (state.points.size < 2) return@Canvas

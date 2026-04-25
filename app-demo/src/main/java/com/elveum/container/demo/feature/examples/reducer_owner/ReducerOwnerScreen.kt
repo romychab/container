@@ -47,7 +47,7 @@ fun ReducerOwnerScreen() = DemoScaffold(
     val viewModel = hiltViewModel<ReducerOwnerViewModel>()
     val state by viewModel.stateFlow.collectAsState()
 
-    CometsCanvas { state }
+    CometsCanvas(Modifier.weight(1f)) { state }
 
     Text(
         text = "Particle size:",
@@ -62,6 +62,7 @@ fun ReducerOwnerScreen() = DemoScaffold(
 
 @Composable
 private fun CometsCanvas(
+    modifier: Modifier,
     stateProvider: () -> State,
 ) {
     val infiniteTransition = rememberInfiniteTransition(label = "bg")
@@ -72,8 +73,7 @@ private fun CometsCanvas(
         label = "bgAngle",
     )
     Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(Dimens.MediumCorners)),
     ) {

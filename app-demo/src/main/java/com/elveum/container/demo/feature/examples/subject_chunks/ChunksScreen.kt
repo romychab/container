@@ -89,7 +89,11 @@ fun ChunksScreen() {
                         .fillMaxWidth()
                         .padding(bottom = 8.dp),
                 )
-                MosaicCanvas(data = data, sheenProvider = { sheenPosition })
+                MosaicCanvas(
+                    data = data,
+                    modifier = Modifier.weight(1f),
+                    sheenProvider = { sheenPosition },
+                )
             },
             onError = {},
         )
@@ -99,13 +103,13 @@ fun ChunksScreen() {
 @Composable
 private fun MosaicCanvas(
     data: MosaicData,
+    modifier: Modifier,
     sheenProvider: () -> Float,
 ) {
     val cols = data.info.cols
     val rows = data.info.rows
     Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .aspectRatio(cols.toFloat() / rows.toFloat())
             .clip(RoundedCornerShape(Dimens.MediumCorners)),
     ) {

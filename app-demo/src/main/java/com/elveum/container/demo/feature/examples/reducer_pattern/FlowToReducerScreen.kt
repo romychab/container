@@ -43,7 +43,7 @@ fun FlowToReducerScreen() = DemoScaffold(
         textAlign = TextAlign.Center,
     )
 
-    ColorFieldCanvas { state }
+    ColorFieldCanvas(Modifier.weight(1f)) { state }
 
     Text(
         text = "Update the alpha channel in the state manually using the Slider:",
@@ -61,10 +61,12 @@ fun FlowToReducerScreen() = DemoScaffold(
 }
 
 @Composable
-fun ColorFieldCanvas(stateProvider: () -> State) {
+fun ColorFieldCanvas(
+    modifier: Modifier,
+    stateProvider: () -> State,
+) {
     Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .aspectRatio(1f)
             .clip(RoundedCornerShape(Dimens.MediumCorners))
     ) {

@@ -386,4 +386,68 @@ class CombineContainerFlowExtensionsTest {
         assertEquals(CollectStatus.Cancelled, collector.collectStatus)
     }
 
+    @Test
+    fun combineContainerFlows_takesMetadataFromFirstFlow() = runFlowTest {
+        val metadataA = CustomMetadata("metadata-A")
+        val metadataB = CustomMetadata("metadata-B")
+        val flowA = MutableStateFlow<Container<String>>(successContainer("1", metadataA))
+        val flowB = MutableStateFlow<Container<String>>(successContainer("2", metadataB))
+        val resultFlow = combineContainerFlows(flowA, flowB) { v1, v2 ->
+            "$v1-$v2"
+        }
+
+        val collector = resultFlow.startCollecting()
+
+        assertEquals(
+            "metadata-A",
+            collector.lastItem.metadata.get<CustomMetadata>()?.value
+        )
+    }
+
+    @Test
+    fun combineContainerFlows_withFailedTransform_takesMetadataFromFirstFlow() = runFlowTest {
+        val metadataA = CustomMetadata("metadata-A")
+        val metadataB = CustomMetadata("metadata-B")
+        val flowA = MutableStateFlow<Container<String>>(successContainer("1", metadataA))
+        val flowB = MutableStateFlow<Container<String>>(successContainer("2", metadataB))
+        val resultFlow = combineContainerFlows<String, String, String>(flowA, flowB) { _, _ ->
+            throw IllegalStateException()
+        }
+
+        val collector = resultFlow.startCollecting()
+
+        assertEquals(
+            "metadata-A",
+            collector.lastItem.metadata.get<CustomMetadata>()?.value
+        )
+    }
+
+
+    @Test
+    fun combineContainerFlows_withInputError_takesMetadataFromFirstError() = runFlowTest {
+        val metadataA = CustomMetadata("metadata-A")
+        val metadataB = CustomMetadata("metadata-B")
+        val metadataC = CustomMetadata("metadata-C")
+        val flowA = MutableStateFlow<Container<String>>(successContainer("1", metadataA))
+        val flowB = MutableStateFlow<Container<String>>(
+            errorContainer(IllegalStateException(), metadataB)
+        )
+        val flowC = MutableStateFlow<Container<String>>(
+            errorContainer(IllegalStateException(), metadataC)
+        )
+        val resultFlow = combineContainerFlows(flowA, flowB, flowC) { v1, v2, v3 ->
+            "$v1-$v2-$v3"
+        }
+
+        val collector = resultFlow.startCollecting()
+
+        assertEquals(
+            "metadata-B",
+            collector.lastItem.metadata.get<CustomMetadata>()?.value
+        )
+    }
+
+    private data class CustomMetadata(
+        val value: String
+    ) : ContainerMetadata
 }

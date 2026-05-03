@@ -75,10 +75,20 @@ public fun <T1, T2, T3, T4, T5, R> combineContainerFlows(
  *   function is executed successfully.
  * - Otherwise, if the transformation function fails, the resulting container will be [Container.Error].
  * - If at least one origin flow contains [Container.Error], the result will be [Container.Error] as well.
+ *
+ * Default metadata values:
  * - By default, the resulting source value is taken from the first flow.
  * - By default, the resulting reload function executes all origin reload functions from all flows.
- * - By default, the resulting isLoading value is `true` if at least one isLoading value from
- *   any origin flow is `true`.
+ * - By default, the resulting backgroundLoadState value is `Loading` if at least one isLoading value
+ *   from any origin flow is `Loading`.
+ *
+ * Other metadata values are processing as following:
+ * - If the resulting container is Success, all other metadata values are taken
+ *   from the first flow.
+ * - If the resulting container is Error due to failed [transform] function, all other metadata
+ *   values are taken from the first flow.
+ * - If the resulting container is Error due to input Error container, the latter is returned
+ *   along with all other metadata values.
  */
 public fun <R> combineContainerFlows(
     flows: Iterable<Flow<Container<*>>>,
@@ -86,15 +96,17 @@ public fun <R> combineContainerFlows(
 ): Flow<Container<R>> {
     return combine(flows) { containers ->
         val scope = CombineContainerFlowScopeImpl(containers)
+        val firstMetadata = containers.firstOrNull { it is Container.Completed }
+            ?.metadata ?: defaultMetadata()
         val container = if (containers.all { it is Container.Success<*> }) {
             val values = containers.map { (it as Container.Success<*>).value }
             try {
                 val transformedValue = transform(scope, values)
-                successContainer(transformedValue)
+                successContainer(transformedValue, firstMetadata)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                errorContainer(e)
+                errorContainer(e, firstMetadata)
             }
         } else {
             val errorContainer = containers

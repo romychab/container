@@ -1,6 +1,7 @@
 package com.elveum.container.factory
 
 import com.elveum.container.cache.CacheValueLoader
+import com.elveum.container.cache.ValueLoaderFactory
 import com.elveum.container.cache.LazyCache
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
@@ -38,6 +39,18 @@ public interface SubjectFactory {
         valueLoader: CacheValueLoader<Arg, T>,
     ): LazyCache<Arg, T>
 
+    /**
+     * Create a new [LazyCache] instance which creates a separate
+     * value loader for every argument using [ValueLoaderFactory].
+     */
+    public fun <Arg, T> createCacheFromFactory(
+        cacheTimeoutMillis: Long? = null,
+        reloadDependenciesPeriodMillis: Long? = null,
+        coroutineScopeFactory: CoroutineScopeFactory? = null,
+        transformation: ContainerTransformation<T>? = null,
+        valueLoaderFactory: ValueLoaderFactory<Arg, T>,
+    ): LazyCache<Arg, T>
+
     public companion object : SubjectFactory {
 
         @Volatile
@@ -63,6 +76,17 @@ public interface SubjectFactory {
         ): LazyCache<Arg, T> {
             return instance.createCache(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
                 coroutineScopeFactory, transformation, valueLoader)
+        }
+
+        override fun <Arg, T> createCacheFromFactory(
+            cacheTimeoutMillis: Long?,
+            reloadDependenciesPeriodMillis: Long?,
+            coroutineScopeFactory: CoroutineScopeFactory?,
+            transformation: ContainerTransformation<T>?,
+            valueLoaderFactory: ValueLoaderFactory<Arg, T>
+        ): LazyCache<Arg, T> {
+            return instance.createCacheFromFactory(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
+                coroutineScopeFactory, transformation, valueLoaderFactory)
         }
 
         /**

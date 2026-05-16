@@ -60,7 +60,11 @@ class LazyCacheTest {
         lazyCache = LazyCacheImpl(
             cacheTimeoutMillis = timeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory,
-            valueLoader = loader,
+            valueLoaderFactory = { arg ->
+                ValueLoader {
+                    loader(this, arg)
+                }
+            },
             subjectFactory = subjectFactory,
         )
     }

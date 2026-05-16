@@ -5,6 +5,7 @@ import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
+import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.coVerify
@@ -15,6 +16,7 @@ import io.mockk.mockkObject
 import io.mockk.slot
 import io.mockk.unmockkObject
 import io.mockk.verify
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertSame
@@ -129,6 +131,36 @@ class LazyCacheExtensionsTest {
 
         verify(exactly = 1) {
             lazyCache.updateWith("arg", successContainer("updated-value"))
+        }
+    }
+
+    @Test
+    fun listenReloadable_withDefaultArgs_delegatesArgs() {
+        val expectedResult = MutableStateFlow(successContainer(""))
+        every { lazyCache.listen(any(), any()) } returns expectedResult
+
+        val result = lazyCache.listenReloadable(arg = "1")
+
+        assertSame(expectedResult, result)
+        verify(exactly = 1) {
+            lazyCache.listen("1", ContainerConfiguration(true, true))
+        }
+    }
+
+    @Test
+    fun listenReloadable_withCustomArgs_delegatesArgs() {
+        val expectedResult = MutableStateFlow(successContainer(""))
+        every { lazyCache.listen(any(), any()) } returns expectedResult
+
+        val result = lazyCache.listenReloadable(
+            arg = "1",
+            emitReloadFunction = false,
+            emitBackgroundLoads = false,
+        )
+
+        assertSame(expectedResult, result)
+        verify(exactly = 1) {
+            lazyCache.listen("1", ContainerConfiguration(false, false))
         }
     }
 

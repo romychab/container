@@ -4,7 +4,9 @@ import com.elveum.container.Container
 import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
 import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
+import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.transform
+import kotlinx.coroutines.flow.Flow
 
 public typealias SimpleCacheValueLoader<Arg, T> = suspend (Arg) -> T
 
@@ -77,4 +79,24 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateIfSuccess(
             }
         )
     }
+}
+
+/**
+ * Listen for values loaded by the cache for the specific [arg] and
+ * for each emitted container:
+ * - attach a valid reload function
+ * - re-emit background load indicator if data is being reloaded.
+ */
+public fun <Arg, T> LazyCache<Arg, T>.listenReloadable(
+    arg: Arg,
+    emitReloadFunction: Boolean = true,
+    emitBackgroundLoads: Boolean = true,
+): Flow<Container<T>> {
+    return listen(
+        arg = arg,
+        configuration = ContainerConfiguration(
+            emitBackgroundLoads = emitBackgroundLoads,
+            emitReloadFunction = emitReloadFunction,
+        )
+    )
 }

@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
 import com.elveum.container.utils.raw
 import com.uandcode.flowtest.CollectStatus
@@ -53,7 +54,11 @@ class LazyCacheIntegrationTest {
         lazyCache = LazyCacheImpl(
             cacheTimeoutMillis = timeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory,
-            valueLoader = this.loader,
+            valueLoaderFactory = { arg ->
+                ValueLoader {
+                    loader(this, arg)
+                }
+            },
         )
     }
 

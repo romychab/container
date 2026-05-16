@@ -26,7 +26,7 @@ internal class LazyCacheImpl<Arg, T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
     transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
-    private val valueLoader: CacheValueLoader<Arg, T>,
+    private val valueLoaderFactory: ValueLoaderFactory<Arg, T>,
     private val subjectFactory: LazyFlowSubjectFactory<T> = LazyFlowSubjectFactory.Default(
         cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation,
     )
@@ -78,9 +78,9 @@ internal class LazyCacheImpl<Arg, T>(
 
     private fun registerRecord(arg: Arg): CacheRecord<T> = synchronized(this) {
         val record = cacheSlots.getOrPut(arg) {
-            val subject = subjectFactory.create {
-                valueLoader.invoke(this, arg)
-            }
+            val subject = subjectFactory.create(
+                valueLoader = valueLoaderFactory.create(arg)
+            )
             CacheRecord(subject)
         }
         record.count++

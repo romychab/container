@@ -6,6 +6,7 @@ import com.elveum.container.Container
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
+import com.elveum.container.stateMap
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
@@ -17,9 +18,12 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 internal class LazyCacheImpl<Arg, T>(
     private val cacheTimeoutMillis: Long,
@@ -32,9 +36,13 @@ internal class LazyCacheImpl<Arg, T>(
     )
 ) : LazyCache<Arg, T> {
 
-    private val cacheSlots = mutableMapOf<Arg, CacheRecord<T>>()
+    private val cacheSlotsFlow = MutableStateFlow<Map<Arg, CacheRecord<T>>>(emptyMap())
+    private val cacheSlots get() = cacheSlotsFlow.value
+
     private val totalCount: Int get() = cacheSlots.values.sumOf { it.count }
     private var scope: CoroutineScope? = null
+
+    private val whenActiveBlocks = mutableListOf<suspend ScopedLazyCache<Arg, T>.() -> Unit>()
 
     override fun listen(
         arg: Arg,
@@ -54,6 +62,10 @@ internal class LazyCacheImpl<Arg, T>(
         return getSubject(arg)?.activeCollectorsCount ?: 0
     }
 
+    override fun listenActiveCollectorArgs(): StateFlow<Set<Arg>> {
+        return cacheSlotsFlow.stateMap { it.keys }
+    }
+
     override fun reload(arg: Arg, config: LoadConfig): Flow<T> {
         return getSubject(arg)?.reload(config) ?: emptyFlow()
     }
@@ -64,11 +76,15 @@ internal class LazyCacheImpl<Arg, T>(
 
     override fun reset() = synchronized(this) {
         val iterator = cacheSlots.iterator()
+        val argsToRemove = mutableSetOf<Arg>()
         while (iterator.hasNext()) {
             val entry = iterator.next()
             if (entry.value.count == 0) {
-                iterator.remove()
+                argsToRemove += entry.key
             }
+        }
+        if (argsToRemove.isNotEmpty()) {
+            cacheSlotsFlow.update { oldMap -> oldMap - argsToRemove }
         }
         if (totalCount == 0) {
             scope?.cancel()
@@ -76,16 +92,44 @@ internal class LazyCacheImpl<Arg, T>(
         }
     }
 
+    override fun whenActive(
+        block: suspend ScopedLazyCache<Arg, T>.() -> Unit,
+    ): LazyCache<Arg, T> = synchronized(this) {
+        whenActiveBlocks.add(block)
+        this
+    }
+
     private fun registerRecord(arg: Arg): CacheRecord<T> = synchronized(this) {
-        val record = cacheSlots.getOrPut(arg) {
+        val existingRecord = cacheSlots[arg]
+        val record = if (existingRecord == null) {
             val subject = subjectFactory.create(
                 valueLoader = valueLoaderFactory.create(arg)
             )
-            CacheRecord(subject)
+            CacheRecord(subject).also {
+                cacheSlotsFlow.update { oldMap ->
+                    oldMap + (arg to it)
+                }
+            }
+        } else {
+            existingRecord
         }
         record.count++
         if (totalCount == 1 && scope == null) {
-            scope = coroutineScopeFactory.createScope()
+            scope = coroutineScopeFactory
+                .createScope()
+                .also { scope ->
+                    whenActiveBlocks.forEach { block ->
+                        scope.launch {
+                            supervisorScope {
+                                val scopedCache = ScopedLazyCacheImpl(
+                                    lazyCache = this@LazyCacheImpl,
+                                    coroutineScope = this,
+                                )
+                                block.invoke(scopedCache)
+                            }
+                        }
+                    }
+                }
         }
         return record
     }
@@ -104,7 +148,7 @@ internal class LazyCacheImpl<Arg, T>(
             synchronized(this@LazyCacheImpl) {
                 val record = cacheSlots[arg]
                 if (record?.count == 0) {
-                    cacheSlots.remove(arg)
+                    cacheSlotsFlow.update { oldMap -> oldMap - arg }
                 }
                 if (totalCount == 0) {
                     scope?.cancel()

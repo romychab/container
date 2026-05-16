@@ -144,6 +144,17 @@ public interface LazyFlowSubject<T> {
         metadata: ContainerMetadata = EmptyMetadata,
     ): Flow<T>
 
+    /**
+     * Launch the [block] when at least one observer subscribes to
+     * a flow returned by [listen] call. The [block] is automatically
+     * cancelled when the last observer unsubscribes from the flow.
+     *
+     * @return this LazyFlowSubject instance.
+     */
+    public fun whenActive(
+        block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
+    ): LazyFlowSubject<T>
+
     public companion object {
 
         public fun <T> create(

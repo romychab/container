@@ -6,16 +6,17 @@ import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyReloadFunction
+import com.elveum.container.IsReloadDependenciesMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
-import com.elveum.container.LoadConfig
-import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.subject.lazy.ScopedLazyFlowSubjectImpl
 import com.elveum.container.update
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
@@ -30,6 +31,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 
 internal class LazyFlowSubjectImpl<T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
@@ -49,6 +51,7 @@ internal class LazyFlowSubjectImpl<T>(
     private val collectorsCountFlow = MutableStateFlow(0)
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
+    private val whenActiveBlocks = mutableListOf<suspend ScopedLazyFlowSubject<T>.() -> Unit>()
 
     private val reloadFunctionRef: ReloadFunction = ::reloadAsync
 
@@ -113,6 +116,13 @@ internal class LazyFlowSubjectImpl<T>(
         } ?: emptyFlow()
     }
 
+    override fun whenActive(
+        block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
+    ): LazyFlowSubject<T> = synchronized(loadTaskManager) {
+        whenActiveBlocks.add(block)
+        this
+    }
+
     private fun doNewLoad(
         config: LoadConfig,
         valueLoader: ValueLoader<T>,
@@ -150,6 +160,17 @@ internal class LazyFlowSubjectImpl<T>(
                     scope = scope,
                     flowDependencyStore = flowDependencyStore,
                 )
+                whenActiveBlocks.forEach { block ->
+                    scope.launch {
+                        supervisorScope {
+                            val scopedSubject = ScopedLazyFlowSubjectImpl(
+                                coroutineScope = this,
+                                subject = this@LazyFlowSubjectImpl,
+                            )
+                            block(scopedSubject)
+                        }
+                    }
+                }
             }
     }
 

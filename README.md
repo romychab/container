@@ -34,7 +34,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:2.1.0-beta05"
+implementation "com.elveum:container:2.1.0-beta06"
 ```
 
 ## Core Concepts
@@ -231,9 +231,9 @@ per-item updates), see [Pagination](docs/paging.md).
 
 ## Detailed Documentation
 
-| Topic | Description |
-|-------|-------------|
-| [Container Type](docs/container-type.md) | States, value extraction, transformations, flow extensions, combining flows |
-| [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner` |
-| [Subjects](docs/subjects.md) | `LazyFlowSubject`, metadata, source types |
-| [Pagination](docs/paging.md) | `PageLoader`, next-page states, pull-to-refresh, flow dependencies, per-item updates |
+| Topic                                      | Description                                                                          |
+|--------------------------------------------|--------------------------------------------------------------------------------------|
+| [Container Type](docs/container-type.md)   | States, value extraction, transformations, flow extensions, combining flows          |
+| [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner`                       |
+| [Subjects](docs/subjects.md)               | `LazyFlowSubject`, metadata, source types                                            |
+| [Pagination](docs/paging.md)               | `PageLoader`, next-page states, pull-to-refresh, flow dependencies, per-item updates |

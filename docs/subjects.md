@@ -14,6 +14,7 @@ with the metadata system that threads cross-cutting information through containe
   - [Load Triggers](#load-triggers)
   - [ContainerConfiguration](#containerconfiguration)
   - [listenReloadable](#listenreloadable)
+  - [whenActive](#whenActive)
 - [SubjectFactory](#subjectfactory)
   - [Testability](#testability)
   - [Convenience Factory Functions](#convenience-factory-functions)
@@ -224,6 +225,23 @@ val flow: Flow<Container<List<Product>>> = subject.listen(
 ```kotlin
 // equivalent to listen(ContainerConfiguration(emitReloadFunction = true, emitBackgroundLoads = true))
 fun listenProducts(): Flow<Container<List<Product>>> = subject.listenReloadable()
+```
+
+### whenActive
+
+`whenActive()` optional call registers a suspendable block of code that is
+executed whenever the subject becomes active (when at least one subscriber starts
+collecting a flow returned by the subject):
+
+```kotlin
+val productsSubject = LazyFlowSubject<List<Product>>
+    .create {
+        emit(loadProducts())
+    }
+    .whenActive {
+        // e.g. subscribe to other flow and update the subject when
+        // something is changed
+    }
 ```
 
 ## SubjectFactory

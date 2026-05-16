@@ -14,10 +14,15 @@ import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.mockk
 import io.mockk.verify
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -477,6 +482,75 @@ class LazyCacheIntegrationTest {
         lazyCache.updateWith(key, successContainer("123"))
 
         assertEquals(Container.Pending, lazyCache.get(key))
+    }
+
+    @Test
+    fun whenActive_executesBlockOnLaunchAndCancelsAfterTimeout() = scope.runFlowTest {
+        var job: Job? = null
+        var rootJobRunning = false
+        lazyCache
+            .whenActive {
+                rootJobRunning = true
+                try {
+                    job = launch { awaitCancellation() }
+                    awaitCancellation()
+                } finally {
+                    rootJobRunning = false
+                }
+            }
+
+        // get flow does not execute whenActive block:
+        val flow = lazyCache.listen("1")
+        runCurrent()
+        assertNull(job)
+        assertFalse(rootJobRunning)
+
+        // start collecting -> executes whenActive block:
+        val collector = flow.startCollecting()
+        runCurrent()
+        assertNotNull(job)
+        assertTrue(job!!.isActive)
+        assertTrue(rootJobRunning)
+
+        // cancel collecting -> does not stop whenActive block before timeout:
+        collector.cancel()
+        advanceTimeBy(timeoutMillis - 1)
+        assertFalse(job.isCancelled)
+        assertTrue(rootJobRunning)
+
+        // after timeout - the block is cancelled:
+        advanceTimeBy(2)
+        assertTrue(job.isCancelled)
+        assertFalse(rootJobRunning)
+    }
+
+    @Test
+    fun whenActive_executedOncePerSession() = scope.runFlowTest {
+        var execCount = 0
+        lazyCache.whenActive { execCount++ }
+
+        // run 2 collectors:
+        val collector1 = lazyCache.listen("1").startCollecting()
+        runCurrent()
+        val collector2 = lazyCache.listen("2").startCollecting()
+        runCurrent()
+        // block executed only once:
+        assertEquals(1, execCount)
+
+        // cancel 1 collector, add third collector -> still 1 execution
+        collector1.cancel()
+        advanceTimeBy(timeoutMillis + 1)
+        val collector3 = lazyCache.listen("3").startCollecting()
+        runCurrent()
+        assertEquals(1, execCount)
+
+        // cancel all collectors, then add fresh collector -> 2nd execution
+        collector2.cancel()
+        collector3.cancel()
+        advanceTimeBy(timeoutMillis + 1)
+        lazyCache.listen("4").startCollecting()
+        runCurrent()
+        assertEquals(2, execCount)
     }
 
     private fun mockLoaderReturningDifferentResults() {

@@ -36,12 +36,18 @@ import io.mockk.mockk
 import io.mockk.spyk
 import io.mockk.verify
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestScope
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.Test.None
@@ -863,6 +869,76 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(BackgroundLoadState.Idle, reloadFunctionEnabledCollector.lastItem.metadata.backgroundLoadState)
         assertEquals(BackgroundLoadState.Loading, bgLoadsEnabledCollector.lastItem.metadata.backgroundLoadState)
         assertEquals(BackgroundLoadState.Loading, allConfigEnabledCollector.lastItem.metadata.backgroundLoadState)
+    }
+
+    @Test
+    fun whenActive_executesBlockOnLaunchAndCancelsAfterTimeout() = runFlowTest {
+        var job: Job? = null
+        var rootJobRunning = false
+        val subject = createLazyFlowSubject { awaitCancellation() }
+            .whenActive {
+                rootJobRunning = true
+                try {
+                    job = launch { awaitCancellation() }
+                    awaitCancellation()
+                } finally {
+                    rootJobRunning = false
+                }
+            }
+
+        // get flow does not execute whenActive block:
+        val flow = subject.listen()
+        runCurrent()
+        assertNull(job)
+        assertFalse(rootJobRunning)
+
+        // start collecting -> executes whenActive block:
+        val collector = flow.startCollecting()
+        runCurrent()
+        assertNotNull(job)
+        assertTrue(job!!.isActive)
+        assertTrue(rootJobRunning)
+
+        // cancel collecting -> does not stop whenActive block before timeout:
+        collector.cancel()
+        advanceTimeBy(cacheTimeout - 1)
+        assertFalse(job.isCancelled)
+        assertTrue(rootJobRunning)
+
+        // after timeout - the block is cancelled:
+        advanceTimeBy(2)
+        assertTrue(job.isCancelled)
+        assertFalse(rootJobRunning)
+    }
+
+    @Test
+    fun whenActive_executedOncePerSession() = runFlowTest {
+        var execCount = 0
+        val subject = createLazyFlowSubject { awaitCancellation() }
+            .whenActive { execCount++ }
+
+        // run 2 collectors:
+        val collector1 = subject.listen().startCollecting()
+        runCurrent()
+        val collector2 = subject.listen().startCollecting()
+        runCurrent()
+        // block executed only once:
+        assertEquals(1, execCount)
+
+        // cancel 1 collector, add third collector -> still 1 execution
+        collector1.cancel()
+        advanceTimeBy(cacheTimeout + 1)
+        val collector3 = subject.listen().startCollecting()
+        runCurrent()
+        assertEquals(1, execCount)
+
+        // cancel all collectors, then add fresh collector -> 2nd execution
+        collector2.cancel()
+        collector3.cancel()
+        advanceTimeBy(cacheTimeout + 1)
+        subject.listen().startCollecting()
+        runCurrent()
+        assertEquals(2, execCount)
     }
 
     private fun FlowTestScope.createLazyFlowSubject(

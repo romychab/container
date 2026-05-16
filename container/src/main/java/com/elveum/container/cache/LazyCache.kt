@@ -48,6 +48,11 @@ public interface LazyCache<Arg, T> {
     }
 
     /**
+     * Observe all active args being listened via StateFlow returned by [listen] call.
+     */
+    public fun listenActiveCollectorArgs(): StateFlow<Set<Arg>>
+
+    /**
      * Get a flow for listening values. The load function is started automatically
      * when at least 1 collector starts collecting the flow. See [LazyFlowSubject]
      * for more details.
@@ -84,6 +89,17 @@ public interface LazyCache<Arg, T> {
      * Clean-up in-memory cached values that are not observed.
      */
     public fun reset()
+
+    /**
+     * Launch the [block] when at least one observer subscribes to
+     * a flow returned by [listen] call. The [block] is automatically
+     * cancelled when the last observer unsubscribes from the flow.
+     *
+     * @return this LazyCache instance.
+     */
+    public fun whenActive(
+        block: suspend ScopedLazyCache<Arg, T>.() -> Unit,
+    ): LazyCache<Arg, T>
 
     public companion object {
 

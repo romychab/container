@@ -42,6 +42,7 @@ import kotlinx.coroutines.flow.StateFlow
  * value is passed to a new subscriber and the load doesn't start from scratch.
  * Timeout is specified either by constructor or by [create] method.
  */
+@Suppress("ComplexInterface")
 public interface LazyFlowSubject<T> {
 
     /**
@@ -82,6 +83,15 @@ public interface LazyFlowSubject<T> {
      * @return infinite flow which emits the current state of value load, always success, exceptions are wrapped to [Container.Error]
      */
     public fun listen(
+        configuration: ContainerConfiguration = ContainerConfiguration(),
+    ): StateFlow<Container<T>>
+
+    /**
+     * Spy on the subject's state. Subscribing to the flow returned by this
+     * call does not trigger data loading. If there is no real listeners
+     * subscribed via [listen] call, the returned flow emits Pending state.
+     */
+    public fun spy(
         configuration: ContainerConfiguration = ContainerConfiguration(),
     ): StateFlow<Container<T>>
 
@@ -149,9 +159,16 @@ public interface LazyFlowSubject<T> {
      * a flow returned by [listen] call. The [block] is automatically
      * cancelled when the last observer unsubscribes from the flow.
      *
+     * @param spyMode Whether the `listen` call within the `whenActive { ... }` block
+     *     acts as `spy` call (enabled by default).
+     * @param block A suspending block of code with a CoroutineScope executed
+     *     only when the subject has at least 1 active subscriber. The scope
+     *     is cancelled when the last subscriber is unsubscribed (after cache timeout)
+     *
      * @return this LazyFlowSubject instance.
      */
     public fun whenActive(
+        spyMode: Boolean = true,
         block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
     ): LazyFlowSubject<T>
 

@@ -50,7 +50,7 @@ public interface LazyCache<Arg, T> {
     /**
      * Observe all active args being listened via StateFlow returned by [listen] call.
      */
-    public fun listenActiveCollectorArgs(): StateFlow<Set<Arg>>
+    public fun spyOnArgs(): StateFlow<Set<Arg>>
 
     /**
      * Get a flow for listening values. The load function is started automatically

@@ -62,7 +62,7 @@ internal class LazyCacheImpl<Arg, T>(
         return getSubject(arg)?.activeCollectorsCount ?: 0
     }
 
-    override fun listenActiveCollectorArgs(): StateFlow<Set<Arg>> {
+    override fun spyOnArgs(): StateFlow<Set<Arg>> {
         return cacheSlotsFlow.stateMap { it.keys }
     }
 

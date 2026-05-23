@@ -941,6 +941,65 @@ class LazyFlowSubjectImplIntegrationTest {
         assertEquals(2, execCount)
     }
 
+    @Test
+    fun `spy without listeners emits Pending`() = runFlowTest {
+        val subject = createLazyFlowSubject {
+            delay(10)
+            emit("1")
+        }
+
+        val collector = subject.spy().startCollecting()
+        advanceTimeBy(11)
+
+        assertEquals(
+            listOf(pendingContainer()),
+            collector.collectedItems
+        )
+    }
+
+    @Test
+    fun `spy with listeners emits output value`() = runFlowTest {
+        val subject = createLazyFlowSubject {
+            delay(10)
+            emit("1")
+            delay(cacheTimeout + 1)
+            emit("2")
+        }
+
+        val spyCollector = subject.spy().startCollecting()
+        advanceTimeBy(5)
+        val realCollector = subject.listen().startCollecting()
+
+        // nothing is emitted while loading:
+        advanceTimeBy(10)
+        assertEquals(
+            listOf(pendingContainer()),
+            spyCollector.collectedItems
+        )
+
+        // success item is emitted when real collector is attached:
+        advanceTimeBy(1)
+        assertEquals(2, spyCollector.count)
+        assertEquals(successContainer("1"), spyCollector.lastItem.raw())
+
+        realCollector.cancel()
+
+        // spy collector is not detached before cache timeout expires:
+        advanceTimeBy(cacheTimeout)
+        assertEquals(2, spyCollector.count)
+
+        // spy collector is detached after cache timeout expires:
+        advanceTimeBy(1)
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("1"),
+                pendingContainer(),
+            ),
+            spyCollector.collectedItems.raw()
+        )
+    }
+
     private fun FlowTestScope.createLazyFlowSubject(
         loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> = createLazyFlowSubject(

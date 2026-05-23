@@ -14,6 +14,7 @@ import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.internalDistinctUntilChanged
+import com.elveum.container.stateMap
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.subject.lazy.ScopedLazyFlowSubjectImpl
@@ -51,7 +52,7 @@ internal class LazyFlowSubjectImpl<T>(
     private val collectorsCountFlow = MutableStateFlow(0)
     private var scope: CoroutineScope? = null
     private var cancellationJob: Job? = null
-    private val whenActiveBlocks = mutableListOf<suspend ScopedLazyFlowSubject<T>.() -> Unit>()
+    private val whenActiveRecords = mutableListOf<WhenActiveRecord>()
 
     private val reloadFunctionRef: ReloadFunction = ::reloadAsync
 
@@ -117,10 +118,20 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun whenActive(
+        spyMode: Boolean,
         block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
     ): LazyFlowSubject<T> = synchronized(loadTaskManager) {
-        whenActiveBlocks.add(block)
+        val newRecord = WhenActiveRecord(spyMode, block)
+        whenActiveRecords.add(newRecord)
         this
+    }
+
+    override fun spy(
+        configuration: ContainerConfiguration,
+    ): StateFlow<Container<T>> {
+        return loadTaskManager
+            .listen()
+            .stateMap { it.applyConfiguration(configuration) }
     }
 
     private fun doNewLoad(
@@ -160,14 +171,15 @@ internal class LazyFlowSubjectImpl<T>(
                     scope = scope,
                     flowDependencyStore = flowDependencyStore,
                 )
-                whenActiveBlocks.forEach { block ->
+                whenActiveRecords.forEach { record ->
                     scope.launch {
                         supervisorScope {
                             val scopedSubject = ScopedLazyFlowSubjectImpl(
+                                spyMode = record.spyMode,
                                 coroutineScope = this,
                                 subject = this@LazyFlowSubjectImpl,
                             )
-                            block(scopedSubject)
+                            record.block(scopedSubject)
                         }
                     }
                 }
@@ -220,6 +232,11 @@ internal class LazyFlowSubjectImpl<T>(
             }
         }
     }
+
+    private inner class WhenActiveRecord(
+        val spyMode: Boolean,
+        val block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
+    )
 
     interface LoadTaskFactory {
 

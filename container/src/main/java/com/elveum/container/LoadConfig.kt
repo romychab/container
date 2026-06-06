@@ -23,10 +23,10 @@ public enum class LoadConfig {
      */
     SilentLoadingAndError;
 
-    internal val isSilentLoadingEnabled: Boolean
+    public val isSilentLoadingEnabled: Boolean
         get() = this == SilentLoading || this == SilentLoadingAndError
 
-    internal val isSilentErrorsEnabled: Boolean
+    public val isSilentErrorsEnabled: Boolean
         get() = this == SilentLoadingAndError
 
 }

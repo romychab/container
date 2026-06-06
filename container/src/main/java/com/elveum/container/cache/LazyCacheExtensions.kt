@@ -1,12 +1,14 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
 import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.transform
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 public typealias SimpleCacheValueLoader<Arg, T> = suspend (Arg) -> T
 
@@ -36,9 +38,10 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateWith(
 public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
     arg: Arg,
     config: LoadConfig = LoadConfig.Normal,
+    metadata: ContainerMetadata = EmptyMetadata,
 ) {
     @Suppress("UnusedFlow")
-    reload(arg, config)
+    reload(arg, config, metadata)
 }
 
 /**
@@ -91,7 +94,7 @@ public fun <Arg, T> LazyCache<Arg, T>.listenReloadable(
     arg: Arg,
     emitReloadFunction: Boolean = true,
     emitBackgroundLoads: Boolean = true,
-): Flow<Container<T>> {
+): StateFlow<Container<T>> {
     return listen(
         arg = arg,
         configuration = ContainerConfiguration(

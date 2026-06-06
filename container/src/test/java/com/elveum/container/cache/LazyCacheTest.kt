@@ -1,8 +1,12 @@
+@file:Suppress("UnusedFlow")
+
 package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
+import com.elveum.container.LocalSourceType
+import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.cache.LazyCacheImpl.LazyFlowSubjectFactory
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.CoroutineScopeFactory
@@ -306,14 +310,21 @@ class LazyCacheTest {
     fun reload_withActiveCacheSlot_reloadsValue() = scope.runFlowTest {
         val subject = mockSubject()
         val expectedFlow = flowOf("")
-        every { subject.reload(config = LoadConfig.SilentLoading) } returns expectedFlow
+        every { subject.reload(config = LoadConfig.SilentLoading, any()) } returns expectedFlow
         lazyCache.listen(key).startCollecting()
 
-        val flow = lazyCache.reload(key, config = LoadConfig.SilentLoading)
+        val flow = lazyCache.reload(
+            arg = key,
+            config = LoadConfig.SilentLoading,
+            metadata = SourceTypeMetadata(LocalSourceType),
+        )
 
         assertSame(expectedFlow, flow)
         verify(exactly = 1) {
-            subject.reload(config = LoadConfig.SilentLoading)
+            subject.reload(
+                config = LoadConfig.SilentLoading,
+                metadata = SourceTypeMetadata(LocalSourceType),
+            )
         }
     }
 

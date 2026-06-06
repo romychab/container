@@ -1,7 +1,9 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
@@ -74,7 +76,11 @@ public interface LazyCache<Arg, T> {
      * @return a finite flow emitting loaded items; it may complete with error if load
      *         function throws an exception.
      */
-    public fun reload(arg: Arg, config: LoadConfig = LoadConfig.Normal): Flow<T>
+    public fun reload(
+        arg: Arg,
+        config: LoadConfig = LoadConfig.Normal,
+        metadata: ContainerMetadata = EmptyMetadata,
+    ): Flow<T>
 
     /**
      * Put the specified [container] value into the cache.

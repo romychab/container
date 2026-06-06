@@ -5,7 +5,7 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.transform
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 
 /**
@@ -129,7 +129,7 @@ public inline fun <T> LazyFlowSubject<T>.updateIfSuccess(
 public fun <T> LazyFlowSubject<T>.listenReloadable(
     emitReloadFunction: Boolean = true,
     emitBackgroundLoads: Boolean = true,
-): Flow<Container<T>> {
+): StateFlow<Container<T>> {
     return listen(
         configuration = ContainerConfiguration(
             emitBackgroundLoads = emitBackgroundLoads,

@@ -13,6 +13,7 @@ import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
 import io.mockk.coVerify
+import io.mockk.coVerifyOrder
 import io.mockk.coVerifySequence
 import io.mockk.impl.annotations.RelaxedMockK
 import io.mockk.just
@@ -161,7 +162,7 @@ class PageLoaderIntegrationTest {
     @Test
     fun pageLoader_whenNextKeyEmitted_doesNotLoadsItImmediately() = runFlowTest {
         val triggeredIndexes = mutableSetOf<Int>()
-        val pageLoader = createPageLoader(initialKey = 0) { index ->
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 1) { index ->
             triggeredIndexes.add(index)
             emitPage(listOf("a", "b"))
             if (index == 0) emitNextKey(1)
@@ -275,7 +276,6 @@ class PageLoaderIntegrationTest {
         }
     }
 
-
     @Test
     fun pageLoader_whenRetryLoadNextPageFromMetadata_reloadsPageAndCompletes() = runFlowTest {
         val expectedException = IllegalArgumentException("oops")
@@ -311,8 +311,8 @@ class PageLoaderIntegrationTest {
 
     @Test
     fun pageLoader_whenMultiplePagesExists_loadsEachPageAfterItemRenderingFromPreviousPage() = runFlowTest {
-        val pageLoader = createPageLoader(initialKey = 0) { index ->
-            emitPage(listOf("item-$index"))
+        val pageLoader = createPageLoader(initialKey = 0, fetchDistance = 1) { index ->
+            emitPage(listOf("item-$index-0", "item-$index-1"))
             if (index < 3) emitNextKey(index + 1)
         }
 
@@ -321,34 +321,54 @@ class PageLoaderIntegrationTest {
         // page 0
         coVerify(exactly = 1) {
             emitter.emitPendingState()
-            emitter.emit(listOf("item-0"), any<ContainerMetadata>())
+            emitter.emit(listOf("item-0-0", "item-0-1"), any<ContainerMetadata>())
         }
         coVerify(exactly = 0) {
-            emitter.emit(listOf("item-0", "item-1"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1"),
+                any<ContainerMetadata>(),
+            )
         }
 
         // page1
-        pageLoader.onItemRendered(0)
+        pageLoader.onItemRendered(1)
         coVerify(exactly = 1) {
-            emitter.emit(listOf("item-0", "item-1"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1"),
+                any<ContainerMetadata>(),
+            )
         }
         coVerify(exactly = 0) {
-            emitter.emit(listOf("item-0", "item-1", "item-2"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1", "item-2-0", "item-2-1"),
+                any<ContainerMetadata>(),
+            )
         }
 
         // page 2
-        pageLoader.onItemRendered(1)
+        pageLoader.onItemRendered(3)
         coVerify(exactly = 1) {
-            emitter.emit(listOf("item-0", "item-1", "item-2"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1", "item-2-0", "item-2-1"),
+                any<ContainerMetadata>(),
+            )
         }
         coVerify(exactly = 0) {
-            emitter.emit(listOf("item-0", "item-1", "item-2", "item-3"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1", "item-2-0", "item-2-1",
+                    "item-3-0", "item-3-1"),
+                any<ContainerMetadata>(),
+            )
         }
 
         // page 3
-        pageLoader.onItemRendered(2)
+        pageLoader.onItemRendered(5)
         coVerify(exactly = 1) {
-            emitter.emit(listOf("item-0", "item-1", "item-2", "item-3"), any<ContainerMetadata>())
+            emitter.emit(
+                listOf("item-0-0", "item-0-1", "item-1-0", "item-1-1", "item-2-0", "item-2-1",
+                    "item-3-0", "item-3-1"),
+                any<ContainerMetadata>(),
+            )
         }
         assertEquals(JobStatus.Completed(Unit), jobState.status)
     }
@@ -376,21 +396,55 @@ class PageLoaderIntegrationTest {
     }
 
     @Test
-    fun pageLoader_whenEmitNextKeyCalledTwice_throwsException() = runFlowTest {
-        val pageLoader = createPageLoader(initialKey = 0) {
-            emitPage(listOf("a"))
-            emitNextKey(1)
-            emitNextKey(2)
+    fun pageLoader_whenEmitNextKeyCalledTwice_executesBothKeys() = runFlowTest {
+        val pageLoader = createPageLoader(initialKey = 0) { key ->
+            when (key) {
+                0 -> {
+                    emitPage(listOf("a"))
+                    emitNextKey(1)
+                    emitNextKey(2)
+                }
+                1 -> emitPage(listOf("b"))
+                2 -> emitPage(listOf("b-updated"))
+            }
         }
 
         executeInBackground { pageLoader.statefulInvoke() }
+        runCurrent()
 
-        coVerify(exactly = 1) {
-            emitter.emitFailureState(match { exception ->
-                exception is IllegalStateException &&
-                        exception.message?.contains("emitNextKey()") == true
-            })
+        coVerifyOrder {
+            emitter.emit(listOf("a"), any<ContainerMetadata>())
+            emitter.emit(listOf("a", "b"), any<ContainerMetadata>())
+            emitter.emit(listOf("a", "b-updated"), any<ContainerMetadata>())
         }
+    }
+
+    @Test
+    fun pageLoader_whenTheSameKeyEmittedTwice_executesKeyOnce() = runFlowTest {
+        val executedKeys = mutableListOf<Int>()
+        val pageLoader = createPageLoader(initialKey = 0) { key ->
+            executedKeys.add(key)
+            when (key) {
+                0 -> {
+                    emitPage(listOf("a"))
+                    emitNextKey(1)
+                    emitNextKey(1)
+                }
+                1 -> emitPage(listOf("b"))
+            }
+        }
+
+        executeInBackground { pageLoader.statefulInvoke() }
+        runCurrent()
+
+        coVerifyOrder {
+            emitter.emit(listOf("a"), any<ContainerMetadata>())
+            emitter.emit(listOf("a", "b"), any<ContainerMetadata>())
+        }
+        assertEquals(
+            listOf(0, 1),
+            executedKeys,
+        )
     }
 
     @Test
@@ -839,6 +893,97 @@ class PageLoaderIntegrationTest {
 
         assertEquals(listOf(0, 1), loadedKeys)
     }
+
+    @Test
+    fun pageLoader_withDifferentKeys_completesOnlyWhenAllKeysCompletes() = runFlowTest {
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            when (index) {
+                0 -> {
+                    emitPage(listOf("item1"))
+                    emitNextKey(1)
+                    emitNextKey(2)
+                }
+                1 -> {
+                    delay(10)
+                    emitPage(listOf("item2"))
+                }
+                2 -> {
+                    delay(20)
+                    emitPage(listOf("item2-updated"))
+                }
+            }
+        }
+
+        val state = executeInBackground { pageLoader.statefulInvoke() }
+
+        advanceTimeBy(19) // only one next key has been processed:
+        assertEquals(JobStatus.Executing, state.status)
+
+        advanceTimeBy(2) // both keys are processed:
+        assertEquals(JobStatus.Completed(Unit), state.status)
+
+        coVerifyOrder {
+            emitter.emit(listOf("item1"), any<ContainerMetadata>())
+            emitter.emit(listOf("item1", "item2"), any<ContainerMetadata>())
+            emitter.emit(listOf("item1", "item2-updated"), any<ContainerMetadata>())
+        }
+    }
+
+
+    @Test
+    fun pageLoader_withDifferentKeyPaths_completesOnlyWhenAllKeysCompletes() = runFlowTest {
+        var emitError = true
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            when (index) {
+                0 -> { // root: 0
+                    emitPage(listOf("item1"))
+                    emitNextKey(1)
+                    emitNextKey(2)
+                }
+                1 -> { // branch A: 0 -> 1
+                    delay(10)
+                    emitPage(listOf("item2"))
+                    emitNextKey(3)
+                }
+                2 -> { // branch B: 0 -> 2
+                    delay(20)
+                    emitPage(listOf("item2-updated"))
+                    emitNextKey(4)
+                }
+                3 -> { // branch A: 0 -> 1 -> 3
+                    delay(5)
+                    emitPage(listOf("item3"))
+                }
+                4 -> { // branch B: 0 -> 2 -> 5
+                    delay(5)
+                    if (emitError) {
+                        throw IllegalStateException("oops")
+                    } else {
+                        emitPage(listOf("item3-updated"))
+                    }
+                }
+            }
+        }
+
+        val state = executeInBackground { pageLoader.statefulInvoke() }
+
+        // load session should be still active, since error happened on the last key branch
+        advanceTimeBy(30)
+        assertEquals(JobStatus.Executing, state.status)
+
+        // retrying:
+        emitError = false
+        (pageLoader.nextPageState.value as PageState.Error).retry()
+        advanceTimeBy(6)
+        // session must be finished:
+        assertEquals(JobStatus.Completed(Unit), state.status)
+        // and verify final items:
+        coVerify {
+            emitter.emit(listOf("item1", "item2-updated", "item3-updated"), any<ContainerMetadata>())
+        }
+    }
+
+
 
     private suspend fun PageLoader<Int, String>.statefulInvoke() {
         emitter.statefulInvoke()

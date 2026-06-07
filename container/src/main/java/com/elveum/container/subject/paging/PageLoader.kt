@@ -3,6 +3,7 @@ package com.elveum.container.subject.paging
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.paging.internal.PageLoaderConfig
 import com.elveum.container.subject.paging.internal.PageLoaderImpl
 import kotlinx.coroutines.flow.StateFlow
 
@@ -42,13 +43,14 @@ public fun <Key, T> pageLoader(
     emitMetadata: Boolean = true,
     block: suspend PageEmitter<Key, T>.(Key) -> Unit
 ): PageLoader<Key, T> {
-    return PageLoaderImpl(
+    val config = PageLoaderConfig(
         initialKey = initialKey,
-        fetchDistance = fetchDistance,
         itemId = itemId,
+        fetchDistance = fetchDistance,
         emitMetadata = emitMetadata,
         block = block,
     )
+    return PageLoaderImpl(config)
 }
 
 /**

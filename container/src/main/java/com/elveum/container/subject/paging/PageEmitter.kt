@@ -11,15 +11,17 @@ public interface PageEmitter<Key, T> : FlowComposer {
     /**
      * Emit data loaded for the current page key.
      *
-     * Can be called multiple times.
+     * - Must be called 1, or more times.
      */
     public suspend fun emitPage(list: List<T>)
 
     /**
-     * Emit a key of the next page to be loaded.
+     * Emit a key of the next page to be loaded (if any).
      *
-     * Must be called either 1, or 0 times (if there is no next pages).
+     * - If there is no next page, just do not call this method.
+     * - Can be called 0, 1, or multiple times (e.g. with keys from a local storage, and then with keys
+     *   from a remote source).
      */
-    public fun emitNextKey(key: Key)
+    public suspend fun emitNextKey(key: Key)
 
 }

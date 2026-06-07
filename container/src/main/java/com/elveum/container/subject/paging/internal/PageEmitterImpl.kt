@@ -1,40 +1,57 @@
 package com.elveum.container.subject.paging.internal
 
-import com.elveum.container.Emitter
-import com.elveum.container.FlowComposer
+import com.elveum.container.Container
+import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageEmitter
-import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 internal class PageEmitterImpl<Key, T>(
-    private val key: Key,
-    private val state: PageLoaderState<Key, T>,
-    private val emitter: Emitter<List<T>>,
-    private val launcher: PageLoadTaskLauncher<Key, T>,
-) : PageEmitter<Key, T>, FlowComposer by emitter {
+    private val context: PageContext<Key, T>,
+    private val originEmitter: StatefulEmitter<List<T>>,
+) : PageEmitter<Key, T> {
 
-    var emitPageCalled = false
+    private val mutex = Mutex()
+    private val emittedKeys = mutableSetOf<Key>()
+
+    @Volatile
+    var isPageEmitted = false
         private set
 
-    private val emitNextKeyCalled = AtomicBoolean(false)
-
     override suspend fun emitPage(list: List<T>) {
-        emitPageCalled = true
-        state.onKeyLoaded(key, list)
+        isPageEmitted = true
+        context.onPageDataLoaded(list)
     }
 
-    override fun emitNextKey(key: Key) {
-        if (emitNextKeyCalled.compareAndSet(false, true)) {
-            if (state.isImmediateLaunchScheduled()) {
-                launcher.launch(key)
+    override suspend fun emitNextKey(key: Key) {
+        val shouldEmit = mutex.withLock {
+            if (!emittedKeys.contains(key)) {
+                emittedKeys.add(key)
+                true
             } else {
-                state.registerKey(key)
+                false
             }
-        } else {
-            throw IllegalStateException(
-                "emitNextKey() can be called either 0 or 1 time. " +
-                        "Multiple calls of emitNextKey() are not allowed."
-            )
         }
+        if (shouldEmit) {
+            context.scheduleNextKey(key)
+        }
+    }
+
+    override suspend fun <R> dependsOnFlow(
+        key: Any,
+        vararg keys: Any,
+        flow: () -> Flow<R>
+    ): R {
+        return originEmitter.dependsOnFlow(key = key, keys = keys, flow = flow)
+    }
+
+    override suspend fun <R> dependsOnContainerFlow(
+        key: Any,
+        vararg keys: Any,
+        flow: () -> Flow<Container<R>>
+    ): R {
+        return originEmitter.dependsOnContainerFlow(key = key, keys = keys, flow = flow)
     }
 
 }

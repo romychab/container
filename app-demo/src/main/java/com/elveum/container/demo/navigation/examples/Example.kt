@@ -17,6 +17,7 @@ import com.elveum.container.demo.feature.examples.subject_chunks.ChunksScreen
 import com.elveum.container.demo.feature.examples.subject_basics.SubjectBasicsScreen
 import com.elveum.container.demo.feature.examples.pagination_args.PaginationArgsScreen
 import com.elveum.container.demo.feature.examples.pagination_basic.BasicPaginationScreen
+import com.elveum.container.demo.feature.examples.pagination_local_remote.LocalRemotePagedScreen
 import com.elveum.container.demo.feature.examples.pagination_statuses.PaginationStatusesScreen
 import com.elveum.container.demo.feature.examples.pagination_updates.PaginationUpdatesScreen
 import com.elveum.container.demo.feature.examples.subject_local_remote.LocalRemoteScreen
@@ -245,5 +246,17 @@ sealed class Example {
         @Composable
         override fun Content() = PaginationUpdatesScreen()
     }
+
+    @Serializable
+    data object PaginationLocalRemote : Example() {
+        @Transient override val category = Category.Pagination
+        @Transient override val title = "Pagination with 2 Data Sources"
+        @Transient override val description = "Paged list where each item is fetched from a local cache and remote source."
+
+        @Composable
+        override fun Content() = LocalRemotePagedScreen()
+    }
+
+
 
 }

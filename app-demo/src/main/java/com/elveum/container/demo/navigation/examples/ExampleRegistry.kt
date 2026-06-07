@@ -27,6 +27,7 @@ object ExampleRegistry {
         Example.PaginationStatuses,
         Example.PaginationArgs,
         Example.PaginationUpdates,
+        Example.PaginationLocalRemote,
     )
 
     val byCategory: Map<Category, List<Example>> = all.groupBy { it.category }

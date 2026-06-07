@@ -72,7 +72,7 @@ public interface LazyCache<Arg, T> {
      *
      * @param arg the argument identifying which cached entry to reload.
      * @param config defines how the loading state will be propagated to subsequent containers.
-     *
+     * @param metadata metadata values to be attached to the reload request and emitted container.
      * @return a finite flow emitting loaded items; it may complete with error if load
      *         function throws an exception.
      */

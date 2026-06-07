@@ -28,7 +28,7 @@ public inline fun <T> containerOf(
  */
 public inline fun <T> containerFlowOf(
     metadata: ContainerMetadata = defaultMetadata(),
-    crossinline block: FlowCollector<T>.() -> Unit
+    crossinline block: suspend FlowCollector<T>.() -> Unit
 ): Flow<Container<T>> {
     return flow {
         val containerFlowCollector = FlowCollector<T> { value ->

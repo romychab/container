@@ -86,4 +86,15 @@ class ContainerOfTest {
         assertEquals(LocalSourceType, errorItem.sourceType)
     }
 
+    @Test
+    fun containerFlowOf_withEmittedItem_emitsSuccessContainer() = runFlowTest {
+        val collected = containerFlowOf {
+            emit("item")
+        }.startCollecting()
+        assertEquals(
+            listOf(pendingContainer(), successContainer("item")),
+            collected.collectedItems,
+        )
+    }
+
 }

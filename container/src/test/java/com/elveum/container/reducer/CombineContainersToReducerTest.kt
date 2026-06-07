@@ -660,6 +660,336 @@ class CombineContainersToReducerTest {
         assertEquals(successContainer(State5("a1", "b1", "c1", "d1", "e1")), collector.lastItem.raw())
     }
 
+    @Test
+    fun `test combineContainersToReducer with 2 flows and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val reducer = combineContainersToReducer(
+            flowA,
+            flowB,
+            initialState = ::State2,
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State2("a2", "b1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 3 flows and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val reducer = combineContainersToReducer(
+            flowA,
+            flowB,
+            flowC,
+            initialState = ::State3,
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State3("a2", "b1", "c1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 4 flows and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val flowD = MutableSharedFlow<Container<String>>()
+        val reducer = combineContainersToReducer(
+            flowA,
+            flowB,
+            flowC,
+            flowD,
+            initialState = ::State4,
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        flowD.emit(successContainer("d1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State4("a2", "b1", "c1", "d1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 5 flows and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val flowD = MutableSharedFlow<Container<String>>()
+        val flowE = MutableSharedFlow<Container<String>>()
+        val reducer = combineContainersToReducer(
+            flowA,
+            flowB,
+            flowC,
+            flowD,
+            flowE,
+            initialState = ::State5,
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        flowD.emit(successContainer("d1"))
+        flowE.emit(successContainer("e1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State5("a2", "b1", "c1", "d1", "e1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with flow iterable and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val reducer = combineContainersToReducer(
+            flows = listOf(flowA, flowB),
+            initialState = { State2(it[0].toString(), it[1].toString()) },
+            scope = scope.backgroundScope,
+            started = SharingStarted.Lazily,
+        )
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State2("a2", "b1")),
+            collector.lastItem.raw()
+        )
+    }
+
+
+    @Test
+    fun `test combineContainersToReducer with 2 flows, owner, and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val owner = TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily)
+        val reducer = with(owner) {
+            combineContainersToReducer(
+                flowA,
+                flowB,
+                initialState = ::State2,
+            )
+        }
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State2("a2", "b1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 3 flows, owner, and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val owner = TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily)
+        val reducer = with(owner) {
+            combineContainersToReducer(
+                flowA,
+                flowB,
+                flowC,
+                initialState = ::State3,
+            )
+        }
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State3("a2", "b1", "c1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 4 flows, owner, and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val flowD = MutableSharedFlow<Container<String>>()
+        val owner = TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily)
+        val reducer = with(owner) {
+            combineContainersToReducer(
+                flowA,
+                flowB,
+                flowC,
+                flowD,
+                initialState = ::State4,
+            )
+        }
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        flowD.emit(successContainer("d1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State4("a2", "b1", "c1", "d1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with 5 flows, owner, and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val flowC = MutableSharedFlow<Container<String>>()
+        val flowD = MutableSharedFlow<Container<String>>()
+        val flowE = MutableSharedFlow<Container<String>>()
+        val owner = TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily)
+        val reducer = with(owner) {
+            combineContainersToReducer(
+                flowA,
+                flowB,
+                flowC,
+                flowD,
+                flowE,
+                initialState = ::State5,
+            )
+        }
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        flowC.emit(successContainer("c1"))
+        flowD.emit(successContainer("d1"))
+        flowE.emit(successContainer("e1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State5("a2", "b1", "c1", "d1", "e1")),
+            collector.lastItem.raw()
+        )
+    }
+
+    @Test
+    fun `test combineContainersToReducer with flow iterable, owner, and default next state`() = runFlowTest {
+        val flowA = MutableSharedFlow<Container<String>>()
+        val flowB = MutableSharedFlow<Container<String>>()
+        val owner = TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily)
+        val reducer = with(owner) {
+            combineContainersToReducer(
+                flows = listOf(flowA, flowB),
+                initialState = { State2(it[0].toString(), it[1].toString()) },
+            )
+        }
+
+        val collector = reducer.stateFlow.startCollecting()
+        runCurrent()
+        flowA.emit(successContainer("a1"))
+        flowB.emit(successContainer("b1"))
+        runCurrent()
+        reducer.updateState { it.copy(other = "updated") }
+        runCurrent()
+
+        // emit next state - manual update is overridden, since nextState is not specified
+        flowA.emit(successContainer("a2"))
+        runCurrent()
+        assertEquals(
+            successContainer(State2("a2", "b1")),
+            collector.lastItem.raw()
+        )
+    }
+
     private data class State2(
         val a: String,
         val b: String,

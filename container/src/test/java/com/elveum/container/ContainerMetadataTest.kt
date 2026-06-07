@@ -1,5 +1,7 @@
 package com.elveum.container
 
+import io.mockk.mockk
+import io.mockk.verify
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -338,6 +340,18 @@ class ContainerMetadataTest {
         val metadata = SourceTypeMetadata(LocalSourceType) + ReloadFunctionMetadata(fn)
 
         assertSame(fn, metadata.reloadFunction)
+    }
+
+    @Test
+    fun reloadFunction_whenReloadCalled_isExecuted() {
+        val fn: ReloadFunction = mockk<(LoadConfig) -> Unit>(relaxed = true)
+        val metadata = ReloadFunctionMetadata(fn)
+
+        metadata.reload(LoadConfig.SilentLoadingAndError)
+
+        verify(exactly = 1) {
+            fn.invoke(LoadConfig.SilentLoadingAndError)
+        }
     }
 
     @Test

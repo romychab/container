@@ -20,5 +20,6 @@ dependencyResolutionManagement {
 rootProject.name = "ContainerLib"
 
 include(":container")
-include(":app-demo")
 include(":store")
+include(":app-demo")
+include(":app-store-demo")

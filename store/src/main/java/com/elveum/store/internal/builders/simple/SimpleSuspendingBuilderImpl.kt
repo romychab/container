@@ -1,0 +1,48 @@
+package com.elveum.store.internal.builders.simple
+
+import com.elveum.store.builders.SimpleQuerySuspendingBuilder
+import com.elveum.store.builders.SimpleSuspendingBuilder
+import com.elveum.store.builders.base.BaseBuilder
+import com.elveum.store.contracts.SimpleSuspendingContract
+import com.elveum.store.internal.builders.BaseBuilderImpl
+import com.elveum.store.internal.builders.SharedConfig
+import com.elveum.store.internal.stores.SimpleQueryStoreImpl
+import com.elveum.store.internal.stores.asSimpleStore
+import com.elveum.store.stores.simple.SimpleStore
+
+internal class SimpleSuspendingBuilderImpl<T : Any>(
+    private val config: SharedConfig,
+    private val sharedBuilder: BaseBuilderImpl<SimpleSuspendingBuilder<T>> = BaseBuilderImpl(config),
+) : SimpleSuspendingBuilder<T>, BaseBuilder<SimpleSuspendingBuilder<T>> by sharedBuilder {
+
+    init {
+        sharedBuilder.setReference(this)
+    }
+
+    override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): SimpleQuerySuspendingBuilder<Q, T> {
+        return SimpleQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
+    }
+
+    override fun build(contract: SimpleSuspendingContract<T>): SimpleStore<T> {
+        return build(
+            onFetch = contract::fetch,
+            onSaveToStorage = contract::saveToLocalStorage,
+            onLoadFromStorage = contract::loadFromLocalStorage,
+        )
+    }
+
+    override fun build(
+        onFetch: suspend () -> T,
+        onSaveToStorage: suspend (T) -> Unit,
+        onLoadFromStorage: suspend () -> T?
+    ): SimpleStore<T> {
+        return SimpleQueryStoreImpl(
+            initialQuery = Unit,
+            config = config,
+            fetcher = { onFetch() },
+            saver = { _, data -> onSaveToStorage(data) },
+            loader = { onLoadFromStorage() },
+        ).asSimpleStore()
+    }
+
+}

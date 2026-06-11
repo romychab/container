@@ -31,7 +31,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:2.1.0-beta08"
+implementation "com.elveum:store:3.0.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -359,10 +359,11 @@ API and for combining multiple stores with `combineStores`.
 
 ## Detailed Documentation
 
-| Topic                                       | Description                                                                              |
-|---------------------------------------------|------------------------------------------------------------------------------------------|
-| [Simple Store](docs/simple-store.md)        | `SimpleStore`, local storage, queries, optimistic updates, `whenActive`                  |
-| [Keyed Store](docs/keyed-store.md)          | `KeyedStore`, per-key cache lifecycle, master-detail patterns, cache synchronization     |
-| [Paged Store](docs/paged-store.md)          | `PagedStore`, `PagedList`, next-page states, queries, local storage, per-item updates    |
-| [Store Results](docs/store-results.md)      | `StoreResult` states, extraction, transformations, `combineStores`, `StoreResultReducer` |
-| [Load Requests](docs/load-requests.md)      | `LoadRequest`, fresh/offline modes, keeping content on load/error, background load state |
+| Topic                                          | Description                                                                                  |
+|------------------------------------------------|----------------------------------------------------------------------------------------------|
+| [Simple Store](docs/simple-store.md)           | `SimpleStore`, local storage, queries, optimistic updates, `whenActive`                      |
+| [Keyed Store](docs/keyed-store.md)             | `KeyedStore`, per-key cache lifecycle, master-detail patterns, cache synchronization         |
+| [Paged Store](docs/paged-store.md)             | `PagedStore`, `PagedList`, next-page states, queries, local storage, per-item updates        |
+| [Store Results](docs/store-results.md)         | `StoreResult` states, extraction, transformations, `combineStores`, `StoreResultReducer`     |
+| [Load Requests](docs/load-requests.md)         | `LoadRequest`, fresh/offline modes, keeping content on load/error, background load state     |
+| [LLM Agent Skill](../skills/container-store/)  | Installable Agent Skill for AI coding agents: setup, imports reference, architecture rules   |

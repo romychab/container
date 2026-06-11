@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.FlowComposer
 
 /**
@@ -7,6 +8,12 @@ import com.elveum.container.FlowComposer
  * when calling [pageLoader] for creating a new [PageLoader] instance.
  */
 public interface PageEmitter<Key, T> : FlowComposer {
+
+    /**
+     * Input metadata of the current load. It may contain the load trigger,
+     * or custom values, etc.
+     */
+    public val metadata: ContainerMetadata
 
     /**
      * Emit data loaded for the current page key.

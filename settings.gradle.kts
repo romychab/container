@@ -21,3 +21,4 @@ rootProject.name = "ContainerLib"
 
 include(":container")
 include(":app-demo")
+include(":store")

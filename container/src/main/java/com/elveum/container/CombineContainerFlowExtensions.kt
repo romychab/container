@@ -223,6 +223,12 @@ public interface CombineContainerFlowScope {
     public var sourceType: SourceType
     public var backgroundLoadState: BackgroundLoadState
     public var reloadFunction: ReloadFunction
+
+    public companion object {
+        public fun create(containers: List<Container<*>>): CombineContainerFlowScope {
+            return CombineContainerFlowScopeImpl(containers.toTypedArray())
+        }
+    }
 }
 
 internal class CombineContainerFlowScopeImpl(

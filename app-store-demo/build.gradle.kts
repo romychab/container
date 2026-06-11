@@ -9,11 +9,11 @@ plugins {
 }
 
 android {
-    namespace = "com.elveum.container.demo"
+    namespace = "com.elveum.store.demo"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.elveum.container.demo"
+        applicationId = "com.elveum.store.demo"
         minSdk = 23
         targetSdk = 36
         versionCode = 1
@@ -60,9 +60,11 @@ dependencies {
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.serialization.core)
     implementation(libs.hilt.android)
+    implementation(libs.hilt.autobind)
     ksp(libs.hilt.compiler)
+    ksp(libs.hilt.autobind.compiler)
     implementation(libs.javafaker)
     implementation(libs.coil.compose)
 
-    implementation(projects.container)
+    implementation(projects.store)
 }

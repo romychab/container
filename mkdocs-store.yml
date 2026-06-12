@@ -1,8 +1,8 @@
-site_name: Container
-site_url: https://docs.uandcode.com/container/
-site_description: A library for simplifying state management and data loading in Android applications
-site_dir: build/mkdocs-container
-docs_dir: build/mkdocs-src
+site_name: Store
+site_url: https://docs.uandcode.com/store/
+site_description: A library for caching and observing data in Android applications
+site_dir: build/mkdocs-store
+docs_dir: build/mkdocs-store-src
 repo_url: https://github.com/romychab/container
 repo_name: GitHub
 edit_uri: ""
@@ -27,10 +27,11 @@ theme:
 
 nav:
   - Home: index.md
-  - Container Type: container-type.md
-  - Reducer Pattern: reducer-pattern.md
-  - Subjects & Cache: subjects.md
-  - Pagination: paging.md
+  - Simple Store: simple-store.md
+  - Keyed Store: keyed-store.md
+  - Paged Store: paged-store.md
+  - Store Results: store-results.md
+  - Load Requests: load-requests.md
 
 markdown_extensions:
   - admonition

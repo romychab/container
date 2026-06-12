@@ -1,12 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Usage: bash build-scripts/deploy-docs.sh [site-dir]
+#   site-dir - local directory with the built MkDocs site
+#              (default: build/mkdocs-container; use build/mkdocs-store for the Store docs)
+#
 # Required environment variables:
 #   DEPLOY_SSH_KEY - private SSH key content
 #   DEPLOY_HOST_KEY - known host entry
 #   DEPLOY_HOST - remote server hostname or IP
 #   DEPLOY_USER - remote user to connect as
 #   DEPLOY_DOC_PATH - remote path where the docs must be placed
+
+SITE_DIR="${1:-build/mkdocs-container}"
 
 mkdir -p ~/.ssh
 
@@ -17,11 +23,11 @@ if ! grep -qF "$DEPLOY_HOST_KEY" ~/.ssh/known_hosts 2>/dev/null; then
     echo "$DEPLOY_HOST_KEY" >> ~/.ssh/known_hosts
 fi
 
-if [ ! -d "build/mkdocs" ]; then
-    echo "Error: build/mkdocs directory not found. Run build-scripts/build-docs.sh first." >&2
+if [ ! -d "$SITE_DIR" ]; then
+    echo "Error: $SITE_DIR directory not found. Run build-scripts/build-docs.sh first." >&2
     exit 1
 fi
 
-rsync -az --delete --timeout=60 build/mkdocs/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DOC_PATH"
+rsync -az --delete --timeout=60 "$SITE_DIR"/ "$DEPLOY_USER@$DEPLOY_HOST:$DEPLOY_DOC_PATH"
 
 rm -f ~/.ssh/id_ed25519

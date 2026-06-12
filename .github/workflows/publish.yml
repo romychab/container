@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'container/**'
+      - 'store/**'
       - 'gradle/**'
       - 'build.gradle.kts'
 
@@ -26,14 +27,20 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Run tests and generate coverage report
-        run: ./gradlew :container:koverXmlReport
+      - name: Run tests and generate coverage reports
+        run: ./gradlew :container:koverXmlReport :store:koverXmlReport
 
-      - name: Update coverage badge
+      - name: Update coverage badge (container)
         env:
           GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
           GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
-        run: bash build-scripts/update-coverage-badge.sh
+        run: bash build-scripts/update-coverage-badge.sh container
+
+      - name: Update coverage badge (store)
+        env:
+          GIST_TOKEN: ${{ secrets.GIST_TOKEN }}
+          GIST_ID: ${{ secrets.COVERAGE_GIST_ID }}
+        run: bash build-scripts/update-coverage-badge.sh store
 
       - name: Publish to Maven Central (staging)
         run: ./gradlew publishAllPublicationsToMavenCentralRepository

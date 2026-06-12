@@ -4,7 +4,7 @@
 ![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
 [![License: Apache 2](https://img.shields.io/github/license/romychab/container)](LICENSE)
 [![PR Check](https://github.com/romychab/container/actions/workflows/pr-check.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/pr-check.yml)
-[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/romychab/90ef83eacc2f4ce17e4c53c8bb255295/raw/container-coverage.json)](https://github.com/romychab/hilt-autobind/actions/workflows/publish.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/romychab/90ef83eacc2f4ce17e4c53c8bb255295/raw/container-coverage.json)](https://github.com/romychab/container/actions/workflows/publish.yml)
 [![Publish](https://github.com/romychab/container/actions/workflows/publish.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/publish.yml)
 
 Container is a library for simplifying state management and data loading in

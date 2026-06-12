@@ -7,6 +7,9 @@ on:
       - 'docs/**'
       - 'README.md'
       - 'mkdocs.yml'
+      - 'store/docs/**'
+      - 'store/README.md'
+      - 'mkdocs-store.yml'
       - 'build-scripts/build-docs.sh'
       - 'build-scripts/deploy-docs.sh'
   workflow_dispatch:
@@ -26,14 +29,26 @@ jobs:
       - name: Install MkDocs
         run: pip install mkdocs==1.6.1 mkdocs-material==9.7.6 pymdown-extensions==10.21.2 pygments==2.20.0
 
-      - name: Build documentation
-        run: bash build-scripts/build-docs.sh
+      - name: Build Container documentation
+        run: bash build-scripts/build-docs.sh container
 
-      - name: Deploy to server
+      - name: Build Store documentation
+        run: bash build-scripts/build-docs.sh store
+
+      - name: Deploy Container docs to server
         env:
           DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
           DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           DEPLOY_DOC_PATH: ${{ secrets.DEPLOY_DOC_PATH }}
-        run: bash build-scripts/deploy-docs.sh
+        run: bash build-scripts/deploy-docs.sh build/mkdocs-container
+
+      - name: Deploy Store docs to server
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_HOST_KEY: ${{ secrets.DEPLOY_HOST_KEY }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_DOC_PATH: ${{ secrets.DEPLOY_STORE_DOC_PATH }}
+        run: bash build-scripts/deploy-docs.sh build/mkdocs-store

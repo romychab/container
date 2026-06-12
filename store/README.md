@@ -1,5 +1,12 @@
 # Store
 
+[![Maven Central](https://img.shields.io/maven-central/v/com.elveum/store.svg?label=Maven%20Central&color=dark-green)](https://uandcode.com/sh/store)
+![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
+[![License: Apache 2](https://img.shields.io/github/license/romychab/container)](../LICENSE)
+[![PR Check](https://github.com/romychab/container/actions/workflows/pr-check.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/pr-check.yml)
+[![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/romychab/90ef83eacc2f4ce17e4c53c8bb255295/raw/store-coverage.json)](https://github.com/romychab/container/actions/workflows/publish.yml)
+[![Publish](https://github.com/romychab/container/actions/workflows/publish.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/publish.yml)
+
 Store is a library for caching and observing data in Android applications.
 It wraps your data sources (network, database, in-memory) into a single
 **store** object that loads data on demand, caches it in memory, keeps it

@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Parses the container Kover XML report and exports coverage variables:
+# Parses the Kover XML report of a module and exports coverage variables:
 #   COVERED  - number of covered instructions
 #   MISSED   - number of missed instructions
 #   TOTAL    - total instructions (COVERED + MISSED)
 #   PCT      - coverage percentage rounded to 1 decimal (e.g. "87.3")
 #   PCT_INT  - coverage percentage rounded to nearest integer (e.g. "87")
 #
+# The module is selected via the KOVER_MODULE environment variable
+# (default: container).
+#
 # Usage: source build-scripts/kover-coverage.sh
 
-XML="container/build/reports/kover/report.xml"
+KOVER_MODULE="${KOVER_MODULE:-container}"
+XML="$KOVER_MODULE/build/reports/kover/report.xml"
 
 if [ ! -f "$XML" ]; then
-    echo "::error::Coverage report not found: $XML. Run :container:koverXmlReport first."
+    echo "::error::Coverage report not found: $XML. Run :$KOVER_MODULE:koverXmlReport first."
     exit 1
 fi
 

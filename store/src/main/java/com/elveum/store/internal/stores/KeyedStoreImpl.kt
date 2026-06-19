@@ -142,7 +142,7 @@ internal class KeyedStoreImpl<Key : Any, T : Any>(
         getStoredKeyedRequest(key)?.loadRequest = loadRequest
     }
 
-    private data class KeyedRequest<Key>(
+    private class KeyedRequest<Key>(
         val key: Key,
         @Volatile var loadRequest: LoadRequest = LoadRequest.Default,
     ) : MutexOwner {
@@ -159,6 +159,11 @@ internal class KeyedStoreImpl<Key : Any, T : Any>(
         override fun hashCode(): Int {
             return key?.hashCode() ?: 0
         }
+
+        override fun toString(): String {
+            return "KeyedRequest(key=$key, loadRequest=$loadRequest)"
+        }
+
     }
 
 }

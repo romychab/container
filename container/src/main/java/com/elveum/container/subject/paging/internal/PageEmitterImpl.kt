@@ -22,9 +22,9 @@ internal class PageEmitterImpl<Key, T>(
 
     override val metadata: ContainerMetadata get() = originEmitter.metadata
 
-    override suspend fun emitPage(list: List<T>) {
+    override suspend fun emitPage(list: List<T>, metadata: ContainerMetadata) {
         isPageEmitted = true
-        context.onPageDataLoaded(list)
+        context.onPageDataLoaded(list, metadata)
     }
 
     override suspend fun emitNextKey(key: Key) {

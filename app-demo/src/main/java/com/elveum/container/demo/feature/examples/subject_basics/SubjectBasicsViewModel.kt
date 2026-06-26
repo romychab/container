@@ -20,7 +20,7 @@ class SubjectBasicsViewModel @Inject constructor(
     private val reducer: Reducer<State> = combineToReducer(
         userProfileRepository.getUserProfile(),
         errorFlagRepository.getErrorFlag(),
-        initialState = State(),
+        initialState = ::State,
         nextState = State::copy,
     )
     val stateFlow: StateFlow<State> = reducer.stateFlow

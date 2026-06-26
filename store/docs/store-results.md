@@ -14,6 +14,8 @@ stores, and converting store flows into UI state with
   - [map / storeMap](#map--storemap)
   - [storeFlatMapResultLatest / storeFlatMapLatest](#storeflatmapresultlatest--storeflatmaplatest)
   - [storeListFlatMapLatest](#storelistflatmaplatest)
+  - [filterLoaded](#filterloaded)
+- [Reading the Latest Value Synchronously](#reading-the-latest-value-synchronously)
 - [Combining Stores](#combining-stores)
 - [StoreResultReducer](#storeresultreducer)
   - [Creating a Reducer](#creating-a-reducer)
@@ -74,7 +76,8 @@ if (result.isFailed()) {
 | `isForegroundLoading()` | The result is `Loading` (shown instead of content)          |
 | `isBackgroundLoading()` | The result is completed, but a background reload is running |
 | `hasAnyLoading()`       | Either foreground or background loading is in progress      |
-| `getOrNull()`           | - returns `value` for `Loaded`, otherwise `null`            |
+| `getOrNull()`           | returns `value` for `Loaded`, otherwise `null`              |
+| `failureOrNull()`       | returns `exception` for `Failed`, otherwise `null`          |
 
 `isBackgroundLoading()` is the standard way to drive a pull-to-refresh
 indicator while the old content stays on screen (see
@@ -98,6 +101,28 @@ refreshed:
 ```kotlin
 if (result.isLoaded() && result.sourceType == LocalSourceType) {
     ShowStaleDataBadge()
+}
+```
+
+### Acting on the origin store through a result
+
+The same metadata lets you act on the store that emitted a result without
+holding a reference to the store itself - handy when all the UI has is the
+`StoreResult`:
+
+| Function                       | Effect                                                                                                |
+|--------------------------------|-------------------------------------------------------------------------------------------------------|
+| `invalidate(config)`           | Reload the origin store (defaults to `LoadConfig.Normal`); equivalent to `store.invalidateAsync()`    |
+| `onItemRendered(index)`        | Paged stores only: report that the item at `index` was rendered, which may trigger the next-page load |
+
+```kotlin
+// retry button rendered from a Failed result, without a store reference:
+Button(onClick = { result.invalidate() }) { Text("Try again") }
+
+// paged list driven purely by the result it renders:
+itemsIndexed(result.value) { index, item ->
+    LaunchedEffect(index) { result.onItemRendered(index) }
+    ItemCard(item)
 }
 ```
 
@@ -164,6 +189,88 @@ The outer list is emitted as soon as it is loaded. For every item, the
 re-emits the merged list. The `mapper` receives the item's `StoreResult`,
 so the UI can render placeholders (`getOrNull()` returns `null`) until
 each item's data arrives.
+
+### filterLoaded
+
+`filterLoaded()` reduces a `Flow<StoreResult<T>>` to a `Flow<T>` by keeping
+only `Loaded` results and unwrapping their values; `Loading` and `Failed`
+emissions are dropped. Use it when a consumer only cares about successfully
+loaded values:
+
+```kotlin
+val names: Flow<String> = userStore.observe()
+    .filterLoaded()      // Flow<UserProfile>
+    .map { it.name }     // Flow<String>
+```
+
+## Awaiting a Single Result
+
+When you need a one-shot value rather than an ongoing observation,
+`firstGetOrThrow()` suspends until the flow produces a completed result
+(`Loaded` or `Failed`), skipping intermediate `Loading` emissions. It
+returns the loaded value or re-throws the failure's exception:
+
+```kotlin
+suspend fun loadProfileOnce(): UserProfile {
+    return store.observe().firstGetOrThrow()
+}
+```
+
+## Optional Values
+
+Store value types are non-nullable (`T : Any`), so an entity that may not
+exist is modelled as `java.util.Optional<T>` - e.g.
+`SimpleStore<Optional<UserProfile>>`. A set of helpers makes such stores
+ergonomic to work with:
+
+| Function                                   | Receiver                          | Behaviour                                                                      |
+|--------------------------------------------|-----------------------------------|--------------------------------------------------------------------------------|
+| `T?.toOptional()`                          | any nullable value                | Wraps a value into an `Optional` (`null` → empty, non-null → present). Handy when fetching into an `Optional`-typed store |
+| `firstOptionalGetOrThrow()`                | `Flow<StoreResult<Optional<T>>>`  | Awaits the first completed result and unwraps the `Optional`; throws on a failed result or an empty `Optional` |
+| `getOptionalValueOrNull()`                 | `StoreResult<Optional<T>>`        | Returns the unwrapped value for a `Loaded` non-empty `Optional`, otherwise `null` (for `Loading`, `Failed`, or empty `Optional`) |
+| `getOptionalValueOrNull()` / `getOptionalValueOrNull(key)` | `BaseStore` / `KeyedStore` of `Optional<T>` | Shortcut for `get().getOptionalValueOrNull()` - reads the latest unwrapped value synchronously |
+| `isOptionalEmpty()` / `isOptionalEmpty(key)` | `BaseStore` / `KeyedStore` of `Optional<T>` | `true` only when the latest result is a `Loaded` empty `Optional`; `false` while loading, on failure, or when a value is present |
+
+```kotlin
+// fetch into an Optional-typed store:
+val store = StoreFactory.simpleStoreBuilder<Optional<UserProfile>>()
+    .build { api.findProfile().toOptional() }   // null -> Optional.empty()
+
+// suspend until the first completed result and unwrap the Optional
+val profile: UserProfile = store.observe().firstOptionalGetOrThrow()
+
+// read the latest value synchronously, or null if absent/not loaded yet
+val profileOrNull: UserProfile? = store.getOptionalValueOrNull()
+
+// distinguish "loaded but absent" from "not loaded yet / failed"
+if (store.isOptionalEmpty()) showEmptyState()
+```
+
+## Reading the Latest Value Synchronously
+
+`get()` (or `get(key)` for keyed stores) returns the latest
+`StoreResult<T>` from the in-memory cache. When you only need the loaded
+value or the failure - not the full result - the following shortcuts read
+the cache directly:
+
+| Function                        | Receiver                  | Behaviour                                                      |
+|---------------------------------|---------------------------|----------------------------------------------------------------|
+| `getOrNull()`                   | `BaseStore<T>`            | Latest loaded value, or `null` while loading/failed            |
+| `getOrNull(key)`                | `KeyedStore<Key, T>`      | Latest loaded value for `key`, or `null` while loading/failed  |
+| `failureOrNull()`               | `BaseStore<T>`            | Latest failure, or `null` when the latest result is not failed |
+| `failureOrNull(key)`            | `KeyedStore<Key, T>`      | Latest failure for `key`, or `null` when not failed            |
+
+```kotlin
+// instead of: store.get().getOrNull()
+val profile: UserProfile? = profileStore.getOrNull()
+
+// keyed store, per key:
+val book: Book? = booksStore.getOrNull(bookId)
+val error: Exception? = booksStore.failureOrNull(bookId)
+```
+
+These are synchronous snapshots of the cache; for an ongoing stream use
+`observe()` and the [state-checking helpers](#checking-the-state).
 
 ## Combining Stores
 

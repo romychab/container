@@ -14,12 +14,12 @@ import kotlinx.coroutines.flow.combine
  */
 public fun <State> combineToReducer(
     flows: Iterable<Flow<*>>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, List<*>) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
 ): Reducer<State> = ReducerImpl(
-    initialState = initialState,
+    initialState = initialState(),
     originFlow = combine(flows) { values -> values.toList() },
     combiner = nextState,
     scope = scope,
@@ -33,7 +33,7 @@ public fun <State> combineToReducer(
 public fun <T1, T2, State> combineToReducer(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
@@ -57,7 +57,7 @@ public fun <T1, T2, T3, State> combineToReducer(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
     flow3: Flow<T3>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
@@ -82,7 +82,7 @@ public fun <T1, T2, T3, T4, State> combineToReducer(
     flow2: Flow<T2>,
     flow3: Flow<T3>,
     flow4: Flow<T4>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3, T4) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
@@ -109,7 +109,7 @@ public fun <T1, T2, T3, T4, T5, State> combineToReducer(
     flow3: Flow<T3>,
     flow4: Flow<T4>,
     flow5: Flow<T5>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3, T4, T5) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
@@ -132,7 +132,7 @@ public fun <T1, T2, T3, T4, T5, State> combineToReducer(
  */
 public fun <State> ReducerOwner.combineToReducer(
     flows: Iterable<Flow<*>>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, List<*>) -> State,
 ): Reducer<State> {
     return combineToReducer(flows, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
@@ -145,7 +145,7 @@ public fun <State> ReducerOwner.combineToReducer(
 public fun <T1, T2, State> ReducerOwner.combineToReducer(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2) -> State,
 ): Reducer<State> {
     return combineToReducer(flow1, flow2, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
@@ -159,7 +159,7 @@ public fun <T1, T2, T3, State> ReducerOwner.combineToReducer(
     flow1: Flow<T1>,
     flow2: Flow<T2>,
     flow3: Flow<T3>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3) -> State,
 ): Reducer<State> {
     return combineToReducer(flow1, flow2, flow3, initialState, nextState, reducerCoroutineScope, reducerSharingStarted)
@@ -174,7 +174,7 @@ public fun <T1, T2, T3, T4, State> ReducerOwner.combineToReducer(
     flow2: Flow<T2>,
     flow3: Flow<T3>,
     flow4: Flow<T4>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3, T4) -> State,
 ): Reducer<State> {
     return combineToReducer(flow1, flow2, flow3, flow4,
@@ -191,7 +191,7 @@ public fun <T1, T2, T3, T4, T5, State> ReducerOwner.combineToReducer(
     flow3: Flow<T3>,
     flow4: Flow<T4>,
     flow5: Flow<T5>,
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T1, T2, T3, T4, T5) -> State,
 ): Reducer<State> {
     return combineToReducer(flow1, flow2, flow3, flow4, flow5,

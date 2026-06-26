@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders.keyed
 
 import com.elveum.store.builders.KeyedReactiveBuilder
+import com.elveum.store.builders.KeyedReactiveNoFetcherBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.KeyedReactiveContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
@@ -16,6 +17,10 @@ internal class KeyedReactiveBuilderImpl<Key : Any, T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun disableFetcher(): KeyedReactiveNoFetcherBuilder<Key, T> {
+        return KeyedReactiveNoFetcherBuilderImpl(config)
     }
 
     override fun build(contract: KeyedReactiveContract<Key, T>): KeyedStore<Key, T> {

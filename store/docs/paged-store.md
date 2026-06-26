@@ -9,6 +9,7 @@ results.
 
 - [Creating a Paged Store](#creating-a-paged-store)
 - [PagedList](#pagedlist)
+  - [Total Item Count](#total-item-count)
 - [Triggering Next-Page Loads](#triggering-next-page-loads)
 - [Next-Page State](#next-page-state)
 - [Reloading and Pull-to-Refresh](#reloading-and-pull-to-refresh)
@@ -69,15 +70,43 @@ user must scroll before the next page starts loading.
 public data class PagedList<PageKey : Any, T : Any>(
     val items: List<T>,
     val nextKey: PageKey?,
+    val metadata: ContainerMetadata = EmptyMetadata,
 )
 ```
 
 - `items` - the items of the page
 - `nextKey` - the key of the next page, or `null` when there are no more
   pages
+- `metadata` - optional metadata attached to the page; it is merged into the
+  metadata of the emitted `StoreResult` (see [Total Item Count](#total-item-count))
 
 The store concatenates the `items` of all loaded pages and emits them as a
 single `List<T>` inside `StoreResult.Loaded`.
+
+### Total Item Count
+
+Many paginated APIs return the total number of items along with each page.
+Pass it via the `totalCount` constructor of `PagedList`:
+
+```kotlin
+onFetch = { pageKey ->
+    val page = dataSource.fetchPage(pageKey)
+    PagedList(items = page.photos, nextKey = page.nextKey, totalCount = page.total)
+}
+```
+
+This is a shortcut for attaching `TotalPagedItemsCountMetadata` to the page.
+Read it back from the emitted result via the `totalPagedItemsCount` extension
+property (it returns `-1` when no total count was provided):
+
+```kotlin
+val total: Int = result.metadata.totalPagedItemsCount
+```
+
+When pages report different totals, the value from the **most recently loaded
+page** wins. More generally, any `ContainerMetadata` attached to a page is
+propagated to the merged result, so you can surface arbitrary per-page
+information (see [Container metadata](../../README.md)).
 
 ## Triggering Next-Page Loads
 
@@ -251,6 +280,15 @@ suspend fun toggleLike(product: Product) {
 }
 ```
 
+`get()` returns the latest merged list result synchronously, and
+`updateWith` replaces the cached result entirely (including `Loading` /
+`Failed` states):
+
+```kotlin
+val current: StoreResult<List<Product>> = store.get()
+store.updateWith(StoreResult.Loaded(products))
+```
+
 ## Full Example
 
 A repository and screen combining pagination, pull-to-refresh and
@@ -299,9 +337,12 @@ when (val result = state) {
 | Member                                             | Description                                              |
 |----------------------------------------------------|----------------------------------------------------------|
 | `observe(request)`                                 | Observe the merged list as `Flow<StoreResult<List<T>>>`  |
+| `get()`                                            | Read the latest merged-list `StoreResult` synchronously  |
 | `onItemRendered(index)`                            | Report a rendered item; may trigger the next-page load   |
 | `invalidate(request)` / `invalidateAsync(request)` | Reset pagination and reload                              |
 | `optimisticUpdate { }` / `update { }`              | Update the merged list in the cache                      |
+| `updateWith(storeResult)`                          | Replace the cached result with any `StoreResult`         |
 | `whenActive { }`                                   | Run a block while the store has observers                |
 | `queryFlow`, `submitQuery`, `submitQueryAsync`     | Query support (`PagedQueryStore` only)                   |
 | `result.nextPageState`                             | `Idle` / `Pending` / `Error` state of the next-page load |
+| `result.metadata.totalPagedItemsCount`             | Total item count reported via `PagedList(totalCount = …)` |

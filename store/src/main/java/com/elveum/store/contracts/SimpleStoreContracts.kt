@@ -166,3 +166,39 @@ public interface SimpleQueryReactiveContract<Q : Any, T : Any> {
      */
     public fun observeLocalStorage(query: Q): Flow<T?>
 }
+
+/**
+ * Contract for a simple store that has no remote fetcher and manages only local data
+ * observed reactively via a [Flow] (for example, Room or DataStore returning a `Flow`
+ * of items).
+ *
+ * @param T the type of data observed by this contract.
+ */
+public interface SimpleReactiveNoFetcherContract<T : Any> {
+
+    /**
+     * Returns a [Flow] that emits the local value whenever it changes.
+     *
+     * @return a [Flow] emitting the current and future local values.
+     */
+    public fun observe(): Flow<T>
+}
+
+/**
+ * Contract for a query-driven simple store that has no remote fetcher and manages only
+ * local data observed reactively via a [Flow] (for example, Room or DataStore returning
+ * a `Flow` of items).
+ *
+ * @param Q the type representing the query.
+ * @param T the type of data observed by this contract.
+ */
+public interface SimpleQueryReactiveNoFetcherContract<Q : Any, T : Any> {
+
+    /**
+     * Returns a [Flow] that emits the local value for the given query whenever it changes.
+     *
+     * @param query the query that parameterizes the observation.
+     * @return a [Flow] emitting the current and future local values.
+     */
+    public fun observe(query: Q): Flow<T>
+}

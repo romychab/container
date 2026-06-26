@@ -9,13 +9,14 @@ import com.elveum.container.factory.SubjectFactory
 import com.elveum.container.getContainerValueOrNull
 import com.elveum.store.internal.builders.SharedConfig
 import com.elveum.store.internal.load.LoadRequestSourceMetadata
-import com.elveum.store.internal.load.toStoreResult
 import com.elveum.store.internal.stores.common.MutexOwner
 import com.elveum.store.internal.stores.common.processDataLoad
 import com.elveum.store.internal.stores.common.processOptimisticUpdate
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.LoadRequestSource
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.toContainer
+import com.elveum.store.load.toStoreResult
 import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.keyed.KeyedStore
 import kotlinx.coroutines.Job
@@ -43,6 +44,10 @@ internal class KeyedStoreImpl<Key : Any, T : Any>(
             valueLoader = { keyedRequest -> loadValue(keyedRequest) }
         )
         .whenActive { observeReactiveStorageChanges() }
+
+    override fun get(key: Key): StoreResult<T> {
+        return cache.get(KeyedRequest(key)).toStoreResult()
+    }
 
     override fun observe(
         key: Key,
@@ -76,6 +81,10 @@ internal class KeyedStoreImpl<Key : Any, T : Any>(
             config = request.config,
             metadata = LoadRequestSourceMetadata(request.requestSource),
         )
+    }
+
+    override fun updateWith(key: Key, storeResult: StoreResult<T>) {
+        cache.updateWith(KeyedRequest(key), storeResult.toContainer())
     }
 
     override suspend fun optimisticUpdate(

@@ -13,13 +13,14 @@ import com.elveum.container.subject.paging.pageLoader
 import com.elveum.container.subject.reloadAsync
 import com.elveum.store.internal.builders.paged.SharedPageConfig
 import com.elveum.store.internal.load.LoadRequestSourceMetadata
-import com.elveum.store.internal.load.toStoreResult
 import com.elveum.store.internal.stores.common.MutexOwner
 import com.elveum.store.internal.stores.common.QueryHandler
 import com.elveum.store.internal.stores.common.processDataLoad
 import com.elveum.store.internal.stores.common.processOptimisticUpdate
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.toContainer
+import com.elveum.store.load.toStoreResult
 import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedQueryStore
@@ -59,6 +60,8 @@ internal class PagedQueryStoreImpl<Q : Any, P : Any, T : Any>(
         )
         .whenActive { queryHandler.observeAsyncQueryRequests() }
 
+    override fun get(): StoreResult<List<T>> = cache.currentValue().toStoreResult()
+
     override fun observe(
         request: LoadRequest
     ): Flow<StoreResult<List<T>>> {
@@ -82,6 +85,10 @@ internal class PagedQueryStoreImpl<Q : Any, P : Any, T : Any>(
             config = request.config,
             metadata = LoadRequestSourceMetadata(request.requestSource),
         )
+    }
+
+    override fun updateWith(storeResult: StoreResult<List<T>>) {
+        cache.updateWith(storeResult.toContainer())
     }
 
     override suspend fun optimisticUpdate(
@@ -138,7 +145,7 @@ internal class PagedQueryStoreImpl<Q : Any, P : Any, T : Any>(
             metadata: ContainerMetadata,
             isLastValue: Boolean
         ) {
-            pageEmitter.emitPage(value.items)
+            pageEmitter.emitPage(value.items, value.metadata)
             if (value.nextKey != null) pageEmitter.emitNextKey(value.nextKey)
         }
 

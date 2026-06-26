@@ -1,8 +1,11 @@
 package com.elveum.store.paged
 
 import com.elveum.container.subject.paging.PageState
+import com.elveum.container.subject.paging.TotalPagedItemsCountMetadata
+import com.elveum.container.subject.paging.totalPagedItemsCount
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.nextPageState
+import com.elveum.store.load.onItemRendered
 import com.elveum.store.stores.paged.PagedList
 import kotlinx.coroutines.delay
 import org.junit.Assert.assertEquals
@@ -110,6 +113,79 @@ class PagedStoreTest : AbstractPagedStoreTest() {
         runCurrent()
 
         assertResult(StoreResult.Loaded(listOf("a", "b", "c", "d")), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN page with attached metadata WHEN observe THEN metadata is propagated to the result`() = runFlowTest {
+        val store = storeBuilder().build { pageKey ->
+            PagedList(
+                items = listOf("item0", "item1"),
+                nextKey = null,
+                metadata = TotalPagedItemsCountMetadata(totalPagedItemsCount = 100),
+            )
+        }
+
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        assertResult(StoreResult.Loaded(listOf("item0", "item1")), collector.lastItem)
+        assertEquals(100, collector.lastItem.metadata.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN page built with totalCount constructor WHEN observe THEN total count is propagated to the result`() = runFlowTest {
+        val store = storeBuilder().build { pageKey ->
+            PagedList(
+                items = listOf("item0", "item1"),
+                nextKey = null,
+                totalCount = 100,
+            )
+        }
+
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        assertResult(StoreResult.Loaded(listOf("item0", "item1")), collector.lastItem)
+        assertEquals(100, collector.lastItem.metadata.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN pages with different metadata WHEN pages are merged THEN the latest page metadata wins`() = runFlowTest {
+        val store = storeBuilder().build { pageKey ->
+            PagedList(
+                items = listOf("item${pageKey * 2}", "item${pageKey * 2 + 1}"),
+                nextKey = (pageKey + 1).takeIf { it < 2 },
+                metadata = TotalPagedItemsCountMetadata(totalPagedItemsCount = pageKey),
+            )
+        }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        store.onItemRendered(1) // trigger loading of the second page
+        runCurrent()
+
+        assertResult(
+            StoreResult.Loaded(listOf("item0", "item1", "item2", "item3")),
+            collector.lastItem,
+        )
+        // the second page reported total count = 1, which replaces the first page's count = 0
+        assertEquals(1, collector.lastItem.metadata.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN loaded first page WHEN onItemRendered via result THEN next page is loaded and merged`() = runFlowTest {
+        val store = storeBuilder().build { pageKey -> page(pageKey, totalPages = 2) }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        // report the rendered item through the emitted result's metadata
+        collector.lastItem.onItemRendered(1)
+        runCurrent()
+
+        assertResult(
+            StoreResult.Loaded(listOf("item0", "item1", "item2", "item3")),
+            collector.lastItem,
+        )
     }
 
 }

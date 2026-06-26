@@ -1,4 +1,4 @@
-package com.elveum.store.internal.load
+package com.elveum.store.load
 
 import com.elveum.container.CombineContainerFlowScope
 import com.elveum.container.Container
@@ -6,9 +6,11 @@ import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
 import com.elveum.container.update
-import com.elveum.store.load.StoreResult
 
-internal fun <T> Container<T>.toStoreResult(): StoreResult<T> {
+/**
+ * Convert a [Container] instance into [StoreResult].
+ */
+public fun <T> Container<T>.toStoreResult(): StoreResult<T> {
     return fold(
         onPending = { StoreResult.Loading },
         onSuccess = { StoreResult.Loaded(it, metadata) },
@@ -16,7 +18,10 @@ internal fun <T> Container<T>.toStoreResult(): StoreResult<T> {
     )
 }
 
-internal fun <T> StoreResult<T>.toContainer(): Container<T> {
+/**
+ * Convert a [StoreResult] instance into low-level [Container].
+ */
+public fun <T> StoreResult<T>.toContainer(): Container<T> {
     return when (this) {
         is StoreResult.Failed -> errorContainer(exception, metadata)
         is StoreResult.Loaded -> successContainer(value, metadata)
@@ -24,7 +29,10 @@ internal fun <T> StoreResult<T>.toContainer(): Container<T> {
     }
 }
 
-internal fun <T, R> StoreResult<T>.withMetadataFrom(
+/**
+ * Merge metadata from [origin] result to [this] result.
+ */
+public fun <T, R> StoreResult<T>.withMetadataFrom(
     origin: StoreResult<R>,
 ): StoreResult<T> {
     val combiner = CombineContainerFlowScope.create(listOf(origin.toContainer(), this.toContainer()))

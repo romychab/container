@@ -3,6 +3,7 @@ package com.elveum.store.internal.builders.simple
 import com.elveum.store.builders.SimpleBuilder
 import com.elveum.store.builders.SimpleQueryBuilder
 import com.elveum.store.builders.SimpleReactiveBuilder
+import com.elveum.store.builders.SimpleReactiveNoFetcherBuilder
 import com.elveum.store.builders.SimpleSuspendingBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleContract
@@ -29,6 +30,10 @@ internal class SimpleBuilderImpl<T : Any>(
 
     override fun addReactiveLocalStorage(): SimpleReactiveBuilder<T> {
         return SimpleReactiveBuilderImpl(sharedBuilder.config)
+    }
+
+    override fun disableFetcher(): SimpleReactiveNoFetcherBuilder<T> {
+        return SimpleReactiveNoFetcherBuilderImpl(sharedBuilder.config)
     }
 
     override fun build(onFetch: suspend () -> T): SimpleStore<T> {

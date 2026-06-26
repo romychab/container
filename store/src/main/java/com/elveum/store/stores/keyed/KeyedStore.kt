@@ -17,6 +17,11 @@ import kotlinx.coroutines.flow.Flow
 public interface KeyedStore<Key : Any, T : Any> : WithStoreLifecycleOwner<KeyedStore<Key, T>> {
 
     /**
+     * The most actual result in the store.
+     */
+    public fun get(key: Key): StoreResult<T>
+
+    /**
      * Force reload data managed by the store. If the data is already loaded,
      * it will be reloaded according to policy defined by [request].
      */
@@ -26,6 +31,11 @@ public interface KeyedStore<Key : Any, T : Any> : WithStoreLifecycleOwner<KeyedS
      * The same as [invalidate], but without waiting for invalidation results.
      */
     public fun invalidateAsync(key: Key, request: LoadRequest = LoadRequest.Default)
+
+    /**
+     * Set a new store result manually to the in-memory cache.
+     */
+    public fun updateWith(key: Key, storeResult: StoreResult<T>)
 
     /**
      * Update the in-memory cached data. It will be emitted to observers immediately.

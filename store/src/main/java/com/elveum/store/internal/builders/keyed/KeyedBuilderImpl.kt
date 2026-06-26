@@ -2,6 +2,7 @@ package com.elveum.store.internal.builders.keyed
 
 import com.elveum.store.builders.KeyedBuilder
 import com.elveum.store.builders.KeyedReactiveBuilder
+import com.elveum.store.builders.KeyedReactiveNoFetcherBuilder
 import com.elveum.store.builders.KeyedSuspendingBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.KeyedContract
@@ -15,6 +16,10 @@ internal class KeyedBuilderImpl<Key : Any, T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun disableFetcher(): KeyedReactiveNoFetcherBuilder<Key, T> {
+        return KeyedReactiveNoFetcherBuilderImpl(sharedBuilder.config)
     }
 
     override fun addSuspendingLocalStorage(): KeyedSuspendingBuilder<Key, T> {

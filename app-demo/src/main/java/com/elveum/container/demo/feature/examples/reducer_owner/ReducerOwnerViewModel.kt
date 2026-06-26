@@ -13,7 +13,7 @@ class ReducerOwnerViewModel @Inject constructor(
 
     private val reducer: Reducer<State> = repository.getParticles()
         .toReducer(
-            initialState = State(),
+            initialState = ::State,
             nextState = State::copy,
         )
 

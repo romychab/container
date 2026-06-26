@@ -118,6 +118,35 @@ class PagedStoreErrorsAndUpdatesTest : AbstractPagedStoreTest() {
     }
 
     @Test
+    fun `GIVEN data loading WHEN get THEN return latest merged list result`() = runFlowTest {
+        val store = storeBuilder().build { pageKey ->
+            delay(10)
+            page(pageKey, totalPages = 1)
+        }
+
+        store.observe().startCollecting()
+
+        advanceTimeBy(10)
+        assertResult(StoreResult.Loading, store.get())
+
+        advanceTimeBy(1)
+        assertResult(StoreResult.Loaded(listOf("item0", "item1")), store.get())
+    }
+
+    @Test
+    fun `GIVEN loaded list WHEN updateWith THEN new result is emitted and returned by get`() = runFlowTest {
+        val store = storeBuilder().build { pageKey -> page(pageKey, totalPages = 1) }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        store.updateWith(StoreResult.Loaded(listOf("manual")))
+        runCurrent()
+
+        assertResult(StoreResult.Loaded(listOf("manual")), collector.lastItem)
+        assertResult(StoreResult.Loaded(listOf("manual")), store.get())
+    }
+
+    @Test
     fun `GIVEN failed real update WHEN optimisticUpdate THEN optimistic list is reverted`() = runFlowTest {
         val exception = IllegalStateException("update failed")
         val store = storeBuilder().build { pageKey -> page(pageKey, totalPages = 1) }

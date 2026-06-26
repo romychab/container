@@ -111,4 +111,62 @@ class KeyedStoreTest : AbstractKeyedStoreTest() {
         assertResult(StoreResult.Loaded("value-good"), goodCollector.lastItem)
     }
 
+    @Test
+    fun `GIVEN data loading WHEN get by key THEN return latest result`() = runFlowTest {
+        val store = storeBuilder().build { key ->
+            delay(10)
+            "value-$key"
+        }
+
+        store.observe("k1").startCollecting()
+
+        advanceTimeBy(10)
+        assertResult(StoreResult.Loading, store.get("k1"))
+
+        advanceTimeBy(1)
+        assertResult(StoreResult.Loaded("value-k1"), store.get("k1"))
+    }
+
+    @Test
+    fun `GIVEN separate keys WHEN get THEN each key returns its own result`() = runFlowTest {
+        val store = storeBuilder().build { key -> "value-$key" }
+        store.observe("k1").startCollecting()
+        store.observe("k2").startCollecting()
+        runCurrent()
+
+        assertResult(StoreResult.Loaded("value-k1"), store.get("k1"))
+        assertResult(StoreResult.Loaded("value-k2"), store.get("k2"))
+    }
+
+    @Test
+    fun `GIVEN loaded key WHEN updateWith THEN new result is emitted and returned by get`() = runFlowTest {
+        val store = storeBuilder().build { key -> "value-$key" }
+        val collector1 = store.observe("k1").startCollecting()
+        val collector2 = store.observe("k2").startCollecting()
+        runCurrent()
+
+        store.updateWith("k1", StoreResult.Loaded("manual"))
+        runCurrent()
+
+        // only the updated key is affected
+        assertResult(StoreResult.Loaded("manual"), collector1.lastItem)
+        assertResult(StoreResult.Loaded("manual"), store.get("k1"))
+        assertResult(StoreResult.Loaded("value-k2"), collector2.lastItem)
+        assertResult(StoreResult.Loaded("value-k2"), store.get("k2"))
+    }
+
+    @Test
+    fun `GIVEN loaded key WHEN updateWith failed result THEN failure is emitted to observers`() = runFlowTest {
+        val exception = IllegalStateException("manual failure")
+        val store = storeBuilder().build { key -> "value-$key" }
+        val collector = store.observe("k1").startCollecting()
+        runCurrent()
+
+        store.updateWith("k1", StoreResult.Failed(exception))
+        runCurrent()
+
+        assertResult(StoreResult.Failed(exception), collector.lastItem)
+        assertResult(StoreResult.Failed(exception), store.get("k1"))
+    }
+
 }

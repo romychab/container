@@ -53,7 +53,7 @@ data class State(
 
 private val reducer: Reducer<State> = getItemsFlow() // Flow<List<String>>
     .toReducer(
-        initialState = State(),
+        initialState = ::State,
         nextState    = State::copy,  // (state, items) -> state.copy(items = items)
         scope        = viewModelScope,
         started      = SharingStarted.WhileSubscribed(5000),
@@ -72,7 +72,7 @@ you can omit `nextState`:
 ```kotlin
 private val reducer: Reducer<List<String>> = getItemsFlow()
     .toReducer(
-        initialState = emptyList(),
+        initialState = { emptyList() },
         scope        = viewModelScope,
         started      = SharingStarted.Lazily,
     )
@@ -90,7 +90,7 @@ data class State(
 
 private val reducer: Reducer<State> = usersRepository.getCurrentUser() // Flow<Container<User>>
     .toReducer(
-        initialState = State(),
+        initialState = ::State,
         nextState    = { oldState, container ->
             oldState.copy(user = container.getOrNull() ?: User.Anonymous)
         },
@@ -174,7 +174,7 @@ data class State(
 private val reducer: Reducer<State> = combineToReducer(
     flow1        = getNumberFlow(),   // Flow<Int>
     flow2        = getTextFlow(),     // Flow<String>
-    initialState = State(),
+    initialState = ::State,           // () -> State factory, lazily evaluated
     nextState    = State::copy,
     scope        = viewModelScope,
     started      = SharingStarted.WhileSubscribed(5000),
@@ -187,7 +187,7 @@ overload:
 ```kotlin
 private val reducer: Reducer<State> = combineToReducer(
     flows        = listOf(flow1, flow2, flow3),
-    initialState = State(),
+    initialState = { State() },
     nextState    = { state, values -> state.copy(...) },
     scope        = viewModelScope,
     started      = SharingStarted.Lazily,
@@ -356,7 +356,7 @@ private data class StateImpl(
 // Reducer typed to the private class, but the public StateFlow uses the interface:
 private val reducer: Reducer<StateImpl> = getItemsFlow()
     .toReducer(
-        initialState = StateImpl(),
+        initialState = ::StateImpl,
         nextState    = StateImpl::copy,
     )
 
@@ -403,6 +403,10 @@ combineContainersToReducer(flow1, flow2, ..., initialState, nextState?, scope, s
 
 All combine functions have overloads for 2–5 input flows and a list-based
 overload for an arbitrary number.
+
+For every combine function `initialState` is a factory (`() -> State`),
+so a constructor reference such as `::State` (or a `{ State() }` lambda)
+can be passed consistently across all variants.
 
 When used inside a `ReducerOwner`, `scope` and `started` can be omitted from
 all of the above functions.

@@ -1,6 +1,7 @@
 package com.elveum.container.subject.paging
 
 import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.FlowComposer
 
 /**
@@ -19,8 +20,10 @@ public interface PageEmitter<Key, T> : FlowComposer {
      * Emit data loaded for the current page key.
      *
      * - Must be called 1, or more times.
+     * - Optionally, any metadata values can be attached to the page which will be propagated
+     *   to the final output list.
      */
-    public suspend fun emitPage(list: List<T>)
+    public suspend fun emitPage(list: List<T>, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * Emit a key of the next page to be loaded (if any).

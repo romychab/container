@@ -4,17 +4,16 @@ package com.elveum.store.load
 
 import androidx.compose.runtime.Immutable
 import com.elveum.container.BackgroundLoadState
-import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
 import com.elveum.container.backgroundLoadState
-import com.elveum.container.errorContainer
-import com.elveum.container.pendingContainer
+import com.elveum.container.reload
 import com.elveum.container.sourceType
 import com.elveum.container.subject.paging.PageState
 import com.elveum.container.subject.paging.nextPageState
-import com.elveum.container.successContainer
+import com.elveum.container.subject.paging.onItemRendered
 
 /**
  * The current store result emitted by all stores.
@@ -70,3 +69,18 @@ public sealed class StoreResult<out T> {
  * status of loading of the next page.
  */
 public val <T> StoreResult<T>.nextPageState: PageState get() = metadata.nextPageState
+
+/**
+ * Invalidate an origin store which has been emitted this [StoreResult] instance.
+ */
+public fun <T> StoreResult<T>.invalidate(config: LoadConfig = LoadConfig.Normal) {
+    metadata.reload(config)
+}
+
+/**
+ * Notify the store that an item with the specified [index] has been rendered. This may
+ * trigger the next page load.
+ */
+public fun <T> StoreResult<T>.onItemRendered(index: Int) {
+    metadata.onItemRendered(index)
+}

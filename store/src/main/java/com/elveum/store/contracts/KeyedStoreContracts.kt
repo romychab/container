@@ -89,3 +89,22 @@ public interface KeyedReactiveContract<Key : Any, T : Any> {
      */
     public fun observeLocalStorage(key: Key): Flow<T?>
 }
+
+/**
+ * Contract for a keyed store that has no remote fetcher and manages only local data
+ * observed reactively via a [Flow] (for example, Room or DataStore returning a `Flow`
+ * of items).
+ *
+ * @param Key the type of the key identifying each item.
+ * @param T the type of data observed by this contract.
+ */
+public interface KeyedReactiveNoFetcherContract<Key : Any, T : Any> {
+
+    /**
+     * Returns a [Flow] that emits the local value for the given key whenever it changes.
+     *
+     * @param key the identifier of the item to observe.
+     * @return a [Flow] emitting the current and future local values.
+     */
+    public fun observe(key: Key): Flow<T>
+}

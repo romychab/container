@@ -43,7 +43,6 @@ import coil.compose.AsyncImage
 import com.elveum.store.demo.feature.examples.store_keyed.shopping.model.CartProductItem
 import com.elveum.store.demo.feature.examples.store_keyed.shopping.model.formatPrice
 import com.elveum.store.demo.feature.examples.store_keyed.shopping.product_details.ProductDetailsRoute
-import com.elveum.store.demo.navigation.ExampleRoute
 import com.elveum.store.demo.navigation.LocalNavController
 import com.elveum.store.demo.navigation.WithContent
 import com.elveum.store.demo.ui.components.DemoAction

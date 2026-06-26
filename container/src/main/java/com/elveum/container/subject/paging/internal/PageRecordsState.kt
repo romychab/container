@@ -3,6 +3,7 @@ package com.elveum.container.subject.paging.internal
 import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.getOrNull
@@ -122,6 +123,13 @@ internal class PageRecordsState<Key, T>(
 
     private fun outputListSnapshot(): List<T> = outputListSnapshotFlow.value
 
+    private fun outputMergedMetadata(containers: List<Container<*>?>): ContainerMetadata {
+        val initialMetadata: ContainerMetadata = EmptyMetadata
+        return containers.fold(initialMetadata) { currentMetadata, nextContainer ->
+            currentMetadata + (nextContainer?.metadata ?: EmptyMetadata)
+        }
+    }
+
     private suspend fun emitUpdates() {
         val finalRecords = mutex.withLock {
             buildFinalRecords().flatMap { listOf(it.value) }
@@ -153,7 +161,8 @@ internal class PageRecordsState<Key, T>(
 
             val finalMetadata = BackgroundLoadMetadata(BackgroundLoadState.Idle) + if (config.emitMetadata) {
                 OnItemRenderedCallbackMetadata(onItemRenderedRef) +
-                        NextPageStateMetadata(pageState)
+                        NextPageStateMetadata(pageState) +
+                        outputMergedMetadata(containers)
             } else {
                 EmptyMetadata
             }

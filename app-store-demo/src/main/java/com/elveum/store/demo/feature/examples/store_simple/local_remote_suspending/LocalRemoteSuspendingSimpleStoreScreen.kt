@@ -33,8 +33,6 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.elveum.container.LocalSourceType
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
-import com.elveum.container.getOrNull
-import com.elveum.container.isDataLoading
 import com.elveum.store.load.getOrNull
 import com.elveum.store.load.hasAnyLoading
 

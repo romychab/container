@@ -1,6 +1,5 @@
 package com.elveum.store.demo.feature.examples.store_keyed.master_details.details
 
-import android.R
 import com.elveum.store.demo.effects.Toaster
 import com.elveum.store.demo.errors.ErrorFlagRepository
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.model.CatDetails
@@ -23,7 +22,7 @@ class CatDetailsViewModel @AssistedInject constructor(
     private val reducer = combineToReducer(
         catDetailsRepository.getCat(catId),
         errorFlagRepository.getErrorFlag(),
-        initialState = State(),
+        initialState = ::State,
         nextState = State::copy,
     )
 

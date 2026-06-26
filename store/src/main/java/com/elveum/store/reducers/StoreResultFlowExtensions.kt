@@ -23,7 +23,7 @@ public fun <T, State> Flow<T>.toStoreResultReducer(
     started: SharingStarted,
 ): StoreResultReducer<State> {
     val reducer = toReducer<T, StoreResult<State>>(
-        initialState = StoreResult.Loading,
+        initialState = { StoreResult.Loading },
         nextState = { oldResult, newValue ->
             val newState = when (oldResult) {
                 StoreResult.Loading -> initialState(newValue)
@@ -67,7 +67,7 @@ public fun <T, State> Flow<StoreResult<T>>.storeResultToReducer(
     started: SharingStarted,
 ): StoreResultReducer<State> {
     val reducer = toReducer<StoreResult<T>, StoreResult<State>>(
-        initialState = StoreResult.Loading,
+        initialState = { StoreResult.Loading },
         nextState = { oldStateResult, newResult ->
             when (newResult) {
                 StoreResult.Loading -> { StoreResult.Loading }

@@ -75,6 +75,27 @@ class StoreResultExtensionsTest {
     }
 
     @Test
+    fun `GIVEN failed result WHEN failureOrNull THEN exception is returned`() {
+        val result: StoreResult<String> = StoreResult.Failed(exception)
+
+        assertSame(exception, result.failureOrNull())
+    }
+
+    @Test
+    fun `GIVEN loaded result WHEN failureOrNull THEN null is returned`() {
+        val result: StoreResult<String> = StoreResult.Loaded("value")
+
+        assertNull(result.failureOrNull())
+    }
+
+    @Test
+    fun `GIVEN loading result WHEN failureOrNull THEN null is returned`() {
+        val result: StoreResult<String> = StoreResult.Loading
+
+        assertNull(result.failureOrNull())
+    }
+
+    @Test
     fun `GIVEN different results WHEN isLoaded THEN true only for loaded`() {
         assertTrue(StoreResult.Loaded("value").isLoaded())
         assertFalse(StoreResult.Failed(exception).isLoaded())

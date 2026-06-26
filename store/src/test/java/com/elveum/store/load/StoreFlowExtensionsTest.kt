@@ -3,6 +3,7 @@ package com.elveum.store.load
 import com.uandcode.flowtest.runFlowTest
 import kotlinx.coroutines.flow.flowOf
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -150,4 +151,48 @@ class StoreFlowExtensionsTest {
         assertTrue(collector.lastItem.isLoaded())
         assertEquals(emptyList<String>(), collector.lastItem.getOrNull())
     }
+
+    @Test
+    fun `GIVEN loading then loaded WHEN firstGetOrThrow THEN loading is skipped and value returned`() = runFlowTest {
+        val flow = flowOf<StoreResult<String>>(StoreResult.Loading, StoreResult.Loaded("value"))
+
+        val result = flow.firstGetOrThrow()
+
+        assertEquals("value", result)
+    }
+
+    @Test
+    fun `GIVEN failed result WHEN firstGetOrThrow THEN the exception is thrown`() = runFlowTest {
+        val flow = flowOf<StoreResult<String>>(StoreResult.Loading, StoreResult.Failed(exception))
+
+        val thrown = runCatching { flow.firstGetOrThrow() }.exceptionOrNull()
+
+        assertSame(exception, thrown)
+    }
+
+    @Test
+    fun `GIVEN mixed results WHEN filterLoaded THEN only loaded values are emitted`() = runFlowTest {
+        val flow = flowOf(
+            StoreResult.Loading,
+            StoreResult.Loaded("a"),
+            StoreResult.Failed(exception),
+            StoreResult.Loaded("b"),
+        )
+
+        val collector = flow.filterLoaded().startCollecting()
+        runCurrent()
+
+        assertEquals(listOf("a", "b"), collector.collectedItems)
+    }
+
+    @Test
+    fun `GIVEN no loaded results WHEN filterLoaded THEN nothing is emitted`() = runFlowTest {
+        val flow = flowOf<StoreResult<String>>(StoreResult.Loading, StoreResult.Failed(exception))
+
+        val collector = flow.filterLoaded().startCollecting()
+        runCurrent()
+
+        assertEquals(0, collector.count)
+    }
+
 }

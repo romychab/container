@@ -2,13 +2,14 @@
 
 package com.elveum.store.load
 
-import com.elveum.store.internal.load.withMetadataFrom
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.filterIsInstance
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
@@ -93,4 +94,27 @@ public inline fun <T, V, reified R> Flow<StoreResult<List<T>>>.storeListFlatMapL
             )
         }
     }
+}
+
+/**
+ * Await and return the fist successful result or throw exception.
+ */
+public suspend fun <T : Any> Flow<StoreResult<T>>.firstGetOrThrow(): T {
+    val result = first { it.isCompleted() }
+    return when (result) {
+        is StoreResult.Loaded -> result.value
+        is StoreResult.Failed -> throw result.exception
+        else -> error("first { } guarantees a terminal result")
+    }
+}
+
+/**
+ * Convert a Flow of [StoreResult] into a Flow of values, keeping only
+ * [loaded][StoreResult.Loaded] results and unwrapping their values. Loading and failed
+ * results are filtered out.
+ *
+ * @return a [Flow] emitting only the values of loaded results.
+ */
+public fun <T : Any> Flow<StoreResult<T>>.filterLoaded(): Flow<T> {
+    return filterIsInstance<StoreResult.Loaded<T>>().map { it.value }
 }

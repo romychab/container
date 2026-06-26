@@ -29,6 +29,33 @@ class SimpleStoreUpdateTest : AbstractSimpleStoreTest() {
     }
 
     @Test
+    fun `GIVEN loaded value WHEN updateWith THEN new result is emitted and returned by get`() = runFlowTest {
+        val store = storeBuilder().build { "value" }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        store.updateWith(StoreResult.Loaded("manual"))
+        runCurrent()
+
+        assertResult(StoreResult.Loaded("manual"), collector.lastItem)
+        assertResult(StoreResult.Loaded("manual"), store.get())
+    }
+
+    @Test
+    fun `GIVEN loaded value WHEN updateWith failed result THEN failure is emitted to observers`() = runFlowTest {
+        val exception = IllegalStateException("manual failure")
+        val store = storeBuilder().build { "value" }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+        store.updateWith(StoreResult.Failed(exception))
+        runCurrent()
+
+        assertResult(StoreResult.Failed(exception), collector.lastItem)
+        assertResult(StoreResult.Failed(exception), store.get())
+    }
+
+    @Test
     fun `GIVEN successful real update WHEN optimisticUpdate THEN optimistic value is kept`() = runFlowTest {
         val store = storeBuilder().build { "value" }
         val collector = store.observe().startCollecting()

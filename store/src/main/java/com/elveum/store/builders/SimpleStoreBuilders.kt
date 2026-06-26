@@ -4,8 +4,10 @@ import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleContract
 import com.elveum.store.contracts.SimpleQueryContract
 import com.elveum.store.contracts.SimpleQueryReactiveContract
+import com.elveum.store.contracts.SimpleQueryReactiveNoFetcherContract
 import com.elveum.store.contracts.SimpleQuerySuspendingContract
 import com.elveum.store.contracts.SimpleReactiveContract
+import com.elveum.store.contracts.SimpleReactiveNoFetcherContract
 import com.elveum.store.contracts.SimpleSuspendingContract
 import com.elveum.store.stores.simple.SimpleQueryStore
 import com.elveum.store.stores.simple.SimpleStore
@@ -33,6 +35,12 @@ public interface SimpleBuilder<T : Any> : BaseBuilder<SimpleBuilder<T>> {
      * @return a [SimpleQueryBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryBuilder<Q, T>
+
+    /**
+     * Configure a simple store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): SimpleReactiveNoFetcherBuilder<T>
 
     /**
      * Transitions the builder to a variant that supports a suspending (one-shot)
@@ -90,6 +98,12 @@ public interface SimpleQueryBuilder<Q : Any, T : Any> : BaseBuilder<SimpleQueryB
      * @return a [SimpleQueryReactiveBuilder] for configuring reactive storage callbacks.
      */
     public fun addReactiveLocalStorage(): SimpleQueryReactiveBuilder<Q, T>
+
+    /**
+     * Configure a simple query store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T>
 
     /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQueryContract] implementation.
@@ -169,6 +183,12 @@ public interface SimpleReactiveBuilder<T : Any> : BaseBuilder<SimpleReactiveBuil
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryReactiveBuilder<Q, T>
 
     /**
+     * Configure a simple store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): SimpleReactiveNoFetcherBuilder<T>
+
+    /**
      * Builds a [SimpleStore] using the provided [SimpleReactiveContract] implementation.
      *
      * @param contract the contract defining remote fetch and reactive local storage operations.
@@ -234,6 +254,12 @@ public interface SimpleQuerySuspendingBuilder<Q : Any, T : Any> : BaseBuilder<Si
 public interface SimpleQueryReactiveBuilder<Q : Any, T : Any> : BaseBuilder<SimpleQueryReactiveBuilder<Q, T>> {
 
     /**
+     * Configure a simple query store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T>
+
+    /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQueryReactiveContract] implementation.
      *
      * @param contract the contract defining remote fetch and reactive local storage operations
@@ -256,4 +282,75 @@ public interface SimpleQueryReactiveBuilder<Q : Any, T : Any> : BaseBuilder<Simp
         onSaveToStorage: suspend (Q, T) -> Unit,
         onObserveStorage: (Q) -> Flow<T?>,
     ): SimpleQueryStore<Q, T>
+}
+
+/**
+ * A builder for a simple store that has no remote fetcher and manages only local data
+ * observed reactively via a [Flow].
+ *
+ * @param T the type of data managed by the store.
+ */
+public interface SimpleReactiveNoFetcherBuilder<T : Any> : BaseBuilder<SimpleReactiveNoFetcherBuilder<T>> {
+
+    /**
+     * Transitions the builder to a query-aware variant with reactive local storage.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query value to use when the store is first created.
+     * @param debounceMillis how long (in milliseconds) to wait after a query change
+     *   before triggering a reload; defaults to `0` (no debounce).
+     * @return a [SimpleQueryReactiveNoFetcherBuilder] configured with the given query parameters.
+     */
+    public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryReactiveNoFetcherBuilder<Q, T>
+
+    /**
+     * Builds a [SimpleStore] using only a lambda for observing local data (no remote fetches).
+     *
+     * @param contract the contract defining reactive local storage observations.
+     *
+     * @return the configured [SimpleStore].
+     */
+    public fun build(contract: SimpleReactiveNoFetcherContract<T>): SimpleStore<T>
+
+    /**
+     * Builds a [SimpleStore] using only a lambda for observing local data (no remote fetches).
+     *
+     * @param onObserve function that returns a [Flow] emitting locally stored values.
+     *
+     * @return the configured [SimpleStore].
+     */
+    public fun build(onObserve: () -> Flow<T>): SimpleStore<T>
+
+}
+
+/**
+ * A builder for a query-driven simple store that has no remote fetcher and manages only
+ * local data observed reactively via a [Flow].
+ *
+ * @param Q the type representing the query.
+ * @param T the type of data managed by the store.
+ */
+public interface SimpleQueryReactiveNoFetcherBuilder<Q : Any, T : Any> :
+    BaseBuilder<SimpleQueryReactiveNoFetcherBuilder<Q, T>> {
+
+    /**
+     * Builds a [SimpleQueryStore] using the provided [SimpleQueryReactiveNoFetcherContract]
+     * implementation.
+     *
+     * @param contract the contract defining reactive local storage observations.
+     *
+     * @return the configured [SimpleQueryStore].
+     */
+    public fun build(contract: SimpleQueryReactiveNoFetcherContract<Q, T>): SimpleQueryStore<Q, T>
+
+    /**
+     * Builds a [SimpleStore] using only a lambda for observing local data (no remote fetches).
+     *
+     * @param onObserve function with input query param that returns a [Flow] emitting
+     *   locally stored values.
+     *
+     * @return the configured [SimpleQueryStore].
+     */
+    public fun build(onObserve: (Q) -> Flow<T>): SimpleQueryStore<Q, T>
+
 }

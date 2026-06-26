@@ -36,6 +36,14 @@ public fun <T> StoreResult<T>.getOrNull(): T? {
 }
 
 /**
+ * Convenient call for extracting a failure from the store result (if any; otherwise
+ * `null` is returned).
+ */
+public fun <T> StoreResult<T>.failureOrNull(): Exception? {
+    return (this as? StoreResult.Failed)?.exception
+}
+
+/**
  * Whether the current [StoreResult] contains already loaded value.
  *
  * Compatible with Kotlin smart-casts:

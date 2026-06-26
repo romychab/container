@@ -17,7 +17,7 @@ class CombineToReducerTest {
         val reducer = combineToReducer(
             flowA,
             flowB,
-            initialState = initialState,
+            initialState = { initialState },
             nextState = State2::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -66,7 +66,7 @@ class CombineToReducerTest {
             flowA,
             flowB,
             flowC,
-            initialState = initialState,
+            initialState = { initialState },
             nextState = State3::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -122,7 +122,7 @@ class CombineToReducerTest {
             flowB,
             flowC,
             flowD,
-            initialState = initialState,
+            initialState = { initialState },
             nextState = State4::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -185,7 +185,7 @@ class CombineToReducerTest {
             flowC,
             flowD,
             flowE,
-            initialState = initialState,
+            initialState = { initialState },
             nextState = State5::copy,
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -246,7 +246,7 @@ class CombineToReducerTest {
         val initialState = State2()
         val reducer = combineToReducer(
             flows = listOf(flowA, flowB),
-            initialState = initialState,
+            initialState = { initialState },
             nextState = { state, list ->
                 state.copy(list[0] as String, list[1] as String)
             },
@@ -294,7 +294,7 @@ class CombineToReducerTest {
             val flowB = MutableSharedFlow<String>()
             val reducer = combineToReducer(
                 flowA, flowB,
-                initialState = State2(),
+                initialState = { State2() },
                 nextState = State2::copy,
             )
 
@@ -319,7 +319,7 @@ class CombineToReducerTest {
             val flowC = MutableSharedFlow<String>()
             val reducer = combineToReducer(
                 flowA, flowB, flowC,
-                initialState = State3(),
+                initialState = { State3() },
                 nextState = State3::copy,
             )
 
@@ -346,7 +346,7 @@ class CombineToReducerTest {
             val flowD = MutableSharedFlow<String>()
             val reducer = combineToReducer(
                 flowA, flowB, flowC, flowD,
-                initialState = State4(),
+                initialState = { State4() },
                 nextState = State4::copy,
             )
 
@@ -375,7 +375,7 @@ class CombineToReducerTest {
             val flowE = MutableSharedFlow<String>()
             val reducer = combineToReducer(
                 flowA, flowB, flowC, flowD, flowE,
-                initialState = State5(),
+                initialState = { State5() },
                 nextState = State5::copy,
             )
 
@@ -402,7 +402,7 @@ class CombineToReducerTest {
             val flowB = MutableSharedFlow<String>()
             val reducer = combineToReducer(
                 flows = listOf(flowA, flowB),
-                initialState = State2(),
+                initialState = { State2() },
                 nextState = { state, list -> state.copy(list[0] as String, list[1] as String) },
             )
 

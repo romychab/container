@@ -11,13 +11,14 @@ import com.elveum.container.subject.reloadAsync
 import com.elveum.container.subject.updateIfSuccess
 import com.elveum.store.internal.builders.SharedConfig
 import com.elveum.store.internal.load.LoadRequestSourceMetadata
-import com.elveum.store.internal.load.toStoreResult
 import com.elveum.store.internal.stores.common.MutexOwner
 import com.elveum.store.internal.stores.common.QueryHandler
 import com.elveum.store.internal.stores.common.processDataLoad
 import com.elveum.store.internal.stores.common.processOptimisticUpdate
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.toContainer
+import com.elveum.store.load.toStoreResult
 import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.simple.SimpleQueryStore
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -59,6 +60,8 @@ internal class SimpleQueryStoreImpl<Q : Any, T : Any>(
             launch { queryHandler.observeAsyncQueryRequests() }
         }
 
+    override fun get(): StoreResult<T> = cache.currentValue().toStoreResult()
+
     override fun observe(request: LoadRequest): Flow<StoreResult<T>> {
         queryHandler.handleObserveRequest(request)
         return cache
@@ -86,6 +89,10 @@ internal class SimpleQueryStoreImpl<Q : Any, T : Any>(
 
     override fun submitQueryAsync(query: Q, loadRequest: LoadRequest) {
         queryHandler.submitQueryAsync(query, loadRequest)
+    }
+
+    override fun updateWith(storeResult: StoreResult<T>) {
+        cache.updateWith(storeResult.toContainer())
     }
 
     override suspend fun optimisticUpdate(updater: suspend OptimisticUpdateScope<T>.(T) -> Unit) {

@@ -1,11 +1,17 @@
 package com.elveum.store.stores.base
 
 import com.elveum.store.load.LoadRequest
+import com.elveum.store.load.StoreResult
 
 /**
  * Base interface for stores providing in-memory invalidation and update operations.
  */
 public interface BaseStore<T : Any> {
+
+    /**
+     * The most actual result in the store.
+     */
+    public fun get(): StoreResult<T>
 
     /**
      * Force reload data managed by the store. If the data is already loaded,
@@ -17,6 +23,11 @@ public interface BaseStore<T : Any> {
      * The same as [invalidate], but without waiting for invalidation results.
      */
     public fun invalidateAsync(request: LoadRequest = LoadRequest.Default)
+
+    /**
+     * Set a new store result manually to the in-memory cache.
+     */
+    public fun updateWith(storeResult: StoreResult<T>)
 
     /**
      * Update the in-memory cached data. It will be emitted to observers immediately.

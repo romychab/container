@@ -12,6 +12,7 @@ entity fetched by a unique identifier.
 - [Per-Key Cache Lifecycle](#per-key-cache-lifecycle)
 - [Observing and Reloading](#observing-and-reloading)
 - [Local Storage](#local-storage)
+  - [Local-Only Stores (No Fetcher)](#local-only-stores-no-fetcher)
 - [Updating Cached Data](#updating-cached-data)
 - [Combining a List with Keyed Details](#combining-a-list-with-keyed-details)
 - [Synchronizing Stores](#synchronizing-stores)
@@ -84,6 +85,13 @@ fun refreshProductAsync(id: Long) {
 controlling how the data is loaded (fresh/offline mode, keeping content
 while reloading).
 
+To read the latest result for a key synchronously (without collecting the
+flow), use `get(key)`:
+
+```kotlin
+val current: StoreResult<ProductDetails> = store.get(id)
+```
+
 ## Local Storage
 
 Keyed stores support the same two local storage modes as simple stores;
@@ -115,6 +123,37 @@ is automatically delivered to the observers of that key.
 Contract-based `build` overloads are available too: `KeyedContract`,
 `KeyedSuspendingContract`, `KeyedReactiveContract`.
 
+### Local-Only Stores (No Fetcher)
+
+When there is no remote source and each key is backed only by a local,
+reactive storage, call `disableFetcher()` and provide just an `onObserve`
+lambda returning the local `Flow<T>` for a key:
+
+```kotlin
+private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+    .disableFetcher()
+    .build(onObserve = { bookId -> dao.observeBook(bookId) }) // (Key) -> Flow<T>
+```
+
+For each observed key the store subscribes to the flow and exposes its
+values as `StoreResult`: the first emission moves the key from `Loading` to
+`Loaded`, and every later emission is delivered to the observers of that key.
+There is no remote fetch and no save step. A contract overload backed by
+`KeyedReactiveNoFetcherContract` is available as well:
+
+```kotlin
+class BooksDataSource : KeyedReactiveNoFetcherContract<BookId, Book> {
+    override fun observe(key: BookId): Flow<Book> = dao.observeBook(key)
+}
+
+private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+    .disableFetcher()
+    .build(BooksDataSource())
+```
+
+> The per-key observe flow is expected to emit at least once; if it never
+> emits, that key stays in `StoreResult.Loading`.
+
 ## Updating Cached Data
 
 `optimisticUpdate(key)` works like the simple-store version, scoped to one
@@ -137,6 +176,14 @@ suspend fun markAsRead(bookId: BookId) {
     dao.markAsRead(bookId)
     store.update(bookId) { it.copy(isRead = true) }
 }
+```
+
+To replace the cached result for a key entirely - including switching to a
+`Loading` or `Failed` state, or seeding a value without a previous one - use
+`updateWith(key, storeResult)`:
+
+```kotlin
+store.updateWith(id, StoreResult.Loaded(productDetails))
 ```
 
 ## Combining a List with Keyed Details
@@ -283,7 +330,9 @@ other screen observing the cart, with no manual propagation.
 | Member                                                       | Description                                                       |
 |--------------------------------------------------------------|-------------------------------------------------------------------|
 | `observe(key, request)`                                      | Fetch and observe the value for `key`                             |
+| `get(key)`                                                   | Read the latest `StoreResult<T>` for `key` synchronously          |
 | `invalidate(key, request)` / `invalidateAsync(key, request)` | Force a reload of one key                                         |
 | `optimisticUpdate(key) { }`                                  | Update one key's cache ahead of the real update, with auto-revert |
 | `update(key) { }`                                            | Plain cache update for one key (extension)                        |
+| `updateWith(key, storeResult)`                               | Replace the cached result for `key` with any `StoreResult`        |
 | `whenActive { }`                                             | Run a block while the store has observers (any key)               |

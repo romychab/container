@@ -5,7 +5,6 @@ import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
 import com.uandcode.flowtest.runFlowTest
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import org.junit.Assert.assertEquals
@@ -18,7 +17,7 @@ class FlowExtensionsTest {
     fun `test toReducer`() = runFlowTest {
         val inputFlow = MutableSharedFlow<Int>()
         val reducer = inputFlow.toReducer(
-            initialState = "",
+            initialState = { "" },
             nextState = { state, value -> "$state:$value" },
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
@@ -50,7 +49,7 @@ class FlowExtensionsTest {
         val inputFlow = MutableSharedFlow<String>()
 
         val reducer = inputFlow.toReducer(
-            initialState = "",
+            initialState = { "" },
             scope = scope.backgroundScope,
             started = SharingStarted.Lazily,
         )

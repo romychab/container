@@ -1,7 +1,7 @@
 # Store
 
 [![Maven Central](https://img.shields.io/maven-central/v/com.elveum/store.svg?label=Maven%20Central&color=dark-green)](https://uandcode.com/sh/store)
-![API](https://img.shields.io/badge/API-23%2B-brightgreen.svg?style=flat)
+![API](https://img.shields.io/badge/API-24%2B-brightgreen.svg?style=flat)
 [![License: Apache 2](https://img.shields.io/github/license/romychab/container)](../LICENSE)
 [![PR Check](https://github.com/romychab/container/actions/workflows/pr-check.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/pr-check.yml)
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/romychab/90ef83eacc2f4ce17e4c53c8bb255295/raw/store-coverage.json)](https://github.com/romychab/container/actions/workflows/publish.yml)
@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.0.0"
+implementation "com.elveum:store:3.1.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -250,6 +250,20 @@ Reactive local storage is supported by simple and keyed stores; for paged
 stores it is planned for future versions. Instead of separate lambdas, you
 can also pass a single *contract* interface implementation - see the
 per-store docs for details.
+
+When the data lives **only** in a local reactive source and there is no
+remote `onFetch` at all, call `disableFetcher()` and provide just an
+`onObserve` lambda returning the local `Flow`:
+
+```kotlin
+private val store = StoreFactory.simpleStoreBuilder<Settings>()
+    .disableFetcher()
+    .build(onObserve = settingsDataStore::observeSettings) // () -> Flow<Settings>
+```
+
+This is supported by simple and keyed stores (and combines with
+`withQuery`). See [Simple Store](docs/simple-store.md#local-only-stores-no-fetcher)
+and [Keyed Store](docs/keyed-store.md#local-only-stores-no-fetcher).
 
 ## Queries
 

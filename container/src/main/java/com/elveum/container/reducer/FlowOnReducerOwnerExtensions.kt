@@ -15,14 +15,14 @@ import kotlinx.coroutines.flow.StateFlow
  */
 context(owner: ReducerOwner)
 public fun <T, State> Flow<T>.toReducer(
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T) -> State,
 ): Reducer<State> {
     return toReducer(initialState, nextState, owner.reducerCoroutineScope, owner.reducerSharingStarted)
 }
 
 context(owner: ReducerOwner)
-public fun <T> Flow<T>.toReducer(initialState: T): Reducer<T> {
+public fun <T> Flow<T>.toReducer(initialState: () -> T): Reducer<T> {
     return toReducer(
         initialState = initialState,
         scope = owner.reducerCoroutineScope,

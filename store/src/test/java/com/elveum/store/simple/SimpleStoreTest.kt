@@ -3,6 +3,7 @@ package com.elveum.store.simple
 import com.elveum.container.RemoteSourceType
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import io.mockk.coEvery
 import io.mockk.coVerify
@@ -109,6 +110,37 @@ class SimpleStoreTest : AbstractSimpleStoreTest() {
         assertResult(StoreResult.Loaded("value1"), collector.lastItem)
         assertTrue(collector.lastItem.isBackgroundLoading())
         advanceTimeBy(1) // now loaded
+        assertResult(StoreResult.Loaded("value2"), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN data loading WHEN currentResult THEN return latest result`() = runFlowTest {
+        val store = storeBuilder().build {
+            delay(10)
+            "value"
+        }
+
+        store.observe().startCollecting()
+
+        advanceTimeBy(10)
+        assertResult(StoreResult.Loading, store.get())
+
+        advanceTimeBy(1)
+        assertResult(StoreResult.Loaded("value"), store.get())
+    }
+
+    @Test
+    fun `GIVEN loaded result WHEN invalidate via result THEN the origin store reloads`() = runFlowTest {
+        var counter = 0
+        val store = storeBuilder().build { "value${++counter}" }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+        assertResult(StoreResult.Loaded("value1"), collector.lastItem)
+
+        // trigger a reload through the emitted result's metadata
+        collector.lastItem.invalidate()
+        runCurrent()
+
         assertResult(StoreResult.Loaded("value2"), collector.lastItem)
     }
 

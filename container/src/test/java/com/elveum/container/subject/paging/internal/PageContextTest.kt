@@ -1,8 +1,10 @@
 package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.Container
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
+import com.elveum.container.subject.paging.TotalPagedItemsCountMetadata
 import com.elveum.container.successContainer
 import io.mockk.MockKAnnotations
 import io.mockk.coEvery
@@ -108,7 +110,7 @@ class PageContextTest {
             pageKey = 1,
         )
 
-        context.onPageDataLoaded(listOf("x", "y"))
+        context.onPageDataLoaded(listOf("x", "y"), EmptyMetadata)
 
         val slot = containerSlot()
         coVerify(exactly = 1) {
@@ -129,7 +131,7 @@ class PageContextTest {
             pageKey = 1,
         )
 
-        context.onPageDataLoaded(emptyList())
+        context.onPageDataLoaded(emptyList(), EmptyMetadata)
 
         val slot = containerSlot()
         coVerify(exactly = 1) {
@@ -141,6 +143,28 @@ class PageContextTest {
         }
         val outputContainer = slot.captured.invoke(pendingContainer())
         assertEquals(successContainer(emptyList<String>()), outputContainer)
+    }
+
+    @Test
+    fun onPageDataLoaded_attachesProvidedMetadataToSuccessContainer() = runTest {
+        val context = createContext(
+            pageIndex = 0,
+            pageKey = 1,
+        )
+        val metadata = TotalPagedItemsCountMetadata(totalPagedItemsCount = 42)
+
+        context.onPageDataLoaded(listOf("x", "y"), metadata)
+
+        val slot = containerSlot()
+        coVerify(exactly = 1) {
+            state.updateRecord(
+                pageIndex = 0,
+                pageKey = 1,
+                container = capture(slot)
+            )
+        }
+        val outputContainer = slot.captured.invoke(pendingContainer())
+        assertEquals(successContainer(listOf("x", "y"), metadata), outputContainer)
     }
 
     @Test

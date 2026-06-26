@@ -3,6 +3,7 @@ package com.elveum.store.builders
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.KeyedContract
 import com.elveum.store.contracts.KeyedReactiveContract
+import com.elveum.store.contracts.KeyedReactiveNoFetcherContract
 import com.elveum.store.contracts.KeyedSuspendingContract
 import com.elveum.store.stores.keyed.KeyedStore
 import kotlinx.coroutines.flow.Flow
@@ -17,6 +18,12 @@ import kotlinx.coroutines.flow.Flow
  * @param T the type of data held by the store.
  */
 public interface KeyedBuilder<Key : Any, T : Any> : BaseBuilder<KeyedBuilder<Key, T>> {
+
+    /**
+     * Configure a keyed store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): KeyedReactiveNoFetcherBuilder<Key, T>
 
     /**
      * Transitions the builder to a variant that supports a suspending (one-shot)
@@ -92,6 +99,12 @@ public interface KeyedSuspendingBuilder<Key : Any, T : Any> : BaseBuilder<KeyedS
 public interface KeyedReactiveBuilder<Key : Any, T : Any> : BaseBuilder<KeyedReactiveBuilder<Key, T>> {
 
     /**
+     * Configure a keyed store without fetcher. In this case, the store manages only
+     * local data via reactive flow (for example, Room or DataStore returning Flow of items).
+     */
+    public fun disableFetcher(): KeyedReactiveNoFetcherBuilder<Key, T>
+
+    /**
      * Builds a [KeyedStore] using the provided [KeyedReactiveContract] implementation.
      *
      * @param contract the contract defining remote fetch and reactive local storage operations.
@@ -113,4 +126,32 @@ public interface KeyedReactiveBuilder<Key : Any, T : Any> : BaseBuilder<KeyedRea
         onSaveToStorage: suspend (Key, T) -> Unit,
         onObserveStorage: (Key) -> Flow<T?>,
     ): KeyedStore<Key, T>
+}
+
+/**
+ * A builder for a keyed store that has no remote fetcher and manages only local data
+ * observed reactively via a [Flow].
+ *
+ * @param Key the type of the key identifying each item.
+ * @param T the type of data managed by the store.
+ */
+public interface KeyedReactiveNoFetcherBuilder<Key : Any, T : Any> :
+    BaseBuilder<KeyedReactiveNoFetcherBuilder<Key, T>> {
+
+    /**
+     * Builds a [KeyedStore] using the provided [KeyedReactiveNoFetcherContract] implementation.
+     *
+     * @param contract the contract defining reactive local storage observations.
+     * @return the configured [KeyedStore].
+     */
+    public fun build(contract: KeyedReactiveNoFetcherContract<Key, T>): KeyedStore<Key, T>
+
+    /**
+     * Builds a [KeyedStore] using only a lambda for observing local data (no remote fetches).
+     *
+     * @param onObserve function that, for a given key, returns a [Flow] emitting the
+     *   locally stored values.
+     * @return the configured [KeyedStore].
+     */
+    public fun build(onObserve: (Key) -> Flow<T>): KeyedStore<Key, T>
 }

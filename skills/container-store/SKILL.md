@@ -22,13 +22,13 @@ directly — no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.0.0` (transitively brings
+Maven coordinates: `com.elveum:store:3.1.0` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.0.0"
+store = "3.1.0"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -73,9 +73,15 @@ Data sources         - Retrofit/DAO wrappers; may implement Store contracts + ma
 | Operation | Call |
 |-----------|------|
 | Observe | `store.observe()` / `store.observe(key)` → `Flow<StoreResult<T>>` |
+| Read latest result synchronously | `store.get()` / `store.get(key)` → `StoreResult<T>` |
+| Read latest value/error synchronously | `store.getOrNull()` / `store.failureOrNull()` (key variants for keyed) |
+| Local-only store (no remote fetcher) | `builder.disableFetcher().build(onObserve = { ... })` (simple & keyed) |
+| Pagination: total item count | `PagedList(items, nextKey, totalCount = n)`; read `result.metadata.totalPagedItemsCount` |
+| Await first completed result | `store.observe().firstGetOrThrow()` (suspend; value or throws) |
 | Silent refresh (pull-to-refresh) | `store.invalidateAsync(LoadRequest.Silent)` |
 | Non-silent reload (try-again) | `store.invalidateAsync()` |
 | Update cache after real write | `store.update { new }` (suspend extension) |
+| Replace cached result outright | `store.updateWith(StoreResult.Loaded(new))` / `store.updateWith(key, ...)` |
 | Optimistic update (auto-revert on failure) | `store.optimisticUpdate { old -> emit(new); realUpdate() }` |
 | Submit query | `store.submitQueryAsync(query)` (default `LoadRequest.Silent`) |
 | Pagination: report visible item | `store.onItemRendered(index)` |
@@ -112,3 +118,9 @@ cache, released after the last observer unsubscribes plus
 - Using `ReducerOwner` context overloads in projects without the
   `-Xcontext-parameters` compiler flag - pass `scope`/`started`
   explicitly instead.
+- Trying to store a nullable value type - every store generic is `T : Any`,
+  so `SimpleStore<User?>` (and keyed/paged equivalents) will not compile.
+  Model "value may be absent" as `java.util.Optional<T>` (e.g.
+  `SimpleStore<Optional<User>>`): wrap fetch results with `T?.toOptional()`,
+  and read them with `getOptionalValueOrNull()` / `firstOptionalGetOrThrow()`
+  / `isOptionalEmpty()`.

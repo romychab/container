@@ -20,13 +20,13 @@ import kotlinx.coroutines.flow.StateFlow
  * [Reducer.update] method.
  */
 public fun <T, State> Flow<T>.toReducer(
-    initialState: State,
+    initialState: () -> State,
     nextState: suspend (State, T) -> State,
     scope: CoroutineScope,
     started: SharingStarted,
 ): Reducer<State> {
     return ReducerImpl(
-        initialState = initialState,
+        initialState = initialState(),
         originFlow = this,
         combiner = nextState,
         scope = scope,
@@ -44,7 +44,7 @@ public fun <T, State> Flow<T>.toReducer(
  * [Reducer.update] method.
  */
 public fun <T> Flow<T>.toReducer(
-    initialState: T,
+    initialState: () -> T,
     scope: CoroutineScope,
     started: SharingStarted,
 ): Reducer<T> {
@@ -71,7 +71,7 @@ public fun <T, State> Flow<T>.toContainerReducer(
     started: SharingStarted,
 ): ContainerReducer<State> {
     val reducer = toReducer<T, Container<State>>(
-        initialState = pendingContainer(),
+        initialState = { pendingContainer() },
         nextState = { oldContainer, newValue ->
             val newState = oldContainer.fold(
                 onPending = { initialState(newValue) },
@@ -115,7 +115,7 @@ public fun <T, State> Flow<Container<T>>.containerToReducer(
     started: SharingStarted,
 ): ContainerReducer<State> {
     val reducer = toReducer<Container<T>, Container<State>>(
-        initialState = pendingContainer(),
+        initialState = { pendingContainer() },
         nextState = { oldStateContainer, newContainer ->
             newContainer.fold(
                 onPending = ::pendingContainer,

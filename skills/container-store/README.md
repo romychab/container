@@ -43,4 +43,4 @@ discovers skills (e.g. `~/.agents/skills/` for Codex), or paste
 | `references/api.md` | Every public import, `StoreResult` / `LoadRequest` semantics, typical operations |
 | `references/patterns.md` | Layer-by-layer patterns: data sources, repositories, ViewModels, Compose, DI, scoping |
 
-The skill matches library version `3.0.0`.
+The skill matches library version `3.1.0`.

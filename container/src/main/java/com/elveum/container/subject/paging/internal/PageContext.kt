@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
@@ -43,11 +44,11 @@ internal class PageContext<Key, T>(
         )
     }
 
-    suspend fun onPageDataLoaded(items: List<T>) {
+    suspend fun onPageDataLoaded(items: List<T>, metadata: ContainerMetadata) {
         state.updateRecord(
             pageIndex = pageIndex,
             pageKey = pageKey,
-            container = { successContainer(items) },
+            container = { successContainer(items, metadata) },
         )
     }
 

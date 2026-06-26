@@ -17,7 +17,7 @@ class FlowToReducerViewModel @Inject constructor(
 
     private val reducer: Reducer<State> = repository.getColorField()
         .toReducer(
-            initialState = State(),
+            initialState = ::State,
             nextState = State::copy,
             scope = viewModelScope,
             started = SharingStarted.WhileSubscribed(

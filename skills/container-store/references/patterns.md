@@ -51,8 +51,11 @@ configuration (store type × `withQuery` × local storage mode):
 | `simpleStoreBuilder` + `addReactiveLocalStorage` | `SimpleReactiveContract<T>` |
 | `simpleStoreBuilder` + `withQuery` | `SimpleQueryContract<Q, T>` |
 | `simpleStoreBuilder` + `withQuery` + suspending/reactive storage | `SimpleQuerySuspendingContract` / `SimpleQueryReactiveContract` |
+| `simpleStoreBuilder` + `disableFetcher` | `SimpleReactiveNoFetcherContract<T>` |
+| `simpleStoreBuilder` + `disableFetcher` + `withQuery` | `SimpleQueryReactiveNoFetcherContract<Q, T>` |
 | `keyedStoreBuilder` | `KeyedContract<Key, T>` |
 | `keyedStoreBuilder` + suspending/reactive storage | `KeyedSuspendingContract` / `KeyedReactiveContract` |
+| `keyedStoreBuilder` + `disableFetcher` | `KeyedReactiveNoFetcherContract<Key, T>` |
 | `pagedStoreBuilder` | `PagedContract<PageKey, T>` |
 | `pagedStoreBuilder` + `addSuspendingLocalStorage` | `PagedSuspendingContract<PageKey, T>` |
 | `pagedStoreBuilder` + `withQuery` | `PagedQueryContract<Q, PageKey, T>` |

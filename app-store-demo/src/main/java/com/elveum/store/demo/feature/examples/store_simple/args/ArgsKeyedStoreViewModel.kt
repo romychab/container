@@ -1,12 +1,9 @@
 package com.elveum.store.demo.feature.examples.store_simple.args
 
 import androidx.compose.ui.graphics.Color
-import com.elveum.container.containerCombineWith
 import com.elveum.store.demo.feature.examples.store_simple.args.StarsRepository.Star
 import com.elveum.store.demo.feature.examples.store_simple.args.StarsRepository.StarFilter
 import com.elveum.store.demo.ui.AbstractViewModel
-import com.elveum.container.getOrNull
-import com.elveum.container.pendingContainer
 import com.elveum.container.reducer.stateIn
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.getOrNull

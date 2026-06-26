@@ -17,7 +17,7 @@ class FlowOnReducerOwnerExtensionsTest {
         TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
             val inputFlow = MutableSharedFlow<Int>()
             val reducer = inputFlow.toReducer(
-                initialState = "",
+                initialState = { "" },
                 nextState = { state, value -> "$state:$value" },
             )
 
@@ -36,7 +36,7 @@ class FlowOnReducerOwnerExtensionsTest {
     fun `test toReducer without mapping with ReducerOwner`() = runFlowTest {
         TestReducerOwner(scope.backgroundScope, SharingStarted.Lazily).apply {
             val inputFlow = MutableSharedFlow<String>()
-            val reducer = inputFlow.toReducer(initialState = "init")
+            val reducer = inputFlow.toReducer(initialState = { "init" })
 
             val collector = reducer.stateFlow.startCollecting()
             runCurrent()

@@ -1,4 +1,4 @@
-package com.elveum.store.internal.load
+package com.elveum.store.load
 
 import com.elveum.container.Container
 import com.elveum.container.LocalSourceType
@@ -6,15 +6,11 @@ import com.elveum.container.defaultMetadata
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
-import com.elveum.store.load.StoreResult
-import com.elveum.store.load.getOrNull
-import com.elveum.store.load.isFailed
-import com.elveum.store.load.isLoaded
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-class StoreResultInternalExtensionsTest {
+class StoreResultContainerExtensionsTest {
 
     private val exception = IllegalStateException("boom")
 

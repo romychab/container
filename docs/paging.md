@@ -271,10 +271,20 @@ suspend fun toggleLike(item: Item) {
 Inside the `pageLoader` block, you have access to the `PageEmitter<Key, T>`
 receiver:
 
-| Method | Description |
-|--------|-------------|
-| `emitPage(list: List<T>)` | Emit data for the current page. Can be called multiple times (e.g. emit local data first, then remote) |
-| `emitNextKey(key: Key)` | Register the key of the next page. Call once if there is a next page, or not at all if this is the last page |
+| Method                     | Description                                                                                                                                                                                                                   |
+|----------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `emitPage(list, metadata)` | Emit data for the current page. Can be called multiple times (e.g. emit local data first, then remote). Optional `metadata` is propagated to the final output list (later pages override same-typed metadata of earlier ones) |
+| `emitNextKey(key)`         | Register the key of the next page. Call once if there is a next page, or not at all if this is the last page                                                                                                                  |
+
+The optional `metadata` lets a page attach extra information to the merged
+result - for example `TotalPagedItemsCountMetadata`, readable via the
+`metadata.totalPagedItemsCount` extension property (returns `-1` when unknown):
+
+```kotlin
+emitPage(orders, TotalPagedItemsCountMetadata(totalCount = response.total))
+// later, on the collector side:
+val total = container.metadata.totalPagedItemsCount
+```
 
 `PageEmitter` also extends `FlowComposer`, giving you access to
 `dependsOnFlow` and `dependsOnContainerFlow` for reactive dependencies.

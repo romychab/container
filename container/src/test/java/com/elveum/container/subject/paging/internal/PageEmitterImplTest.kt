@@ -1,6 +1,8 @@
 package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.ContainerFlow
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.StatefulEmitter
 import io.mockk.MockKAnnotations
 import io.mockk.coVerify
@@ -44,7 +46,16 @@ class PageEmitterImplTest {
     @Test
     fun emitPage_callsOnPageDataLoadedWithGivenList() = runTest {
         emitter.emitPage(listOf("x", "y", "z"))
-        coVerify { context.onPageDataLoaded(listOf("x", "y", "z")) }
+        coVerify { context.onPageDataLoaded(listOf("x", "y", "z"), EmptyMetadata) }
+    }
+
+    @Test
+    fun emitPage_forwardsProvidedMetadataToContext() = runTest {
+        val metadata = mockk<ContainerMetadata>()
+
+        emitter.emitPage(listOf("a"), metadata)
+
+        coVerify { context.onPageDataLoaded(listOf("a"), metadata) }
     }
 
     @Test
@@ -54,8 +65,8 @@ class PageEmitterImplTest {
 
         assertTrue(emitter.isPageEmitted)
         coVerifyOrder {
-            context.onPageDataLoaded(listOf("a"))
-            context.onPageDataLoaded(listOf("b"))
+            context.onPageDataLoaded(listOf("a"), EmptyMetadata)
+            context.onPageDataLoaded(listOf("b"), EmptyMetadata)
         }
     }
 

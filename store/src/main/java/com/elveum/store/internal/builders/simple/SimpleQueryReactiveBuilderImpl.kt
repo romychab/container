@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders.simple
 
 import com.elveum.store.builders.SimpleQueryReactiveBuilder
+import com.elveum.store.builders.SimpleQueryReactiveNoFetcherBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleQueryReactiveContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
@@ -18,6 +19,14 @@ internal class SimpleQueryReactiveBuilderImpl<Q : Any, T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T> {
+        return SimpleQueryReactiveNoFetcherBuilderImpl(
+            initialQuery = initialQuery,
+            queryDebounceMillis = queryDebounceMillis,
+            config = config,
+        )
     }
 
     override fun build(contract: SimpleQueryReactiveContract<Q, T>): SimpleQueryStore<Q, T> {

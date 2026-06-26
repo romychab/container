@@ -1,18 +1,15 @@
 package com.elveum.store.demo.feature.examples.store_simple.combined
 
-import androidx.lifecycle.viewModelScope
+import com.elveum.container.reducer.Reducer
+import com.elveum.container.reducer.combineToReducer
 import com.elveum.store.demo.effects.Toaster
 import com.elveum.store.demo.errors.ErrorFlagRepository
 import com.elveum.store.demo.feature.examples.store_simple.combined.GalleryRepository.GalleryImage
 import com.elveum.store.demo.ui.AbstractViewModel
-import com.elveum.container.reducer.Reducer
-import com.elveum.container.reducer.combineToReducer
 import com.elveum.store.load.StoreResult
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.take
-import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
@@ -27,7 +24,7 @@ class CombinedSimpleStoreViewModel @Inject constructor(
         galleryRepository.getQuery().take(1),
         errorFlagRepository.getErrorFlag(),
         errorFlagRepository.getKeepContentOnErrorFlag(),
-        initialState = State(),
+        initialState = ::State,
         nextState = State::copy,
     )
 

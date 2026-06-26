@@ -4,8 +4,11 @@
   <CurrentIssues>
     <ID>LateinitUsage:BaseBuilderImpl.kt$BaseBuilderImpl$protected lateinit var ref: OutBuilder</ID>
     <ID>NestedBlockDepth:ListMerger.kt$ListMerger$private fun State.buildFinalList(): List&lt;T></ID>
+    <ID>TooManyFunctions:KeyedStoreImpl.kt$KeyedStoreImpl&lt;Key : Any, T : Any> : KeyedStore</ID>
     <ID>TooManyFunctions:LazyCacheImpl.kt$LazyCacheImpl&lt;Arg, T> : LazyCache</ID>
     <ID>TooManyFunctions:LazyFlowSubjectImpl.kt$LazyFlowSubjectImpl&lt;T> : LazyFlowSubject</ID>
     <ID>TooManyFunctions:PageRecordsState.kt$PageRecordsState&lt;Key, T></ID>
+    <ID>TooManyFunctions:PagedQueryStoreImpl.kt$PagedQueryStoreImpl&lt;Q : Any, P : Any, T : Any> : PagedQueryStoreMutexOwner</ID>
+    <ID>TooManyFunctions:SimpleQueryStoreImpl.kt$SimpleQueryStoreImpl&lt;Q : Any, T : Any> : SimpleQueryStoreMutexOwner</ID>
   </CurrentIssues>
 </SmellBaseline>

@@ -35,7 +35,7 @@ internal class FlowDependencyStoreImpl<T>(
 ) : FlowDependencyStore {
 
     private var scope: CoroutineScope? = null
-    private var recomposeFunction: RecomposeFunction = {}
+    private var recomposeFunction: RecomposeFunction = RecomposeFunction {}
 
     private var debounceReloadJob: Job? = null
     private val debounceFlow = MutableSharedFlow<Unit>(

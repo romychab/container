@@ -129,7 +129,7 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun listen_withinTimeout_holdsLatestLoadedValue() = runFlowTest {
         var index = 0
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             emit("v${++index}")
         }
         val spyLoader = spyk(loader)
@@ -156,7 +156,7 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun listen_afterTimeout_startsLoadingFromScratch() = runFlowTest {
         var index = 0
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             emit("v${++index}")
         }
         val spyLoader = spyk(loader)
@@ -184,7 +184,7 @@ class LazyFlowSubjectImplIntegrationTest {
     fun listen_whichIsCalledTwice_startsLoadingOnlyOnce() = runFlowTest {
         var index = 0
         var loaderCalls = 0
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             loaderCalls++
             delay(100)
             emit("v${++index}")
@@ -211,7 +211,7 @@ class LazyFlowSubjectImplIntegrationTest {
     fun listen_whichIsCalledTwiceOnSameInstance_startsLoadingOnlyOnce() = runFlowTest {
         var index = 0
         var loaderCalls = 0
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             loaderCalls++
             delay(100)
             emit("v${++index}")
@@ -238,7 +238,7 @@ class LazyFlowSubjectImplIntegrationTest {
     @Test
     fun listen_withCancellationOfNotAllCollectors_holdsCachedValue() = runFlowTest {
         var index = 0
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             emit("v${++index}")
         }
         val spyLoader = spyk(loader)
@@ -269,8 +269,8 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_startsNewLoadWithPendingStatus() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
-        val loader2: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader { emit("111") }
+        val loader2: ValueLoader<String> = ValueLoader {
             delay(100)
             emit("222")
         }
@@ -291,9 +291,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_loadsNewValue() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
+        val loader1: ValueLoader<String> = ValueLoader { emit("111") }
         var loader2Calls = 0
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             loader2Calls++
             delay(100)
             emit("222")
@@ -315,9 +315,9 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_withSilentMode_loadsNewValueWithoutPendingStatus() = runFlowTest {
-        val loader1: ValueLoader<String> = { emit("111") }
+        val loader1: ValueLoader<String> = ValueLoader { emit("111") }
         var loader2Calls = 0
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             loader2Calls++
             delay(100)
             emit("222")
@@ -339,11 +339,11 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_cancelsPreviousLoad() = runFlowTest {
-        val loader1: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader {
             delay(100)
             emit("111")
         }
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             delay(100)
             emit("222")
         }
@@ -368,15 +368,15 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_returnsFlowThatEmitsAllValuesOfNewUpload() = runFlowTest {
-        val loader1: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader {
             emit("11")
             emit("12")
         }
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             emit("21")
             emit("22")
         }
-        val loader3: ValueLoader<String> = {
+        val loader3: ValueLoader<String> = ValueLoader {
             emit("31")
             emit("32")
         }
@@ -397,15 +397,15 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_withCancelledLoad_returnsFlowThatFailsWithException() = runFlowTest {
-        val defaultLoader: ValueLoader<String> = {
+        val defaultLoader: ValueLoader<String> = ValueLoader {
             emit("1")
         }
-        val loader1: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader {
             emit("21")
             delay(100)
             emit("22")
         }
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             emit("3")
         }
         val subject = createLazyFlowSubject(defaultLoader)
@@ -425,10 +425,10 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_withFailedLoad_returnsFlowThatAlsoFails() = runFlowTest {
-        val defaultLoader: ValueLoader<String> = {
+        val defaultLoader: ValueLoader<String> = ValueLoader {
             emit("1")
         }
-        val loader1: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader {
             emit("2")
             throw IllegalArgumentException()
         }
@@ -445,8 +445,8 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_withFailedLoad_emitsErrorToFlowReturnedByListenMethod() = runFlowTest {
-        val loader1: ValueLoader<String> = { delay(100) }
-        val loader2: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader { delay(100) }
+        val loader2: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("222")
             delay(10)
@@ -470,11 +470,11 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun newLoad_afterNewLoad_usesLastLoader() = runFlowTest {
-        val loader1: ValueLoader<String> = {
+        val loader1: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
-        val loader2: ValueLoader<String> = {
+        val loader2: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("222")
         }
@@ -575,7 +575,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun updateWith_cancelsLoadingAndEmitsNewValueImmediately() = runFlowTest {
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
@@ -594,7 +594,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun updateWith_emitsNewValue() = runFlowTest {
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
@@ -613,7 +613,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun updateWithMapper_cancelsLoadingAndEmitsNewValueImmediately() = runFlowTest {
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
@@ -632,7 +632,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun updateWithMapper_emitsNewValue() = runFlowTest {
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
@@ -651,7 +651,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun updateWithMapper_withReturningSameValue_doesNotReEmitIt() = runFlowTest {
-        val loader: ValueLoader<String> = {
+        val loader: ValueLoader<String> = ValueLoader {
             delay(10)
             emit("111")
         }
@@ -717,7 +717,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun activeCollectorsCount_with1ActiveCollectors_returns1() = runFlowTest {
-        val loader: ValueLoader<String> = { emit("111") }
+        val loader: ValueLoader<String> = ValueLoader { emit("111") }
         val subject = createLazyFlowSubject(loader)
 
         subject.listen().startCollecting()
@@ -727,7 +727,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun activeCollectorsCount_with2Collectors_returns2() = runFlowTest {
-        val loader: ValueLoader<String> = { emit("111") }
+        val loader: ValueLoader<String> = ValueLoader { emit("111") }
         val subject = createLazyFlowSubject(loader)
 
         subject.listen().startCollecting()
@@ -738,7 +738,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun activeCollectorsCount_with2CollectorsOnSameFlow_returns2() = runFlowTest {
-        val loader: ValueLoader<String> = { emit("111") }
+        val loader: ValueLoader<String> = ValueLoader { emit("111") }
         val subject = createLazyFlowSubject(loader)
 
         val flow = subject.listen()
@@ -750,7 +750,7 @@ class LazyFlowSubjectImplIntegrationTest {
 
     @Test
     fun activeCollectorsCount_afterCancellation_decreasesNumberOfCollectors() = runFlowTest {
-        val loader: ValueLoader<String> = { emit("111") }
+        val loader: ValueLoader<String> = ValueLoader { emit("111") }
         val subject = createLazyFlowSubject(loader)
 
         val state1 = subject.listen().startCollecting() // 1 active collector

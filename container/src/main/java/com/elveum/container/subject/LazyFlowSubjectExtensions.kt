@@ -81,7 +81,7 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>,
 ): T {
-    val multipleLoader: ValueLoader<T> = {
+    val multipleLoader: ValueLoader<T> = ValueLoader {
         emit(valueLoader(), metadata, isLastValue = true)
     }
     val flow = newLoad(config, valueLoader = multipleLoader)
@@ -99,7 +99,7 @@ public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>
 ) {
-    val multipleLoader: ValueLoader<T> = {
+    val multipleLoader: ValueLoader<T> = ValueLoader {
         emit(valueLoader(), metadata, isLastValue = true)
     }
     newAsyncLoad(config, valueLoader = multipleLoader)

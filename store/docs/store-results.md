@@ -19,6 +19,7 @@ stores, and converting store flows into UI state with
 - [Combining Stores](#combining-stores)
 - [StoreResultReducer](#storeresultreducer)
   - [Creating a Reducer](#creating-a-reducer)
+  - [Combining Stores into a Reducer](#combining-stores-into-a-reducer)
   - [Manual State Updates](#manual-state-updates)
   - [ReducerOwner](#reducerowner)
 
@@ -351,6 +352,54 @@ value of `stateFlow` is `StoreResult.Loading`.
 Both functions also have single-argument overloads without
 `initialState` / `nextState` when the state type equals the flow's value
 type.
+
+### Combining Stores into a Reducer
+
+When the state is built from several store flows, `combineStoresToReducer`
+combines them and produces a `StoreResultReducer<State>` in one step - it is
+`combineStores` followed by `storeResultToReducer`:
+
+```kotlin
+data class State(
+    val products: List<Product>,          // from productsRepository.getProducts()
+    val cartItems: List<CartItem>,        // from cartRepository.getMinimalCart()
+    val selectedIds: Set<Long> = emptySet(), // updated manually
+)
+
+private val reducer: StoreResultReducer<State> = combineStoresToReducer(
+    productsRepository.getProducts(),  // Flow<StoreResult<List<Product>>>
+    cartRepository.getMinimalCart(),   // Flow<StoreResult<List<CartItem>>>
+    initialState = ::State,            // (T1, T2) -> State, on the first combined Loaded value
+    nextState = State::copy,           // (State, T1, T2) -> State, on subsequent values
+    scope = viewModelScope,
+    started = SharingStarted.WhileSubscribed(5000),
+)
+
+val stateFlow: StateFlow<StoreResult<State>> = reducer.stateFlow
+```
+
+The combined result follows the same rules as `combineStores`: the reducer
+holds `Loading` until **all** sources are `Loaded`, becomes `Failed` if any
+source is `Failed`, and only then produces a `Loaded` state. As with
+`storeResultToReducer`, `nextState` merges subsequent source values so
+manual updates (like `selectedIds`) survive re-emissions; omit it to
+re-initialize on every emission.
+
+Overloads exist for 2 to 5 input flows plus a list-based overload for an
+arbitrary number:
+
+```kotlin
+private val reducer = combineStoresToReducer(
+    flows = listOf(flow1, flow2, flow3),
+    initialState = { values -> State(/* values: List<*> */) },
+    nextState = { state, values -> state.copy(/* ... */) },
+    scope = viewModelScope,
+    started = SharingStarted.Lazily,
+)
+```
+
+All overloads also have `ReducerOwner` variants that omit `scope` /
+`started` (see [ReducerOwner](#reducerowner) below).
 
 ### Manual State Updates
 

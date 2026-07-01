@@ -65,6 +65,7 @@ import com.elveum.store.load.onItemRendered           // StoreResult<T>.onItemRe
 import com.elveum.store.reducers.StoreResultReducer
 import com.elveum.store.reducers.storeResultToReducer // Flow<StoreResult<T>> -> StoreResultReducer
 import com.elveum.store.reducers.toStoreResultReducer // Flow<T>              -> StoreResultReducer
+import com.elveum.store.reducers.combineStoresToReducer // combine 2..5 (or List of) StoreResult flows -> StoreResultReducer
 
 // Contracts (optional; implemented by data sources instead of build(...) lambdas)
 import com.elveum.store.contracts.SimpleContract

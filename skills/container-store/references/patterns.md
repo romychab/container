@@ -230,6 +230,7 @@ Pick the pattern by this decision tree:
 | Observes SEVERAL `StoreResult` flows, adds nothing | `combineStores(...)` then `stateIn` |
 | Observes a mix of `StoreResult` flows and plain flows, adds nothing | standard `combine(...)` with the plain flows, then `stateIn` |
 | Adds its own screen-local data (progress flags, selections, manually updated fields) | `StoreResultReducer` via `storeResultToReducer` (source emits `StoreResult`) or `toStoreResultReducer` (plain source) |
+| Combines SEVERAL `StoreResult` flows AND adds screen-local data | `combineStoresToReducer(...)` (combine + `StoreResultReducer` in one step) |
 
 ### Pattern 1 - single flow, no extra data
 

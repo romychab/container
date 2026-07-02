@@ -35,11 +35,13 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.elveum.container.BackgroundLoadState
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.feature.examples.store_paged.pagination_local_remote.PagedArticleRepository.Article
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.components.NextPageFooter
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.nextPageState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -74,7 +76,7 @@ fun LocalRemotePagedScreen() = DemoScaffold(
 
     PullToRefreshBox(
         isRefreshing = result.backgroundLoadState == BackgroundLoadState.Loading,
-        onRefresh = { viewModel.refresh() },
+        onRefresh = { result.invalidate(LoadConfig.SilentLoading) },
         modifier = Modifier
             .weight(1f)
             .fillMaxWidth(),
@@ -103,7 +105,7 @@ fun LocalRemotePagedScreen() = DemoScaffold(
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    Button(onClick = viewModel::tryAgain) {
+                    Button(onClick = finalResult::invalidate) {
                         Text("Try Again")
                     }
                 }

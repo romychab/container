@@ -37,7 +37,7 @@ public inline fun <Arg, T> LazyCache<Arg, T>.updateWith(
  */
 public fun <Arg, T> LazyCache<Arg, T>.reloadAsync(
     arg: Arg,
-    config: LoadConfig = LoadConfig.Normal,
+    config: LoadConfig? = null,
     metadata: ContainerMetadata = EmptyMetadata,
 ) {
     @Suppress("UnusedFlow")

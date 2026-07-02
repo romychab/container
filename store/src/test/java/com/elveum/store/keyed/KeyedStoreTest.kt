@@ -83,16 +83,51 @@ class KeyedStoreTest : AbstractKeyedStoreTest() {
             delay(10)
             "value-$key-${++counter}"
         }
-        val collector = store.observe("k1").startCollecting()
+        val collector = store.observe("k1", LoadRequest.Silent).startCollecting()
         advanceTimeBy(11) // first load
 
-        store.invalidateAsync("k1", LoadRequest.Silent)
+        store.invalidateAsync("k1")
 
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loaded("value-k1-1"), collector.lastItem)
         assertTrue(collector.lastItem.isBackgroundLoading())
         advanceTimeBy(1) // now loaded
         assertResult(StoreResult.Loaded("value-k1-2"), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN fresh-mode request WHEN observe a key THEN fetcher is invoked only once`() = runFlowTest {
+        var counter = 0
+        val store = storeBuilder().build { key -> "value-$key-${++counter}" }
+        val request = LoadRequest.builder().freshMode().build()
+
+        val collector = store.observe("k1", request).startCollecting()
+        runCurrent()
+
+        // a fresh subscription must trigger exactly one fetch; the per-key async-query
+        // job must not fire a spurious reload on key activation (see #3).
+        assertResult(StoreResult.Loaded("value-k1-1"), collector.lastItem)
+        assertEquals(1, counter)
+    }
+
+    @Test
+    fun `GIVEN fresh-mode request WHEN re-observed within cache timeout THEN data is re-fetched`() = runFlowTest {
+        var counter = 0
+        val store = storeBuilder().build { key -> "value-$key-${++counter}" }
+        val request = LoadRequest.builder().freshMode().build()
+
+        val collector1 = store.observe("k1", request).startCollecting()
+        runCurrent()
+        assertResult(StoreResult.Loaded("value-k1-1"), collector1.lastItem)
+        collector1.cancel()
+
+        // re-subscribe with the same fresh request while the record is still cached
+        val collector2 = store.observe("k1", request).startCollecting()
+        runCurrent()
+
+        // fresh must ignore the cached value and fetch again
+        assertResult(StoreResult.Loaded("value-k1-2"), collector2.lastItem)
+        assertEquals(2, counter)
     }
 
     @Test

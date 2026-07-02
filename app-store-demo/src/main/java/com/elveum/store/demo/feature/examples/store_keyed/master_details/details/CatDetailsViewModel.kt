@@ -1,10 +1,10 @@
 package com.elveum.store.demo.feature.examples.store_keyed.master_details.details
 
+import com.elveum.container.reducer.combineToReducer
 import com.elveum.store.demo.effects.Toaster
 import com.elveum.store.demo.errors.ErrorFlagRepository
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.model.CatDetails
 import com.elveum.store.demo.ui.AbstractViewModel
-import com.elveum.container.reducer.combineToReducer
 import com.elveum.store.load.StoreResult
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedFactory
@@ -43,14 +43,6 @@ class CatDetailsViewModel @AssistedInject constructor(
                 if (isNonOptimistic) reducer.update { it.copy(isUpdateInProgress = false) }
             }
         }
-    }
-
-    fun tryAgain() {
-        catDetailsRepository.tryAgain(catId)
-    }
-
-    fun refresh() {
-        catDetailsRepository.refresh(catId)
     }
 
     fun toggleErrorFlag() {

@@ -46,10 +46,10 @@ class SimpleQueryStoreTest : AbstractSimpleStoreTest() {
                 delay(10)
                 "value-$query"
             }
-        val collector = store.observe().startCollecting()
+        val collector = store.observe(LoadRequest.Silent).startCollecting()
         advanceTimeBy(11) // first load
 
-        store.submitQueryAsync("q2") // default load request is Silent
+        store.submitQueryAsync("q2") // observer keeps content while the new query loads
 
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loaded("value-q1"), collector.lastItem)
@@ -69,7 +69,7 @@ class SimpleQueryStoreTest : AbstractSimpleStoreTest() {
         val collector = store.observe().startCollecting()
         advanceTimeBy(11) // first load
 
-        store.submitQueryAsync("q2", LoadRequest.Default)
+        store.submitQueryAsync("q2")
 
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loading, collector.lastItem)

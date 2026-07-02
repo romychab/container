@@ -17,7 +17,8 @@ class StoreExtensionsTest : AbstractStoreTest() {
         .setCoroutineScopeFactory(createStoreScopeFactory())
 
     private fun keyedStoreBuilder() = StoreFactory
-        .keyedStoreBuilder<String, String>()
+        .simpleStoreBuilder<String>()
+        .withKeys<String>()
         .setCoroutineScopeFactory(createStoreScopeFactory())
 
     @Test

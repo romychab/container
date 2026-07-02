@@ -1,12 +1,16 @@
 package com.elveum.store.internal.builders.paged
 
+import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.store.builders.BasePagedBuilder
 import com.elveum.store.builders.PagedBuilder
+import com.elveum.store.builders.PagedKeyedBuilder
 import com.elveum.store.builders.PagedQueryBuilder
 import com.elveum.store.builders.PagedSuspendingBuilder
 import com.elveum.store.contracts.PagedContract
-import com.elveum.store.internal.stores.PagedQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.PagedKeyedBuilderImpl
+import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asPagedStore
+import com.elveum.store.internal.stores.common.CorePageFetcher
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedStore
 
@@ -25,6 +29,10 @@ internal class PagedBuilderImpl<P : Any, T : Any>(
         sharedBuilder.setReference(this)
     }
 
+    override fun <Key : Any> withKeys(): PagedKeyedBuilder<Key, P, T> {
+        return PagedKeyedBuilderImpl(sharedBuilder.pageConfig)
+    }
+
     override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): PagedQueryBuilder<Q, P, T> {
         return PagedQueryBuilderImpl(initialQuery, debounceMillis, sharedBuilder.pageConfig)
     }
@@ -38,11 +46,18 @@ internal class PagedBuilderImpl<P : Any, T : Any>(
     }
 
     override fun build(onFetch: suspend (P) -> PagedList<P, T>): PagedStore<T> {
-        return PagedQueryStoreImpl(
+        return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
             initialQuery = Unit,
-            queryDebounceMillis = 0,
             config = sharedBuilder.pageConfig,
-            fetcher = { _, pageKey -> onFetch(pageKey) },
+            fetcher = { _, _, pageKey -> onFetch(pageKey) },
+        ).asPagedStore()
+    }
+
+    override fun buildCustom(loader: suspend PageEmitter<P, T>.(P) -> Unit): PagedStore<T> {
+        return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
+            initialQuery = Unit,
+            config = sharedBuilder.pageConfig,
+            fetcher = CorePageFetcher.Custom { _, _, pageKey  -> loader(pageKey) },
         ).asPagedStore()
     }
 }

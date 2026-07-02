@@ -54,7 +54,7 @@ class LoadTaskManagerTest {
         every { loadTask.lastRealLoader } returns expectedValueLoader
         loadTaskManager.submitNewLoadTask(loadTask)
 
-        val valueLoader = loadTaskManager.getLastRealLoader()
+        val valueLoader = loadTaskManager.getLastLoadTask().lastRealLoader
         assertSame(expectedValueLoader, valueLoader)
     }
 

@@ -80,9 +80,7 @@ internal class LoadTaskManager<T>(
         }
     }
 
-    fun getLastRealLoader() = inputFlow.value.lastRealLoader
-
-    fun getLastRealMetadata() = inputFlow.value.lastRealMetadata
+    fun getLastLoadTask() = inputFlow.value
 
     private suspend fun setOutputValueIfNotCancelled(
         loadTask: LoadTask<T>,

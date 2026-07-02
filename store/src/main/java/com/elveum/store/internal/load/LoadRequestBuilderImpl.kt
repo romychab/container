@@ -1,6 +1,7 @@
 package com.elveum.store.internal.load
 
 import com.elveum.container.LoadConfig
+import com.elveum.container.ReplaceErrorsOnReload
 import com.elveum.store.load.LoadRequestBuilder
 import com.elveum.store.load.LoadRequestKeepContentBuilder
 import com.elveum.store.load.LoadRequestSource
@@ -21,12 +22,20 @@ internal class LoadRequestBuilderImpl : LoadRequestBuilder,
         requestSource = LoadRequestSource.Fresh
     }
 
-    override fun keepContentOnLoad() = apply {
-        config = LoadConfig.SilentLoading
+    override fun keepContentOnLoad(replaceErrorsOnReload: Boolean) = apply {
+        config = if (replaceErrorsOnReload) {
+            LoadConfig.SilentLoading + ReplaceErrorsOnReload
+        } else {
+            LoadConfig.SilentLoading
+        }
     }
 
-    override fun keepContentOnLoadAndError() = apply {
-        config = LoadConfig.SilentLoadingAndError
+    override fun keepContentOnLoadAndError(replaceErrorsOnReload: Boolean) = apply {
+        config = if (replaceErrorsOnReload) {
+            LoadConfig.SilentLoadingAndError + ReplaceErrorsOnReload
+        } else {
+            LoadConfig.SilentLoadingAndError
+        }
     }
 
     override fun build() = LoadRequestImpl(config, requestSource)

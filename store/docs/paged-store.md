@@ -15,6 +15,8 @@ results.
 - [Reloading and Pull-to-Refresh](#reloading-and-pull-to-refresh)
 - [Queries](#queries)
 - [Local Storage](#local-storage)
+- [Custom Loaders](#custom-loaders)
+- [Keyed Paged Stores](#keyed-paged-stores)
 - [Updating Items](#updating-items)
 - [Full Example](#full-example)
 - [API Summary](#api-summary)
@@ -50,8 +52,8 @@ class PhotoRepository(
 }
 ```
 
-In addition to the base `setInMemoryCacheTimeout` / `setCoroutineContext`
-options, paged builders provide `setFetchDistance`:
+In addition to the base `setInMemoryCacheTimeout` / `setCoroutineContext` /
+`setLoadRequest` options, paged builders provide `setFetchDistance`:
 
 ```kotlin
 private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(0, Photo::id)
@@ -97,11 +99,15 @@ onFetch = { pageKey ->
 
 This is a shortcut for attaching `TotalPagedItemsCountMetadata` to the page.
 Read it back from the emitted result via the `totalPagedItemsCount` extension
-property (it returns `-1` when no total count was provided):
+property on `StoreResult` (it returns `-1` when no total count was provided, e.g.
+for non-paged results):
 
 ```kotlin
-val total: Int = result.metadata.totalPagedItemsCount
+val total: Int = result.totalPagedItemsCount
 ```
+
+This is a convenience shortcut for `result.metadata.totalPagedItemsCount`; both
+return the same value.
 
 When pages report different totals, the value from the **most recently loaded
 page** wins. More generally, any `ContainerMetadata` attached to a page is
@@ -172,14 +178,24 @@ Note the difference between the two error channels:
 ## Reloading and Pull-to-Refresh
 
 `invalidate` / `invalidateAsync` reset the pagination and reload from the
-initial key:
+initial key. The emitted `result` can also do this itself via
+`result.invalidate()`, so a dedicated `refresh()` / `tryAgain()` function is
+usually unnecessary:
 
 ```kotlin
-// "try again" after a failed initial load - show the Loading state
-fun tryAgain() = store.invalidateAsync()
+// reload from a Failed result, straight from the UI:
+Button(onClick = result::invalidate) { Text("Try again") }
+```
 
-// pull-to-refresh - keep current items visible while reloading
-fun refresh() = store.invalidateAsync(LoadRequest.Silent)
+Whether the reload shows the `Loading` state or keeps the current items
+visible is decided by the observer's request, not by the invalidation call.
+To keep items on screen during a pull-to-refresh, configure
+`LoadRequest.Silent` as the store's default request:
+
+```kotlin
+private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(0, Photo::id)
+    .setLoadRequest(LoadRequest.Silent) // keep content visible while reloading
+    .build(onFetch = dataSource::fetchPage)
 ```
 
 With `LoadRequest.Silent`, the refresh progress is observable via
@@ -188,7 +204,7 @@ With `LoadRequest.Silent`, the refresh progress is observable via
 ```kotlin
 PullToRefreshBox(
     isRefreshing = result.isBackgroundLoading(),
-    onRefresh = viewModel::refresh,
+    onRefresh = result::invalidate,
 ) { /* LazyColumn */ }
 ```
 
@@ -216,8 +232,9 @@ fun toggleCategory(category: PhotoCategory) {
 ```
 
 As with simple stores, `withQuery` accepts an optional `debounceMillis`
-parameter for search-as-you-type scenarios, and `submitQuery` uses
-`LoadRequest.Silent` by default.
+parameter for search-as-you-type scenarios. `submitQuery` /
+`submitQueryAsync` take no `LoadRequest`; submitting a query keeps the
+previous results visible while the new query loads.
 
 ## Local Storage
 
@@ -258,6 +275,43 @@ private val store = StoreFactory.pagedStoreBuilder<Int, Item>(0, Item::id)
 
 Contract-based `build` overloads are available as well: `PagedContract`,
 `PagedSuspendingContract` and their `Query` variants.
+
+## Custom Loaders
+
+When you need to emit more than one value per page load - for example a
+cached page first, then a fresh one - without wiring up a full local-storage
+layer, use `buildCustom` instead of `build`. On a paged builder the block
+runs with a `PageEmitter` receiver and is given the page key; call
+`emitPage(...)` for every value you want to publish and `emitNextKey(...)`
+to advance the pagination:
+
+```kotlin
+private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(0, Photo::id)
+    .buildCustom { pageKey ->
+        cache.peekPage(pageKey)?.let { emitPage(it.photos) } // show cached page immediately
+        val fresh = dataSource.fetchPage(pageKey)
+        emitPage(fresh.photos)      // then the fresh page
+        emitNextKey(fresh.nextKey)  // key of the next page (null = no more pages)
+    }
+```
+
+`buildCustom` is available on all simple and paged builder variants; it is
+the custom loader for store types that emit values manually without a local
+storage attached.
+
+## Keyed Paged Stores
+
+Call `.withKeys<Key>()` on a paged builder to get a `PagedKeyedStore<Key, T>`
+with independent pagination per key (`onItemRendered(key, index)`); add
+`.withQuery(...)` for a `PagedKeyedQueryStore<Key, Q, T>`:
+
+```kotlin
+private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(0, Photo::id)
+    .withKeys<AlbumId>()
+    .build(onFetch = { albumId, pageKey -> dataSource.fetchPage(albumId, pageKey) })
+```
+
+See [Keyed Store](keyed-store.md) for the keyed store API.
 
 ## Updating Items
 
@@ -302,23 +356,24 @@ class BookRepository(
     private val store = StoreFactory.pagedStoreBuilder<Int, Book>(
         initialKey = 0,
         itemId = Book::id,
-    ).build(onFetch = dataSource::fetchPage)
+    )
+        .setLoadRequest(LoadRequest.Silent) // keep items visible while reloading
+        .build(onFetch = dataSource::fetchPage)
 
     fun getBooks(): Flow<StoreResult<List<Book>>> = store.observe()
-    fun refresh() = store.invalidateAsync(LoadRequest.Silent)
-    fun tryAgain() = store.invalidateAsync()
     fun onItemRendered(index: Int) = store.onItemRendered(index)
+    // no refresh()/tryAgain() needed - the UI reloads via result.invalidate()
 }
 ```
 
 ```kotlin
 when (val result = state) {
     StoreResult.Loading -> CircularProgressIndicator()
-    is StoreResult.Failed -> ErrorScreen(onTryAgain = viewModel::tryAgain)
+    is StoreResult.Failed -> ErrorScreen(onTryAgain = result::invalidate)
     is StoreResult.Loaded -> {
         PullToRefreshBox(
             isRefreshing = result.isBackgroundLoading(),
-            onRefresh = viewModel::refresh,
+            onRefresh = result::invalidate,
         ) {
             LazyColumn {
                 itemsIndexed(result.value, key = { _, book -> book.id }) { index, book ->
@@ -334,15 +389,15 @@ when (val result = state) {
 
 ## API Summary
 
-| Member                                             | Description                                              |
-|----------------------------------------------------|----------------------------------------------------------|
-| `observe(request)`                                 | Observe the merged list as `Flow<StoreResult<List<T>>>`  |
-| `get()`                                            | Read the latest merged-list `StoreResult` synchronously  |
-| `onItemRendered(index)`                            | Report a rendered item; may trigger the next-page load   |
-| `invalidate(request)` / `invalidateAsync(request)` | Reset pagination and reload                              |
-| `optimisticUpdate { }` / `update { }`              | Update the merged list in the cache                      |
-| `updateWith(storeResult)`                          | Replace the cached result with any `StoreResult`         |
-| `whenActive { }`                                   | Run a block while the store has observers                |
-| `queryFlow`, `submitQuery`, `submitQueryAsync`     | Query support (`PagedQueryStore` only)                   |
-| `result.nextPageState`                             | `Idle` / `Pending` / `Error` state of the next-page load |
-| `result.metadata.totalPagedItemsCount`             | Total item count reported via `PagedList(totalCount = …)` |
+| Member                                                           | Description                                                                                         |
+|------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| `observe(request = null)`                                        | Observe the merged list as `Flow<StoreResult<List<T>>>`; `null` uses the configured default request |
+| `get()`                                                          | Read the latest merged-list `StoreResult` synchronously                                             |
+| `onItemRendered(index)`                                          | Report a rendered item; may trigger the next-page load                                              |
+| `invalidate()` / `invalidateAsync()`                             | Reset pagination and reload; observers keep the request they subscribed with                        |
+| `optimisticUpdate { }`                                           | Update the merged list in the cache                                                                 |
+| `updateWith(storeResult)`                                        | Replace the cached result with any `StoreResult`                                                    |
+| `whenActive { }`                                                 | Run a block while the store has observers                                                           |
+| `queryFlow`, `submitQuery`, `submitQueryAsync`                   | Query support (`PagedQueryStore` only)                                                              |
+| `result.nextPageState`                                           | `Idle` / `Pending` / `Error` state of the next-page load                                            |
+| `result.totalPagedItemsCount`                                    | Total item count reported via `PagedList(totalCount = …)` (`-1` if unknown); shortcut for `result.metadata.totalPagedItemsCount` |

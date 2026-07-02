@@ -1,6 +1,7 @@
 package com.elveum.store.demo.feature.examples.store_paged.pagination_args
 
 import com.elveum.store.StoreFactory
+import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -12,6 +13,7 @@ class PhotoRepository @Inject constructor(
 
     private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(initialKey = 0, Photo::id)
         .withQuery<Set<PhotoCategory>>(PhotoCategory.entries.toSet())
+        .setLoadRequest(LoadRequest.Silent)
         .build(
             onFetch = dataSource::fetchPage,
         )

@@ -24,14 +24,6 @@ class PaginationStatusesViewModel @Inject constructor(
         errorFlagRepository.toggleErrorFlag()
     }
 
-    fun refresh() {
-        bookRepository.refresh()
-    }
-
-    fun tryAgain() {
-        bookRepository.tryAgain()
-    }
-
     fun onItemRendered(index: Int) {
         bookRepository.onItemRendered(index)
     }

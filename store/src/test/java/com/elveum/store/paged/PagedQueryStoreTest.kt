@@ -41,7 +41,7 @@ class PagedQueryStoreTest : AbstractPagedStoreTest() {
             collector.lastItem,
         )
 
-        store.submitQueryAsync("q2", LoadRequest.Default)
+        store.submitQueryAsync("q2")
         runCurrent()
 
         // only the first page of the new query is loaded
@@ -57,7 +57,7 @@ class PagedQueryStoreTest : AbstractPagedStoreTest() {
         val collector = store.observe().startCollecting()
         runCurrent()
 
-        store.submitQueryAsync("q2", LoadRequest.Default)
+        store.submitQueryAsync("q2")
         runCurrent()
         store.onItemRendered(1) // the last item of the first page
         runCurrent()

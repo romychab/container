@@ -30,7 +30,7 @@ public typealias SimpleValueLoader<T> = suspend () -> T
  * for flow returned by [LazyFlowSubject.listen] method.
  */
 public fun <T> LazyFlowSubject<T>.newAsyncLoad(
-    config: LoadConfig = LoadConfig.Normal,
+    config: LoadConfig? = null,
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: ValueLoader<T>,
 ) {
@@ -44,7 +44,7 @@ public fun <T> LazyFlowSubject<T>.newAsyncLoad(
  * @see newAsyncLoad
  */
 public fun <T> LazyFlowSubject<T>.reloadAsync(
-    config: LoadConfig = LoadConfig.Normal,
+    config: LoadConfig? = null,
     metadata: ContainerMetadata = EmptyMetadata,
 ) {
     @Suppress("UnusedFlow")
@@ -77,7 +77,7 @@ public inline fun <T> LazyFlowSubject<T>.updateWith(
  * May throw exception if the load fails.
  */
 public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
-    config: LoadConfig = LoadConfig.Normal,
+    config: LoadConfig? = null,
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>,
 ): T {
@@ -95,7 +95,7 @@ public suspend fun <T> LazyFlowSubject<T>.newSimpleLoad(
  * for flow returned by [LazyFlowSubject.listen] method.
  */
 public fun <T> LazyFlowSubject<T>.newSimpleAsyncLoad(
-    config: LoadConfig = LoadConfig.Normal,
+    config: LoadConfig? = null,
     metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: SimpleValueLoader<T>
 ) {

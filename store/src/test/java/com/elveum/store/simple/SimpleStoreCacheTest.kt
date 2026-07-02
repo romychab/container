@@ -90,13 +90,13 @@ class SimpleStoreCacheTest : AbstractSimpleStoreTest() {
     }
 
     @Test
-    fun `GIVEN cached value WHEN invalidate in fresh mode THEN value is re-fetched`() = runFlowTest {
+    fun `GIVEN cached value WHEN invalidate THEN value is re-fetched`() = runFlowTest {
         var counter = 0
         val store = storeBuilder().build { "value${++counter}" }
         val collector = store.observe().startCollecting()
         runCurrent()
 
-        store.invalidateAsync(LoadRequest.builder().freshMode().build())
+        store.invalidateAsync()
         runCurrent()
 
         assertResult(StoreResult.Loaded("value2"), collector.lastItem)

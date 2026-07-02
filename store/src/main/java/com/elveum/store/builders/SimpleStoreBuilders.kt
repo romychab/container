@@ -1,5 +1,6 @@
 package com.elveum.store.builders
 
+import com.elveum.container.Emitter
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleContract
 import com.elveum.store.contracts.SimpleQueryContract
@@ -12,6 +13,7 @@ import com.elveum.store.contracts.SimpleSuspendingContract
 import com.elveum.store.stores.simple.SimpleQueryStore
 import com.elveum.store.stores.simple.SimpleStore
 import kotlinx.coroutines.flow.Flow
+import kotlin.reflect.KClass
 
 /**
  * Builder for creating a [SimpleStore] without local storage (remote-only).
@@ -35,6 +37,16 @@ public interface SimpleBuilder<T : Any> : BaseBuilder<SimpleBuilder<T>> {
      * @return a [SimpleQueryBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryBuilder<Q, T>
+
+    /**
+     * Transitions the builder into a keyed variant: instead of a single value, the
+     * resulting store manages one value per key (like a map of independently-cached
+     * stores). See [SimpleKeyedBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedBuilder<Key, T>
 
     /**
      * Configure a simple store without fetcher. In this case, the store manages only
@@ -73,6 +85,17 @@ public interface SimpleBuilder<T : Any> : BaseBuilder<SimpleBuilder<T>> {
      * @return the configured [SimpleStore].
      */
     public fun build(onFetch: suspend () -> T): SimpleStore<T>
+
+    /**
+     * Builds a [SimpleStore] with a custom loader that emits values manually through an
+     * [Emitter]. This allows emitting more than one value per load (e.g. a cached value
+     * followed by a fresh one) without attaching a full local storage layer.
+     *
+     * @param loader suspending lambda that emits values via [Emitter].
+     * @return the configured [SimpleStore].
+     */
+    public fun buildCustom(loader: suspend Emitter<T>.() -> Unit): SimpleStore<T>
+
 }
 
 /**
@@ -106,6 +129,15 @@ public interface SimpleQueryBuilder<Q : Any, T : Any> : BaseBuilder<SimpleQueryB
     public fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T>
 
     /**
+     * Transitions the builder into a keyed variant that manages one query-driven value
+     * per key. See [SimpleKeyedQueryBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedQueryBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedQueryBuilder<Key, Q, T>
+
+    /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQueryContract] implementation.
      *
      * @param contract the contract defining how remote data is fetched for a given query.
@@ -120,6 +152,15 @@ public interface SimpleQueryBuilder<Q : Any, T : Any> : BaseBuilder<SimpleQueryB
      * @return the configured [SimpleQueryStore].
      */
     public fun build(onFetch: suspend (Q) -> T): SimpleQueryStore<Q, T>
+
+    /**
+     * Builds a [SimpleQueryStore] with a custom loader that emits values manually through
+     * an [Emitter].
+     *
+     * @param loader suspending lambda, receiving the current query, that emits values via [Emitter].
+     * @return the configured [SimpleQueryStore].
+     */
+    public fun buildCustom(loader: suspend Emitter<T>.(Q) -> Unit): SimpleQueryStore<Q, T>
 }
 
 /**
@@ -139,6 +180,15 @@ public interface SimpleSuspendingBuilder<T : Any> : BaseBuilder<SimpleSuspending
      * @return a [SimpleQuerySuspendingBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQuerySuspendingBuilder<Q, T>
+
+    /**
+     * Transitions the builder into a keyed variant with suspending local storage that
+     * manages one value per key. See [SimpleKeyedSuspendingBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedSuspendingBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedSuspendingBuilder<Key, T>
 
     /**
      * Builds a [SimpleStore] using the provided [SimpleSuspendingContract] implementation.
@@ -189,6 +239,15 @@ public interface SimpleReactiveBuilder<T : Any> : BaseBuilder<SimpleReactiveBuil
     public fun disableFetcher(): SimpleReactiveNoFetcherBuilder<T>
 
     /**
+     * Transitions the builder into a keyed variant with reactive local storage that
+     * manages one value per key. See [SimpleKeyedReactiveBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedReactiveBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedReactiveBuilder<Key, T>
+
+    /**
      * Builds a [SimpleStore] using the provided [SimpleReactiveContract] implementation.
      *
      * @param contract the contract defining remote fetch and reactive local storage operations.
@@ -219,6 +278,15 @@ public interface SimpleReactiveBuilder<T : Any> : BaseBuilder<SimpleReactiveBuil
  * @param T the type of data held by the store.
  */
 public interface SimpleQuerySuspendingBuilder<Q : Any, T : Any> : BaseBuilder<SimpleQuerySuspendingBuilder<Q, T>> {
+
+    /**
+     * Transitions the builder into a keyed variant that manages one query-driven value
+     * per key, backed by suspending local storage. See [SimpleKeyedQuerySuspendingBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedQuerySuspendingBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedQuerySuspendingBuilder<Key, Q, T>
 
     /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQuerySuspendingContract] implementation.
@@ -258,6 +326,15 @@ public interface SimpleQueryReactiveBuilder<Q : Any, T : Any> : BaseBuilder<Simp
      * local data via reactive flow (for example, Room or DataStore returning Flow of items).
      */
     public fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T>
+
+    /**
+     * Transitions the builder into a keyed variant that manages one query-driven value
+     * per key, backed by reactive local storage. See [SimpleKeyedQueryReactiveBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedQueryReactiveBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedQueryReactiveBuilder<Key, Q, T>
 
     /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQueryReactiveContract] implementation.
@@ -304,6 +381,15 @@ public interface SimpleReactiveNoFetcherBuilder<T : Any> : BaseBuilder<SimpleRea
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryReactiveNoFetcherBuilder<Q, T>
 
     /**
+     * Transitions the builder into a keyed, fetcher-less variant that manages one
+     * locally-observed value per key. See [SimpleKeyedReactiveNoFetcherBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedReactiveNoFetcherBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedReactiveNoFetcherBuilder<Key, T>
+
+    /**
      * Builds a [SimpleStore] using only a lambda for observing local data (no remote fetches).
      *
      * @param contract the contract defining reactive local storage observations.
@@ -332,6 +418,16 @@ public interface SimpleReactiveNoFetcherBuilder<T : Any> : BaseBuilder<SimpleRea
  */
 public interface SimpleQueryReactiveNoFetcherBuilder<Q : Any, T : Any> :
     BaseBuilder<SimpleQueryReactiveNoFetcherBuilder<Q, T>> {
+
+    /**
+     * Transitions the builder into a keyed, fetcher-less variant that manages one
+     * query-driven, locally-observed value per key. See
+     * [SimpleKeyedQueryReactiveNoFetcherBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [SimpleKeyedQueryReactiveNoFetcherBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): SimpleKeyedQueryReactiveNoFetcherBuilder<Key, Q, T>
 
     /**
      * Builds a [SimpleQueryStore] using the provided [SimpleQueryReactiveNoFetcherContract]

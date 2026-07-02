@@ -23,14 +23,6 @@ class LocalRemotePagedViewModel @Inject constructor(
         errorFlagRepository.toggleErrorFlag()
     }
 
-    fun refresh() {
-        repository.refresh()
-    }
-
-    fun tryAgain() {
-        repository.tryAgain()
-    }
-
     fun onItemRendered(index: Int) {
         repository.onItemRendered(index)
     }

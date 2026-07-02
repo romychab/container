@@ -7,13 +7,13 @@ import com.elveum.container.subject.LazyFlowSubject
  * Function for reloading data encapsulated within [Container] instances
  * emitted by [LazyFlowSubject] or [LazyCache].
  */
-public typealias ReloadFunction = (config: LoadConfig) -> Unit
+public typealias ReloadFunction = (config: LoadConfig?) -> Unit
 
 /**
  * Default empty reload function that does not load anything.
  */
 public val EmptyReloadFunction: ReloadFunction = object : ReloadFunction {
-    override fun invoke(config: LoadConfig) = Unit
+    override fun invoke(config: LoadConfig?) = Unit
 
     override fun toString(): String {
         return "EmptyReloadFunction"

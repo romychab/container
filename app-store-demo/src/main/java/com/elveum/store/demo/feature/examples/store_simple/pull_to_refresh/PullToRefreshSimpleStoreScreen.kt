@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +31,7 @@ import coil.compose.AsyncImage
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 
 @Composable
@@ -42,27 +45,47 @@ fun PullToRefreshSimpleStoreScreen() = DemoScaffold(
     """.trimIndent()
 ) {
     val viewModel: PullToRefreshSimpleStoreViewModel = hiltViewModel()
-    val result by viewModel.stateFlow.collectAsState()
+    val state by viewModel.stateFlow.collectAsState()
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Checkbox(
+            checked = state.isErrorsEnabled,
+            onCheckedChange = { viewModel.toggleErrors() },
+        )
+        Text("Enable Errors")
+    }
 
     PullToRefreshBox(
-        isRefreshing = result.isBackgroundLoading(),
-        onRefresh = viewModel::refresh,
+        isRefreshing = state.catsResult.isBackgroundLoading(),
+        onRefresh = state.catsResult::invalidate,
         modifier = Modifier
             .fillMaxWidth()
             .weight(1f),
     ) {
-        when (val finalResult = result) {
+        when (val finalResult = state.catsResult) {
             StoreResult.Loading -> CircularProgressIndicator(Modifier.align(Alignment.Center))
             is StoreResult.Loaded -> {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
                 ) {
-                    items(finalResult.value.cats) { cat ->
+                    items(finalResult.value) { cat ->
                         CatCard(cat)
                     }
                 }
             }
-            is StoreResult.Failed -> {}
+            is StoreResult.Failed -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Text("Failed to load cats")
+                    Button(onClick = finalResult::invalidate) {
+                        Text("Try Again")
+                    }
+                }
+            }
         }
     }
 }

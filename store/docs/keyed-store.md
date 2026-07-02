@@ -14,6 +14,9 @@ entity fetched by a unique identifier.
 - [Local Storage](#local-storage)
   - [Local-Only Stores (No Fetcher)](#local-only-stores-no-fetcher)
 - [Updating Cached Data](#updating-cached-data)
+- [Keyed Queries](#keyed-queries)
+- [Paged Keyed Stores](#paged-keyed-stores)
+- [Custom Loaders](#custom-loaders)
 - [Combining a List with Keyed Details](#combining-a-list-with-keyed-details)
 - [Synchronizing Stores](#synchronizing-stores)
 - [Sharing a Store Between Screens](#sharing-a-store-between-screens)
@@ -29,18 +32,29 @@ class CatDetailsRepository(
     private val catsDataSource: CatsDataSource,
 ) {
 
-    private val store = StoreFactory.keyedStoreBuilder<Long, CatDetails>()
+    private val store = StoreFactory.simpleStoreBuilder<CatDetails>().withKeys<Long>()
         .build(onFetch = catsDataSource::fetchCatDetails)
 
     fun getCat(id: Long): Flow<StoreResult<CatDetails>> = store.observe(id)
 }
 ```
 
+A keyed store is created by calling `.withKeys<Key>()` on a simple (or
+paged) builder; there is no dedicated `keyedStoreBuilder` factory method.
+`withKeys` is available on all simple and paged builder variants and
+preserves the configuration applied before it (cache timeout, local
+storage choice, query, etc.). The recommended order is: start from
+`simpleStoreBuilder`/`pagedStoreBuilder`, then `.withKeys<Key>()`, then
+storage/query config, then `.build(...)`.
+
 As with all stores, the builder supports `setInMemoryCacheTimeout` and
-`setCoroutineContext`:
+`setCoroutineContext`. `setLoadRequest` is also available and configures
+the default request used when observing a key (both the fixed
+`setLoadRequest(loadRequest)` form and the reactive
+`setLoadRequest(flow)` overload are supported):
 
 ```kotlin
-private val store = StoreFactory.keyedStoreBuilder<Long, ProductDetails>()
+private val store = StoreFactory.simpleStoreBuilder<ProductDetails>().withKeys<Long>()
     .setInMemoryCacheTimeout(10.seconds)
     .setCoroutineContext(Dispatchers.IO)
     .build(onFetch = productsDataSource::fetchProductById)
@@ -61,6 +75,11 @@ This means each screen observing `observe(productId)` gets a shared,
 up-to-date value while it is open, and the memory is reclaimed
 automatically after the screens are closed.
 
+The set of currently active keys - those that have an observer or are
+still within their cache-timeout window - is exposed as
+`activeKeys: StateFlow<Set<Key>>`. It is useful for keeping the loaded
+entries in sync with an external source.
+
 ## Observing and Reloading
 
 All key-less operations of a simple store have keyed counterparts:
@@ -73,20 +92,30 @@ fun getProduct(id: Long): Flow<StoreResult<ProductDetails>> {
 
 // force a reload of a single entity
 suspend fun refreshProduct(id: Long) {
-    store.invalidate(id, LoadRequest.Default)
+    store.invalidate(id)
 }
 
 fun refreshProductAsync(id: Long) {
-    store.invalidateAsync(id, LoadRequest.Silent)
+    store.invalidateAsync(id)
 }
 ```
 
-`observe` and `invalidate` accept a [LoadRequest](load-requests.md)
-controlling how the data is loaded (fresh/offline mode, keeping content
-while reloading).
+`observe` accepts an optional [LoadRequest](load-requests.md) controlling
+how the data is loaded (fresh/offline mode, keeping content while
+reloading); the argument is nullable and, when `null` (the default), the
+store's configured default request is used. `invalidate` and
+`invalidateAsync` no longer take a request: invalidation just triggers a
+reload, and every observer keeps receiving data according to the request
+it subscribed with via `observe(...)` (or the builder default).
+
+For UI-driven reloads (pull-to-refresh, "try again") you often don't need
+these per-key functions at all: the emitted `StoreResult` can reload the key
+it came from via `result.invalidate()` (see
+[Store Results](store-results.md)). Combine it with `LoadRequest.Silent` to
+keep the current content visible while the key reloads.
 
 To read the latest result for a key synchronously (without collecting the
-flow), use `get(key)`:
+flow), use `get(key)` (or `getOrNull(key)` for the unwrapped value):
 
 ```kotlin
 val current: StoreResult<ProductDetails> = store.get(id)
@@ -99,7 +128,7 @@ each callback additionally receives the key:
 
 ```kotlin
 // suspending storage (e.g. DAO with suspend functions)
-private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+private val store = StoreFactory.simpleStoreBuilder<Book>().withKeys<BookId>()
     .addSuspendingLocalStorage()
     .build(
         onFetch = { bookId -> api.fetchBook(bookId) },
@@ -108,7 +137,7 @@ private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
     )
 
 // reactive storage (e.g. Room Flow queries)
-private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+private val store = StoreFactory.simpleStoreBuilder<Book>().withKeys<BookId>()
     .addReactiveLocalStorage()
     .build(
         onFetch = { bookId -> api.fetchBook(bookId) },
@@ -120,8 +149,9 @@ private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
 With reactive storage, any change of the keyed record in the local storage
 is automatically delivered to the observers of that key.
 
-Contract-based `build` overloads are available too: `KeyedContract`,
-`KeyedSuspendingContract`, `KeyedReactiveContract`.
+Contract-based `build` overloads are available too: `SimpleKeyedContract`,
+`SimpleKeyedSuspendingContract`, `SimpleKeyedReactiveContract` (the
+reactive contract's observe method is `observeLocalStorage(key)`).
 
 ### Local-Only Stores (No Fetcher)
 
@@ -130,7 +160,7 @@ reactive storage, call `disableFetcher()` and provide just an `onObserve`
 lambda returning the local `Flow<T>` for a key:
 
 ```kotlin
-private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+private val store = StoreFactory.simpleStoreBuilder<Book>().withKeys<BookId>()
     .disableFetcher()
     .build(onObserve = { bookId -> dao.observeBook(bookId) }) // (Key) -> Flow<T>
 ```
@@ -139,14 +169,14 @@ For each observed key the store subscribes to the flow and exposes its
 values as `StoreResult`: the first emission moves the key from `Loading` to
 `Loaded`, and every later emission is delivered to the observers of that key.
 There is no remote fetch and no save step. A contract overload backed by
-`KeyedReactiveNoFetcherContract` is available as well:
+`SimpleKeyedReactiveNoFetcherContract` is available as well:
 
 ```kotlin
-class BooksDataSource : KeyedReactiveNoFetcherContract<BookId, Book> {
+class BooksDataSource : SimpleKeyedReactiveNoFetcherContract<BookId, Book> {
     override fun observe(key: BookId): Flow<Book> = dao.observeBook(key)
 }
 
-private val store = StoreFactory.keyedStoreBuilder<BookId, Book>()
+private val store = StoreFactory.simpleStoreBuilder<Book>().withKeys<BookId>()
     .disableFetcher()
     .build(BooksDataSource())
 ```
@@ -168,15 +198,21 @@ suspend fun updateCatName(id: Long, name: String) {
 }
 ```
 
-The plain `update(key)` extension applies a transformation without
-optimistic semantics:
+To apply a read-modify-write transform to a key's currently loaded value
+without optimistic semantics, use `updateIfSuccess(key)`. It reads the current
+value, applies your transform and writes it back; if the key is not currently
+holding a loaded value the transform is not invoked:
 
 ```kotlin
 suspend fun markAsRead(bookId: BookId) {
     dao.markAsRead(bookId)
-    store.update(bookId) { it.copy(isRead = true) }
+    store.updateIfSuccess(bookId) { it.copy(isRead = true) }
 }
 ```
+
+> `updateIfSuccess` replaced the old `update(key) { }` extension. It was
+> renamed to make explicit that the transform runs **only when the key's
+> current value is `Loaded`**.
 
 To replace the cached result for a key entirely - including switching to a
 `Loading` or `Failed` state, or seeding a value without a previous one - use
@@ -185,6 +221,98 @@ To replace the cached result for a key entirely - including switching to a
 ```kotlin
 store.updateWith(id, StoreResult.Loaded(productDetails))
 ```
+
+> All of `optimisticUpdate(key)`, `updateIfSuccess(key)`, `submitQuery(key, …)`
+> and `submitQueryAsync(key, …)` operate on a key's **in-memory cache, which
+> exists only while that key has at least one active observer** (plus the cache
+> timeout after the last observer unsubscribes). Calling them for a key that is
+> not currently observed does nothing - start observing the key (and let it
+> load) first.
+
+## Keyed Queries
+
+Adding `.withQuery(initialQuery)` to a keyed builder produces a
+`KeyedQueryStore<Key, Q, T>`, where every key holds its own independent
+query. The fetcher receives both the key and the current query for that
+key:
+
+```kotlin
+private val store = StoreFactory.simpleStoreBuilder<List<Review>>()
+    .withKeys<ProductId>()
+    .withQuery(ReviewQuery(sort = Sort.Newest), debounceMillis = 0)
+    .build(onFetch = { productId, query -> api.fetchReviews(productId, query) })
+
+// observe the current query for a key
+fun observeSort(productId: ProductId): StateFlow<ReviewQuery> =
+    store.observeQueryFlow(productId)
+
+// change the query for a single key (each key is independent)
+suspend fun setSort(productId: ProductId, query: ReviewQuery) {
+    store.submitQuery(productId, query)
+}
+
+fun setSortAsync(productId: ProductId, query: ReviewQuery) {
+    store.submitQueryAsync(productId, query)
+}
+```
+
+Submitting a new query for a key reloads only that key. Like
+`invalidate`, `submitQuery`/`submitQueryAsync` do not accept a
+`LoadRequest`. Contract-based overloads are available too:
+`SimpleKeyedQueryContract`, `SimpleKeyedQuerySuspendingContract`,
+`SimpleKeyedQueryReactiveContract`,
+`SimpleKeyedQueryReactiveNoFetcherContract`.
+
+## Paged Keyed Stores
+
+Calling `.withKeys<Key>()` on a [paged builder](paged-store.md) produces a
+`PagedKeyedStore<Key, T>`: each key owns an independent, incrementally
+paginated list.
+
+```kotlin
+private val store = StoreFactory
+    .pagedStoreBuilder<PageKey, Comment>(
+        initialKey = PageKey(page = 0),
+        itemId = { it.id },
+    )
+    .withKeys<ArticleId>()
+    .build(onFetch = { articleId, pageKey -> api.fetchComments(articleId, pageKey) })
+
+fun observeComments(articleId: ArticleId): Flow<StoreResult<List<Comment>>> =
+    store.observe(articleId)
+
+// request the next page for a key as its items are rendered
+fun onCommentRendered(articleId: ArticleId, index: Int) {
+    store.onItemRendered(articleId, index)
+}
+```
+
+Adding `.withQuery(...)` as well produces a
+`PagedKeyedQueryStore<Key, Q, T>`, combining per-key pagination with a
+per-key query. Contract-based overloads include `PagedKeyedContract`,
+`PagedKeyedSuspendingContract`, `PagedKeyedQueryContract`, and
+`PagedKeyedQuerySuspendingContract` (paged-keyed suspending contracts use
+the method names `fetch`, `saveToLocalStorage`, `loadFromLocalStorage`).
+
+## Custom Loaders
+
+When a store has no local storage attached but you still need to emit more
+than one value per load - for example a cached value first and then a
+fresh one - use `buildCustom { }` instead of `build(...)`. The block runs
+per key with an `Emitter<T>` receiver:
+
+```kotlin
+private val store = StoreFactory.simpleStoreBuilder<CatDetails>().withKeys<Long>()
+    .buildCustom { key ->
+        // this: Emitter<CatDetails>
+        emit(catsDataSource.loadCachedCat(key)) // first, the cached value
+        emit(catsDataSource.fetchCatDetails(key)) // then the fresh one
+    }
+```
+
+For query stores the block also receives the current query; for paged
+builders it receives the page key and exposes a `PageEmitter`
+(`emitPage(...)`, `emitNextKey(...)`).
 
 ## Combining a List with Keyed Details
 
@@ -201,7 +329,7 @@ class BasicItemsRepository(
     private val listStore = StoreFactory.simpleStoreBuilder<List<Item>>()
         .build(onFetch = dataSource::fetchItems)
 
-    private val descriptionStore = StoreFactory.keyedStoreBuilder<Long, String>()
+    private val descriptionStore = StoreFactory.simpleStoreBuilder<String>().withKeys<Long>()
         .build(onFetch = dataSource::fetchDescription)
 
     fun getItems(): Flow<StoreResult<List<ListItem>>> {
@@ -236,7 +364,7 @@ class CatDetailsRepository(
     private val catsDataSource: CatsDataSource,
 ) : CatEvents {
 
-    private val store = StoreFactory.keyedStoreBuilder<Long, CatDetails>()
+    private val store = StoreFactory.simpleStoreBuilder<CatDetails>().withKeys<Long>()
         .build(onFetch = catsDataSource::fetchCatDetails)
 
     private val catEvents = MutableSharedFlow<CatUpdatedEvent>()
@@ -327,12 +455,22 @@ other screen observing the cart, with no manual propagation.
 
 ## API Summary
 
-| Member                                                       | Description                                                       |
-|--------------------------------------------------------------|-------------------------------------------------------------------|
-| `observe(key, request)`                                      | Fetch and observe the value for `key`                             |
-| `get(key)`                                                   | Read the latest `StoreResult<T>` for `key` synchronously          |
-| `invalidate(key, request)` / `invalidateAsync(key, request)` | Force a reload of one key                                         |
-| `optimisticUpdate(key) { }`                                  | Update one key's cache ahead of the real update, with auto-revert |
-| `update(key) { }`                                            | Plain cache update for one key (extension)                        |
-| `updateWith(key, storeResult)`                               | Replace the cached result for `key` with any `StoreResult`        |
-| `whenActive { }`                                             | Run a block while the store has observers (any key)               |
+Keyed stores are created with `simpleStoreBuilder<T>().withKeys<Key>()`
+(or `pagedStoreBuilder<PageKey, T>(...).withKeys<Key>()`); there is no
+`keyedStoreBuilder` factory. Adding `.withQuery(...)` yields a
+`KeyedQueryStore` (or `PagedKeyedQueryStore`).
+
+| Member                                          | Description                                                       |
+|-------------------------------------------------|-------------------------------------------------------------------|
+| `observe(key, request? = null)`                 | Fetch and observe the value for `key` (request is optional)       |
+| `get(key)` / `getOrNull(key)`                   | Read the latest result (or unwrapped value) for `key`             |
+| `failureOrNull(key)`                            | Read the latest failure for `key`, or `null`                      |
+| `invalidate(key)` / `invalidateAsync(key)`      | Force a reload of one key (no request argument)                   |
+| `optimisticUpdate(key) { }`                     | Update one key's cache ahead of the real update, with auto-revert |
+| `updateIfSuccess(key) { old -> new }`           | Read-modify-write one key; no-op unless its value is `Loaded`     |
+| `updateWith(key, storeResult)`                  | Replace the cached result for `key` with any `StoreResult`        |
+| `activeKeys`                                     | `StateFlow<Set<Key>>` of currently active keys                    |
+| `whenActive { }`                                | Run a block while the store has observers (any key)               |
+| `observeQueryFlow(key)`                         | Keyed-query: observe the current query for `key`                  |
+| `submitQuery(key, query)` / `submitQueryAsync(key, query)` | Keyed-query: change the query for one key (no request) |
+| `onItemRendered(key, index)`                    | Paged-keyed: request the next page for `key` as items are shown   |

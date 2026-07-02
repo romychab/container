@@ -1,6 +1,6 @@
 package com.elveum.store.keyed
 
-import com.elveum.store.contracts.KeyedReactiveNoFetcherContract
+import com.elveum.store.contracts.SimpleKeyedReactiveNoFetcherContract
 import com.elveum.store.load.StoreResult
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -42,7 +42,7 @@ class KeyedStoreNoFetcherTest : AbstractKeyedStoreTest() {
 
     @Test
     fun `GIVEN no-fetcher keyed store built from a contract WHEN observe a key THEN emit the value from the contract flow`() = runFlowTest {
-        val contract = object : KeyedReactiveNoFetcherContract<String, String> {
+        val contract = object : SimpleKeyedReactiveNoFetcherContract<String, String> {
             override fun observe(key: String): Flow<String> = MutableStateFlow("value-$key")
         }
         val store = storeBuilder()

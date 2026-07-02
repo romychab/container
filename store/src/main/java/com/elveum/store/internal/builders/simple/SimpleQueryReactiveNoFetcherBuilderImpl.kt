@@ -1,11 +1,14 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleKeyedQueryReactiveNoFetcherBuilder
 import com.elveum.store.builders.SimpleQueryReactiveNoFetcherBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleQueryReactiveNoFetcherContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
 import com.elveum.store.internal.builders.SharedConfig
-import com.elveum.store.internal.stores.SimpleQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.SimpleKeyedQueryReactiveNoFetcherBuilderImpl
+import com.elveum.store.internal.stores.KeyedQueryStoreImpl
+import com.elveum.store.internal.stores.asSimpleQueryStore
 import com.elveum.store.stores.simple.SimpleQueryStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -21,6 +24,10 @@ internal class SimpleQueryReactiveNoFetcherBuilderImpl<Q : Any, T : Any>(
         sharedBuilder.setReference(this)
     }
 
+    override fun <Key : Any> withKeys(): SimpleKeyedQueryReactiveNoFetcherBuilder<Key, Q, T> {
+        return SimpleKeyedQueryReactiveNoFetcherBuilderImpl(initialQuery, queryDebounceMillis, config)
+    }
+
     override fun build(contract: SimpleQueryReactiveNoFetcherContract<Q, T>): SimpleQueryStore<Q, T> {
         return build(
             onObserve = { contract.observe(it) }
@@ -28,14 +35,14 @@ internal class SimpleQueryReactiveNoFetcherBuilderImpl<Q : Any, T : Any>(
     }
 
     override fun build(onObserve: (Q) -> Flow<T>): SimpleQueryStore<Q, T> {
-        return SimpleQueryStoreImpl(
+        return KeyedQueryStoreImpl<Unit, Q, T>(
             initialQuery = initialQuery,
             queryDebounceMillis = queryDebounceMillis,
             config = config,
-            fetcher = { onObserve(it).first() },
-            saver = { _, _ -> },
-            observer = { onObserve(it) }
-        )
+            fetcher = { _, query -> onObserve(query).first() },
+            saver = { _, _, _ -> },
+            observer = { _, query -> onObserve(query) }
+        ).asSimpleQueryStore()
     }
 
 }

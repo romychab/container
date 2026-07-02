@@ -65,7 +65,7 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun newLoad(
-        config: LoadConfig,
+        config: LoadConfig?,
         metadata: ContainerMetadata,
         valueLoader: ValueLoader<T>,
     ): Flow<T> {
@@ -78,11 +78,13 @@ internal class LazyFlowSubjectImpl<T>(
 
     override fun updateWith(container: Container<T>) = synchronized(loadTaskManager) {
         if (loadTaskManager.interceptByLoader(container)) return@synchronized
+        val lastLoadTask = loadTaskManager.getLastLoadTask()
         loadTaskManager.submitNewLoadTask(
             LoadTask.Instant(
                 initialContainer = container,
-                lastRealLoader = loadTaskManager.getLastRealLoader(),
-                lastRealMetadata = loadTaskManager.getLastRealMetadata(),
+                lastRealLoader = lastLoadTask.lastRealLoader,
+                lastRealMetadata = lastLoadTask.lastRealMetadata,
+                lastLoadConfig = lastLoadTask.lastLoadConfig,
             )
         )
     }
@@ -102,14 +104,15 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     override fun reload(
-        config: LoadConfig,
+        config: LoadConfig?,
         metadata: ContainerMetadata,
     ): Flow<T> = synchronized(loadTaskManager) {
-        loadTaskManager.getLastRealLoader()?.let { lastLoader ->
+        val lastLoadTask = loadTaskManager.getLastLoadTask()
+        lastLoadTask.lastRealLoader?.let { lastLoader ->
             doNewLoad(
                 config = config,
                 valueLoader = lastLoader,
-                metadata = loadTaskManager.getLastRealMetadata() +
+                metadata = lastLoadTask.lastRealMetadata +
                         LoadTriggerMetadata(LoadTrigger.Reload) +
                         IsReloadDependenciesMetadata(true) +
                         metadata,
@@ -135,11 +138,12 @@ internal class LazyFlowSubjectImpl<T>(
     }
 
     private fun doNewLoad(
-        config: LoadConfig,
+        config: LoadConfig?,
         valueLoader: ValueLoader<T>,
         metadata: ContainerMetadata,
     ): Flow<T> = synchronized(loadTaskManager) {
-        val loadTaskRecord = loadTaskFactory.create(config, valueLoader, metadata)
+        val finalConfig = config ?: loadTaskManager.getLastLoadTask().lastLoadConfig
+        val loadTaskRecord = loadTaskFactory.create(finalConfig, valueLoader, metadata)
         loadTaskManager.submitNewLoadTask(loadTaskRecord.loadTask)
         loadTaskRecord.flowSubject.flow()
     }
@@ -165,7 +169,13 @@ internal class LazyFlowSubjectImpl<T>(
         scope = coroutineScopeFactory.createScope()
             .also { scope ->
                 flowDependencyStore.initialize(scope) { reloadDependencies ->
-                    reloadAsync(LoadConfig.SilentLoading, metadata = IsReloadDependenciesMetadata(reloadDependencies))
+                    // Dependency-triggered reloads must keep the currently displayed value
+                    // visible (silent refresh) instead of resetting to Pending, regardless of
+                    // the subject's configured default LoadConfig.
+                    reloadAsync(
+                        config = LoadConfig.SilentLoading,
+                        metadata = IsReloadDependenciesMetadata(reloadDependencies),
+                    )
                 }
                 loadTaskManager.startProcessingLoads(
                     scope = scope,

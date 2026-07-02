@@ -9,7 +9,6 @@ import com.elveum.store.load.StoreResult
 import com.elveum.store.load.getOrNull
 import com.elveum.store.load.storeListFlatMapLatest
 import com.elveum.store.load.storeMap
-import com.elveum.store.stores.base.update
 import kotlinx.coroutines.flow.Flow
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -91,7 +90,7 @@ class CartRepository @Inject constructor(
 
     suspend fun clear() {
         cartDataSource.clear()
-        store.update { emptyList() }
+        store.updateWith(StoreResult.Loaded(emptyList()))
     }
 
     private fun List<CartItem>.updateQuantity(
@@ -107,10 +106,6 @@ class CartRepository @Inject constructor(
         } else {
             this
         }
-    }
-
-    fun tryAgain() {
-        store.invalidateAsync()
     }
 
     interface ProductDetailsObserver {

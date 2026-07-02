@@ -30,6 +30,7 @@ internal class MockLoadTask private constructor(
 
     override var lastRealLoader: ValueLoader<String>? = null
     override val lastRealMetadata: ContainerMetadata = EmptyMetadata
+    override val lastLoadConfig: LoadConfig = LoadConfig.Normal
 
     constructor(
         scope: TestScope,

@@ -17,11 +17,7 @@ class CatsRepository @Inject constructor(
             onFetch = catsDataSource::fetchCats
         )
 
-    fun getCats(): Flow<StoreResult<List<Cat>>> = store.observe()
-
-    fun refresh() {
-        store.invalidateAsync(LoadRequest.Silent)
-    }
+    fun getCats(): Flow<StoreResult<List<Cat>>> = store.observe(LoadRequest.Silent)
 
     data class Cat(
         val id: Long,

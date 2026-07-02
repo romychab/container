@@ -1,8 +1,10 @@
 package com.elveum.container.factory
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.cache.CacheValueLoader
-import com.elveum.container.cache.ValueLoaderFactory
 import com.elveum.container.cache.LazyCache
+import com.elveum.container.cache.LazyFlowSubjectFactory
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -19,6 +21,8 @@ public open class DefaultSubjectFactory(
         reloadDependenciesPeriodMillis: Long?,
         coroutineScopeFactory: CoroutineScopeFactory?,
         transformation: ContainerTransformation<T>?,
+        loadConfig: LoadConfig,
+        metadata: ContainerMetadata,
         valueLoader: ValueLoader<T>
     ): LazyFlowSubject<T> {
         return LazyFlowSubject.create(
@@ -27,6 +31,8 @@ public open class DefaultSubjectFactory(
             cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
             transformation = transformation ?: transformationFactory.create(),
+            loadConfig = loadConfig,
+            metadata = metadata,
         )
     }
 
@@ -35,6 +41,8 @@ public open class DefaultSubjectFactory(
         reloadDependenciesPeriodMillis: Long?,
         coroutineScopeFactory: CoroutineScopeFactory?,
         transformation: ContainerTransformation<T>?,
+        loadConfig: LoadConfig,
+        metadata: ContainerMetadata,
         valueLoader: CacheValueLoader<Arg, T>
     ): LazyCache<Arg, T> {
         return LazyCache.create(
@@ -43,22 +51,20 @@ public open class DefaultSubjectFactory(
             reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
             transformation = transformation ?: transformationFactory.create(),
+            loadConfig = loadConfig,
+            metadata = metadata,
         )
     }
 
     override fun <Arg, T> createCacheFromFactory(
         cacheTimeoutMillis: Long?,
-        reloadDependenciesPeriodMillis: Long?,
         coroutineScopeFactory: CoroutineScopeFactory?,
-        transformation: ContainerTransformation<T>?,
-        valueLoaderFactory: ValueLoaderFactory<Arg, T>
+        factory: LazyFlowSubjectFactory<Arg, T>
     ): LazyCache<Arg, T> {
         return LazyCache.createFromFactory(
-            valueLoaderFactory = valueLoaderFactory,
-            cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
-            reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
-            coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
-            transformation = transformation ?: transformationFactory.create(),
+            cacheTimeoutMillis ?: this.cacheTimeoutMillis,
+            coroutineScopeFactory ?: this.coroutineScopeFactory,
+            factory,
         )
     }
 

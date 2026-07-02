@@ -89,7 +89,7 @@ public val ContainerMetadata.loadTrigger: LoadTrigger
 public val ContainerMetadata.isReloadDependencies: Boolean
     get() = get<IsReloadDependenciesMetadata>()?.isReloadDependencies ?: false
 
-public fun ContainerMetadata.reload(config: LoadConfig) {
+public fun ContainerMetadata.reload(config: LoadConfig?) {
     reloadFunction.invoke(config)
 }
 

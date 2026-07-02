@@ -344,7 +344,7 @@ class ContainerMetadataTest {
 
     @Test
     fun reloadFunction_whenReloadCalled_isExecuted() {
-        val fn: ReloadFunction = mockk<(LoadConfig) -> Unit>(relaxed = true)
+        val fn: ReloadFunction = mockk<(LoadConfig?) -> Unit>(relaxed = true)
         val metadata = ReloadFunctionMetadata(fn)
 
         metadata.reload(LoadConfig.SilentLoadingAndError)

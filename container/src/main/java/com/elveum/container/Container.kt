@@ -32,7 +32,7 @@ public sealed class Container<out T> {
      *
      * @param config defines how the loading state will be propagated to subsequent containers.
      */
-    public abstract fun reload(config: LoadConfig)
+    public abstract fun reload(config: LoadConfig?)
 
     /**
      * Reload data encapsulated by container.
@@ -114,7 +114,7 @@ public sealed class Container<out T> {
         override val sourceType: SourceType = UnknownSourceType
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Pending = Pending
         override fun raw(): Pending = Pending
-        override fun reload(config: LoadConfig): Unit = Unit
+        override fun reload(config: LoadConfig?): Unit = Unit
         override fun reload(): Unit = Unit
     }
 

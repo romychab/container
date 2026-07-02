@@ -15,6 +15,7 @@ shopping cart, non-paged lists.
   - [Reactive Local Storage](#reactive-local-storage)
   - [Contracts](#contracts)
   - [Local-Only Stores (No Fetcher)](#local-only-stores-no-fetcher)
+- [Custom Loaders](#custom-loaders)
 - [Queries](#queries)
 - [Updating Cached Data](#updating-cached-data)
 - [Reacting to Store Activity](#reacting-to-store-activity)
@@ -36,12 +37,13 @@ class UserProfileRepository(
 }
 ```
 
-The builder supports two base options before `build`:
+The builder supports a few base options before `build`:
 
 ```kotlin
 private val store = StoreFactory.simpleStoreBuilder<UserProfile>()
     .setInMemoryCacheTimeout(60.seconds)  // default: 5 seconds
     .setCoroutineContext(Dispatchers.IO)  // context used by fetch/storage calls
+    .setLoadRequest(LoadRequest.Silent)   // default request for observe/invalidate/invalidateAsync
     .build(onFetch = dataSource::fetchUserProfile)
 ```
 
@@ -102,25 +104,31 @@ suspend fun refresh() = store.invalidate()
 fun reload() = store.invalidateAsync()
 ```
 
-Both accept a [LoadRequest](load-requests.md). The most common pattern is
-pull-to-refresh, where the old content should stay visible while
-reloading:
+Neither takes a [LoadRequest](load-requests.md) - a reload just re-runs the
+load, and every observer keeps receiving data according to the request it
+subscribed with via `observe(...)` (or the builder default). The most
+common pattern is pull-to-refresh, where the old content should stay
+visible while reloading; configure that with `LoadRequest.Silent` on the
+observer (or as the builder default):
 
 ```kotlin
-fun refresh() {
-    store.invalidateAsync(LoadRequest.Silent)
-}
+fun getUserProfile() = store.observe(LoadRequest.Silent)
 ```
 
-In the UI, the in-progress refresh can be detected via
-`result.isBackgroundLoading()`:
+That is usually all the repository/ViewModel needs: the emitted result can
+reload the store itself via `result.invalidate()`, so the UI drives both
+pull-to-refresh and "try again" without a dedicated `refresh()` function. The
+in-progress refresh is detected via `result.isBackgroundLoading()`:
 
 ```kotlin
 PullToRefreshBox(
     isRefreshing = result.isBackgroundLoading(),
-    onRefresh = viewModel::refresh,
+    onRefresh = result::invalidate,   // no ViewModel refresh function needed
 ) { /* list content */ }
 ```
+
+An explicit `store.invalidate()` / `invalidateAsync()` is still available for
+cases where you need to reload without a result in hand.
 
 ## Local Storage
 
@@ -247,6 +255,27 @@ private val store = StoreFactory.simpleStoreBuilder<List<Note>>()
     .build(onObserve = { query -> notesDao.observeNotes(query) })
 ```
 
+## Custom Loaders
+
+When you don't need a full local-storage layer but still want to emit more
+than one value per load, use `buildCustom { }` instead of `build(...)`. The
+lambda runs as an `Emitter<T>` on each load and can call `emit(...)` several
+times - for example a cached value first, then a fresh one:
+
+```kotlin
+private val store = StoreFactory.simpleStoreBuilder<UserProfile>()
+    .buildCustom {
+        // this: Emitter<UserProfile>
+        cache.peek()?.let { emit(it) } // show the cached value immediately (optional)
+        emit(api.fetchUserProfile())   // then the fresh value
+    }
+```
+
+`buildCustom` is available on remote-only (no local storage) simple builders.
+With `withQuery`, the lambda also receives the current query; the keyed and
+paged variants receive the key / page key (see
+[Keyed Store](keyed-store.md) and [Paged Store](paged-store.md)).
+
 ## Queries
 
 `withQuery` turns a `SimpleStore<T>` into a `SimpleQueryStore<Q, T>` whose
@@ -282,11 +311,10 @@ Key points:
   data source.
 - `queryFlow` is a `StateFlow<Q>` holding the current query - useful for
   rendering the active filter in the UI.
-- `submitQuery(query, loadRequest)` suspends until the load triggered by
-  the query finishes; `submitQueryAsync` is the fire-and-forget version.
-- The default `loadRequest` of `submitQuery` is `LoadRequest.Silent`, so
-  the previous content stays visible while results for the new query are
-  loading. Pass `LoadRequest.Default` to show the `Loading` state instead.
+- `submitQuery(query)` suspends until the load triggered by the query
+  finishes; `submitQueryAsync` is the fire-and-forget version. Neither
+  takes a `LoadRequest` - the loading behaviour follows the request each
+  observer subscribed with via `observe(...)` (or the builder default).
 
 ## Updating Cached Data
 
@@ -317,21 +345,45 @@ suspend fun toggleLike(image: GalleryImage) {
 }
 ```
 
+`optimisticUpdate` is a no-op if there is no loaded value in the cache yet.
+More generally, `optimisticUpdate`, `updateIfSuccess`, `submitQuery` and
+`submitQueryAsync` all operate on the **in-memory cache, which exists only
+while the store has at least one active observer** (plus the configured
+cache timeout after the last observer unsubscribes). Calling them for a store
+that is not currently observed does nothing - start observing the store (and
+let the value load) before updating or querying it.
+
+When the real data source has already been updated and you only need to apply
+a read-modify-write transform to the currently loaded value, use
+`updateIfSuccess`. It reads the current value, applies your transform and
+writes it back; if the store is not currently holding a loaded value the
+transform is not invoked:
+
+```kotlin
+suspend fun renameProfile(newName: String) {
+    dataSource.renameProfile(newName)
+    store.updateIfSuccess { it.copy(name = newName) }
+}
+```
+
+> `updateIfSuccess` replaced the old `update { }` extension. It was renamed to
+> make explicit that the transform runs **only when the current value is
+> `Loaded`** - the old name led some callers to assume it always applied.
+
 When the real data source has already been updated and you only need to
-reflect the change in the cache, use the simpler `update` extension:
+reflect the change in the cache regardless of the current state, use
+`updateWith`, which sets the given `StoreResult` into the in-memory cache and
+emits it to observers immediately:
 
 ```kotlin
 suspend fun clear() {
     cartDataSource.clear()
-    store.update { emptyList() }
+    store.updateWith(StoreResult.Loaded(emptyList()))
 }
 ```
 
-Both calls are no-ops if there is no loaded value in the cache yet.
-
-To replace the cached result entirely - including switching to a `Loading`
-or `Failed` state - use `updateWith`, which sets the given `StoreResult`
-into the in-memory cache and emits it to observers immediately:
+`updateWith` can also replace the cached result entirely - including
+switching to a `Loading` or `Failed` state:
 
 ```kotlin
 // push a value loaded elsewhere straight into the cache
@@ -341,8 +393,8 @@ store.updateWith(StoreResult.Loaded(profile))
 store.updateWith(StoreResult.Failed(exception))
 ```
 
-Unlike `update` / `optimisticUpdate`, `updateWith` does not depend on a
-previously loaded value and accepts any `StoreResult`.
+Unlike `optimisticUpdate`, `updateWith` does not depend on a previously
+loaded value and accepts any `StoreResult`.
 
 ## Reacting to Store Activity
 
@@ -369,13 +421,13 @@ master-detail synchronization example.
 
 ## API Summary
 
-| Member                                             | Description                                                 |
-|----------------------------------------------------|-------------------------------------------------------------|
-| `observe(request)`                                 | Observe the cached value as `Flow<StoreResult<T>>`          |
-| `get()`                                            | Read the latest `StoreResult<T>` synchronously              |
-| `invalidate(request)` / `invalidateAsync(request)` | Force a reload                                              |
-| `optimisticUpdate { }`                             | Update the cache ahead of the real update, with auto-revert |
-| `update { }`                                       | Plain cache update (extension on top of `optimisticUpdate`) |
-| `updateWith(storeResult)`                          | Replace the cached result with any `StoreResult`            |
-| `whenActive { }`                                   | Run a block while the store has observers                   |
-| `queryFlow`, `submitQuery`, `submitQueryAsync`     | Query support (`SimpleQueryStore` only)                     |
+| Member                                                           | Description                                                                                    |
+|------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
+| `observe(request = null)`                                        | Observe the cached value as `Flow<StoreResult<T>>`; `null` uses the configured default request |
+| `get()`                                                          | Read the latest `StoreResult<T>` synchronously                                                 |
+| `invalidate()` / `invalidateAsync()`                             | Force a reload (no request argument)                                                           |
+| `optimisticUpdate { }`                                           | Update the cache ahead of the real update, with auto-revert (needs an active observer)         |
+| `updateIfSuccess { old -> new }`                                 | Read-modify-write the cached value; no-op unless the current value is `Loaded`                 |
+| `updateWith(storeResult)`                                        | Replace the cached result with any `StoreResult`                                               |
+| `whenActive { }`                                                 | Run a block while the store has observers                                                      |
+| `queryFlow`, `submitQuery(query)`, `submitQueryAsync(query)`     | Query support (`SimpleQueryStore` only)                                                        |

@@ -11,21 +11,13 @@ import javax.inject.Inject
 
 @HiltViewModel
 class BasicItemsViewModel @Inject constructor(
-    private val repository: BasicItemsRepository,
+    repository: BasicItemsRepository,
 ) : AbstractViewModel() {
 
     val stateFlow: StateFlow<StoreResult<State>> = repository
         .getItems()
         .storeMap(::State)
         .stateIn(StoreResult.Loading)
-
-    fun refresh() {
-        repository.refresh()
-    }
-
-    fun tryAgain() {
-        repository.tryAgain()
-    }
 
     data class State(
         val items: List<ListItem>,

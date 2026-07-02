@@ -1,10 +1,11 @@
 package com.elveum.store.demo.feature.examples.store_simple.combined
 
-import com.elveum.store.demo.errors.ErrorFlagProvider
 import com.elveum.store.StoreFactory
+import com.elveum.store.demo.errors.ErrorFlagProvider
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -12,12 +13,24 @@ import javax.inject.Singleton
 class GalleryRepository @Inject constructor(
     private val localSource: LocalGalleryDataSource,
     private val remoteSource: RemoteGalleryDataSource,
-    private val errorFlagProvider: ErrorFlagProvider,
+    errorFlagProvider: ErrorFlagProvider,
 ) {
+
+    private val loadRequestFlow = errorFlagProvider.isKeepContentOnErrorFlagEnabled()
+        .map {isKeepContentOnError ->
+            LoadRequest.builder().run {
+                if (isKeepContentOnError) {
+                    keepContentOnLoadAndError()
+                } else {
+                    keepContentOnLoad()
+                }
+            }.build()
+        }
 
     private val store = StoreFactory.simpleStoreBuilder<List<GalleryImage>>()
         .addSuspendingLocalStorage()
         .withQuery(initialQuery = "", debounceMillis = 500)
+        .setLoadRequest(loadRequestFlow)
         .build(
             onFetch = remoteSource::fetchImages,
             onSaveToStorage = localSource::saveImages,
@@ -38,26 +51,8 @@ class GalleryRepository @Inject constructor(
         }
     }
 
-    suspend fun refresh() {
-        store.invalidate(buildLoadRequest())
-    }
-
-    fun reload() {
-        store.invalidateAsync(buildLoadRequest())
-    }
-
-    private fun buildLoadRequest() = LoadRequest.builder()
-        .run {
-            if (errorFlagProvider.isKeepContentOnErrorFlagEnabled()) {
-                keepContentOnLoadAndError()
-            } else {
-                keepContentOnLoad()
-            }
-        }
-        .build()
-
     suspend fun setQuery(query: String) {
-        store.submitQuery(query, loadRequest = buildLoadRequest())
+        store.submitQuery(query)
     }
 
     data class GalleryImage(

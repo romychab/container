@@ -84,6 +84,83 @@ class KeyedStoreLocalStorageTest : AbstractKeyedStoreTest() {
     }
 
     @Test
+    fun `GIVEN reactive storage AND currently loading WHEN storage emits value THEN loading is not overwritten`() = runFlowTest {
+        val storageFlow = MutableStateFlow<String?>(null)
+        val store = storeBuilder()
+            .addReactiveLocalStorage()
+            .build(
+                onFetch = { key ->
+                    delay(10)
+                    "remote-$key"
+                },
+                onSaveToStorage = { _, value -> storageFlow.value = value },
+                onObserveStorage = { storageFlow },
+            )
+        val collector = store.observe("k1").startCollecting()
+        runCurrent()
+        // storage is empty and the remote fetch is still in progress -> Loading
+        assertResult(StoreResult.Loading, collector.lastItem)
+
+        // an external write to local storage arrives while the value is still loading
+        storageFlow.value = "external-update"
+        runCurrent()
+
+        // the reactive emission must NOT replace the in-progress Loading state
+        assertResult(StoreResult.Loading, collector.lastItem)
+
+        // once the remote fetch completes it wins
+        advanceTimeBy(11)
+        assertResult(StoreResult.Loaded("remote-k1"), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN reactive storage AND failed remote WHEN storage emits value THEN error is not overwritten`() = runFlowTest {
+        val storageFlow = MutableStateFlow<String?>(null)
+        val store = storeBuilder()
+            .addReactiveLocalStorage()
+            .build(
+                onFetch = { throw IllegalStateException("remote failed") },
+                onSaveToStorage = { _, value -> storageFlow.value = value },
+                onObserveStorage = { storageFlow },
+            )
+        val collector = store.observe("k1").startCollecting()
+        runCurrent()
+        // storage is empty and the remote fetch failed -> Failed
+        assertTrue(collector.lastItem.isFailed())
+
+        // an external write to local storage arrives while the value is failed
+        storageFlow.value = "external-update"
+        runCurrent()
+
+        // the reactive emission must NOT mask the error
+        assertTrue(collector.lastItem.isFailed())
+    }
+
+    @Test
+    fun `GIVEN reactive storage AND loaded value WHEN storage emits value THEN metadata is preserved`() = runFlowTest {
+        val storageFlow = MutableStateFlow<String?>(null)
+        val store = storeBuilder()
+            .addReactiveLocalStorage()
+            .build(
+                onFetch = { key -> "remote-$key" },
+                onSaveToStorage = { _, value -> storageFlow.value = value },
+                onObserveStorage = { storageFlow },
+            )
+        val collector = store.observe("k1").startCollecting()
+        runCurrent()
+        assertResult(StoreResult.Loaded("remote-k1"), collector.lastItem)
+        assertEquals(RemoteSourceType, collector.lastItem.sourceType)
+
+        // an external write to local storage of a loaded value
+        storageFlow.value = "external-update"
+        runCurrent()
+
+        // the value is updated and the source metadata is preserved (not reset to empty)
+        assertResult(StoreResult.Loaded("external-update"), collector.lastItem)
+        assertEquals(RemoteSourceType, collector.lastItem.sourceType)
+    }
+
+    @Test
     fun `GIVEN empty cache WHEN observe in offline mode THEN emit no-cached-data error`() = runFlowTest {
         val store = storeBuilder().build { "value-$it" }
         val offlineRequest = LoadRequest.builder().offlineMode().build()

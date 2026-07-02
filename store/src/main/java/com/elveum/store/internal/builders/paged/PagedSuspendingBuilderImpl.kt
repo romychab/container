@@ -1,10 +1,12 @@
 package com.elveum.store.internal.builders.paged
 
 import com.elveum.store.builders.BasePagedBuilder
+import com.elveum.store.builders.PagedKeyedSuspendingBuilder
 import com.elveum.store.builders.PagedQuerySuspendingBuilder
 import com.elveum.store.builders.PagedSuspendingBuilder
 import com.elveum.store.contracts.PagedSuspendingContract
-import com.elveum.store.internal.stores.PagedQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.PagedKeyedSuspendingBuilderImpl
+import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asPagedStore
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedStore
@@ -22,6 +24,10 @@ internal class PagedSuspendingBuilderImpl<P : Any, T : Any>(
         return PagedQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
     }
 
+    override fun <Key : Any> withKeys(): PagedKeyedSuspendingBuilder<Key, P, T> {
+        return PagedKeyedSuspendingBuilderImpl(config)
+    }
+
     override fun build(contract: PagedSuspendingContract<P, T>): PagedStore<T> {
         return build(
             onFetch = contract::fetch,
@@ -35,13 +41,13 @@ internal class PagedSuspendingBuilderImpl<P : Any, T : Any>(
         onSaveToStorage: suspend (P, PagedList<P, T>) -> Unit,
         onLoadFromStorage: suspend (P) -> PagedList<P, T>?
     ): PagedStore<T> {
-        return PagedQueryStoreImpl(
+        return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
             initialQuery = Unit,
             queryDebounceMillis = 0,
             config = config,
-            fetcher = { _, pageKey -> onFetch(pageKey) },
-            saver = { _, pageKey, page -> onSaveToStorage(pageKey, page) },
-            loader = { _, pageKey -> onLoadFromStorage(pageKey) }
+            fetcher = { _, _, pageKey -> onFetch(pageKey) },
+            saver = { _, _, pageKey, page -> onSaveToStorage(pageKey, page) },
+            loader = { _, _, pageKey -> onLoadFromStorage(pageKey) }
         ).asPagedStore()
     }
 }

@@ -1,11 +1,13 @@
 package com.elveum.store.demo.feature.examples.store_simple.pull_to_refresh
 
+import com.elveum.store.demo.errors.ErrorFlagProvider
 import com.elveum.store.demo.feature.examples.store_simple.pull_to_refresh.CatsRepository.Cat
 import com.github.javafaker.Faker
 import kotlinx.coroutines.delay
 import javax.inject.Inject
 
 class CatsDataSource @Inject constructor(
+    private val errorFlagProvider: ErrorFlagProvider,
     private val faker: Faker,
 ) {
 
@@ -20,6 +22,7 @@ class CatsDataSource @Inject constructor(
 
     suspend fun fetchCats(): List<Cat> {
         delay(2000)
+        if (errorFlagProvider.isErrorFlagEnabled()) throw Exception("Oops")
         return cats.shuffled()
     }
 }

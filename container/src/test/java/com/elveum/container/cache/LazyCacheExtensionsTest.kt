@@ -80,7 +80,9 @@ class LazyCacheExtensionsTest {
             val loaderSlot = slot<CacheValueLoader<String, String>>()
             val emitter = mockk<Emitter<String>>(relaxUnitFun = true)
             val timeoutMillis = 2000L
-            every { LazyCache.create<String, String>(any(), any(), any(), any(), any()) } returns lazyCache
+            every {
+                LazyCache.create<String, String>(any(), any(), any(), any(), any(), any(), any())
+            } returns lazyCache
 
             val newLazyCache = LazyCache.createSimple<String, String>(
                 cacheTimeoutMillis = timeoutMillis,

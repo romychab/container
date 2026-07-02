@@ -36,7 +36,7 @@ public interface ContainerMapperScope {
     /**
      * Reload data encapsulated by container.
      */
-    public fun reload(config: LoadConfig) {
+    public fun reload(config: LoadConfig?) {
         reloadFunction.invoke(config)
     }
 
@@ -44,7 +44,7 @@ public interface ContainerMapperScope {
      * Reload data encapsulated by container.
      */
     public fun reload() {
-        reloadFunction.invoke(LoadConfig.Normal)
+        reloadFunction.invoke(null)
     }
 
     /**

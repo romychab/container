@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation3.runtime.NavKey
 import coil.compose.AsyncImage
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.navigation.WithContent
 import com.elveum.store.demo.navigation.examples.Category
 import com.elveum.store.demo.navigation.examples.Example
@@ -36,6 +37,7 @@ import com.elveum.store.demo.ui.components.Heading
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.hasAnyLoading
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.isCompleted
 import kotlinx.collections.immutable.persistentListOf
@@ -58,7 +60,7 @@ fun MasterDetailsScreen(catId: Long) {
         persistentListOf(
             DemoAction(
                 icon = Icons.Default.Refresh,
-                onClick = viewModel::refresh,
+                onClick = { state.catResult.invalidate(LoadConfig.SilentLoading) },
                 state = if (state.catResult.isBackgroundLoading()) DemoActionState.Loading else DemoActionState.Default
             )
         )
@@ -131,7 +133,7 @@ fun MasterDetailsScreen(catId: Long) {
                 ) {
                     Text("Failed to load the cat details.")
                     Button(
-                        onClick = viewModel::tryAgain,
+                        onClick = { finalResult.invalidate() },
                         enabled = !finalResult.isBackgroundLoading(),
                     ) {
                         Text("Try Again")

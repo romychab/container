@@ -1,10 +1,9 @@
 package com.elveum.store.demo.feature.examples.store_keyed.basic
 
+import com.elveum.store.StoreFactory
 import com.elveum.store.demo.feature.examples.store_keyed.basic.data.BasicItemsDataSource
 import com.elveum.store.demo.feature.examples.store_keyed.basic.model.Item
 import com.elveum.store.demo.feature.examples.store_keyed.basic.model.ListItem
-import com.elveum.store.StoreFactory
-import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.getOrNull
 import com.elveum.store.load.storeListFlatMapLatest
@@ -34,10 +33,9 @@ class BasicItemsRepository @Inject constructor(
             onFetch = dataSource::fetchItems,
         )
 
-    private val descriptionStore = StoreFactory.keyedStoreBuilder<Long, String>()
-        .build(
-            onFetch = dataSource::fetchDescription,
-        )
+    private val descriptionStore = StoreFactory.simpleStoreBuilder<String>()
+        .withKeys<Long>()
+        .build(onFetch = dataSource::fetchDescription)
 
     fun getItems(): Flow<StoreResult<List<ListItem>>> {
         return listStore
@@ -50,14 +48,6 @@ class BasicItemsRepository @Inject constructor(
                     ListItem(item, descriptionResult.getOrNull())
                 }
             )
-    }
-
-    fun refresh() {
-        listStore.invalidateAsync(LoadRequest.Silent)
-    }
-
-    fun tryAgain() {
-        listStore.invalidateAsync(LoadRequest.Default)
     }
 
 }

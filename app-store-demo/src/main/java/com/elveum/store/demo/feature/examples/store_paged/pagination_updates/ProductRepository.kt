@@ -38,10 +38,6 @@ class ProductRepository @Inject constructor(
         store.onItemRendered(index)
     }
 
-    fun refresh() {
-        store.invalidateAsync(LoadRequest.Silent)
-    }
-
     data class Product(
         val id: Int,
         val title: String,

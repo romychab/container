@@ -1,8 +1,11 @@
 package com.elveum.container.factory
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.cache.CacheValueLoader
-import com.elveum.container.cache.ValueLoaderFactory
 import com.elveum.container.cache.LazyCache
+import com.elveum.container.cache.LazyFlowSubjectFactory
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
@@ -24,6 +27,8 @@ public interface SubjectFactory {
         reloadDependenciesPeriodMillis: Long? = null,
         coroutineScopeFactory: CoroutineScopeFactory? = null,
         transformation: ContainerTransformation<T>? = null,
+        loadConfig: LoadConfig = LoadConfig.Normal,
+        metadata: ContainerMetadata = EmptyMetadata,
         valueLoader: ValueLoader<T>
     ): LazyFlowSubject<T>
 
@@ -36,19 +41,19 @@ public interface SubjectFactory {
         reloadDependenciesPeriodMillis: Long? = null,
         coroutineScopeFactory: CoroutineScopeFactory? = null,
         transformation: ContainerTransformation<T>? = null,
+        loadConfig: LoadConfig = LoadConfig.Normal,
+        metadata: ContainerMetadata = EmptyMetadata,
         valueLoader: CacheValueLoader<Arg, T>,
     ): LazyCache<Arg, T>
 
     /**
      * Create a new [LazyCache] instance which creates a separate
-     * value loader for every argument using [ValueLoaderFactory].
+     * [LazyFlowSubject] for every argument using [LazyFlowSubjectFactory].
      */
     public fun <Arg, T> createCacheFromFactory(
         cacheTimeoutMillis: Long? = null,
-        reloadDependenciesPeriodMillis: Long? = null,
         coroutineScopeFactory: CoroutineScopeFactory? = null,
-        transformation: ContainerTransformation<T>? = null,
-        valueLoaderFactory: ValueLoaderFactory<Arg, T>,
+        factory: LazyFlowSubjectFactory<Arg, T>,
     ): LazyCache<Arg, T>
 
     public companion object : SubjectFactory {
@@ -61,10 +66,12 @@ public interface SubjectFactory {
             reloadDependenciesPeriodMillis: Long?,
             coroutineScopeFactory: CoroutineScopeFactory?,
             transformation: ContainerTransformation<T>?,
+            loadConfig: LoadConfig,
+            metadata: ContainerMetadata,
             valueLoader: ValueLoader<T>
         ): LazyFlowSubject<T> {
             return instance.createSubject(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
-                coroutineScopeFactory, transformation, valueLoader)
+                coroutineScopeFactory, transformation, loadConfig, metadata, valueLoader)
         }
 
         override fun <Arg, T> createCache(
@@ -72,21 +79,20 @@ public interface SubjectFactory {
             reloadDependenciesPeriodMillis: Long?,
             coroutineScopeFactory: CoroutineScopeFactory?,
             transformation: ContainerTransformation<T>?,
+            loadConfig: LoadConfig,
+            metadata: ContainerMetadata,
             valueLoader: CacheValueLoader<Arg, T>
         ): LazyCache<Arg, T> {
             return instance.createCache(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
-                coroutineScopeFactory, transformation, valueLoader)
+                coroutineScopeFactory, transformation, loadConfig, metadata, valueLoader)
         }
 
         override fun <Arg, T> createCacheFromFactory(
             cacheTimeoutMillis: Long?,
-            reloadDependenciesPeriodMillis: Long?,
             coroutineScopeFactory: CoroutineScopeFactory?,
-            transformation: ContainerTransformation<T>?,
-            valueLoaderFactory: ValueLoaderFactory<Arg, T>
+            factory: LazyFlowSubjectFactory<Arg, T>
         ): LazyCache<Arg, T> {
-            return instance.createCacheFromFactory(cacheTimeoutMillis, reloadDependenciesPeriodMillis,
-                coroutineScopeFactory, transformation, valueLoaderFactory)
+            return instance.createCacheFromFactory(cacheTimeoutMillis, coroutineScopeFactory, factory)
         }
 
         /**

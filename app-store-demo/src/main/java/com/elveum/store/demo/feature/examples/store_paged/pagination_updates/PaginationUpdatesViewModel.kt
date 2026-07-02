@@ -24,10 +24,6 @@ class PaginationUpdatesViewModel @Inject constructor(
         }
     }
 
-    fun refresh() {
-        repository.refresh()
-    }
-
     fun onItemRendered(index: Int) {
         repository.onItemRendered(index)
     }

@@ -43,10 +43,6 @@ class CartViewModel @Inject constructor(
         }
     }
 
-    fun tryAgain() {
-        cartRepository.tryAgain()
-    }
-
     data class State(
         val items: List<CartProductItem>,
         val isClearInProgress: Boolean = false,

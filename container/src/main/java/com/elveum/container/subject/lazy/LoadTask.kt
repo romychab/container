@@ -21,6 +21,7 @@ internal interface LoadTask<T> {
     val initialContainer: Container<T>?
     val lastRealLoader: ValueLoader<T>?
     val lastRealMetadata: ContainerMetadata
+    val lastLoadConfig: LoadConfig
     fun execute(executeParams: ExecuteParams<T>): Flow<Container<T>>
     fun cancel(reason: String)
     fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T>
@@ -52,6 +53,7 @@ internal interface LoadTask<T> {
         override val initialContainer: Container<T>,
         override val lastRealLoader: ValueLoader<T>? = null,
         override val lastRealMetadata: ContainerMetadata = EmptyMetadata,
+        override val lastLoadConfig: LoadConfig = LoadConfig.Normal,
     ) : LoadTask<T> {
         override val metadata: ContainerMetadata = initialContainer.metadata
         override fun execute(executeParams: ExecuteParams<T>) = flowOf(initialContainer)
@@ -60,7 +62,7 @@ internal interface LoadTask<T> {
             return if (lastRealLoader == null) {
                 this
             } else {
-                Load(lastRealLoader, lastRealMetadata + metadata)
+                Load(lastRealLoader, lastRealMetadata + metadata, config = lastLoadConfig)
             }
         }
     }
@@ -72,6 +74,8 @@ internal interface LoadTask<T> {
         private val flowSubject: FlowSubject<T>? = null,
         private val flowEmitterCreator: FlowEmitterCreator<T> = FlowEmitterCreator(flowSubject, metadata),
     ) : LoadTask<T> {
+
+        override val lastLoadConfig: LoadConfig = config
 
         override val initialContainer: Container<T>? =
             if (config.isSilentLoadingEnabled) null else Container.Pending
@@ -126,6 +130,7 @@ internal interface LoadTask<T> {
             return LoadTask.Load(
                 metadata = this.metadata + metadata,
                 loader = loader,
+                config = config,
             )
         }
 

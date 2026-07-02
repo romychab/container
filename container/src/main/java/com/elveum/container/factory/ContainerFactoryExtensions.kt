@@ -1,6 +1,9 @@
 package com.elveum.container.factory
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.SourceType
 import com.elveum.container.UnknownSourceType
 import com.elveum.container.cache.LazyCache
@@ -22,6 +25,8 @@ public fun <T> SubjectFactory.createFlow(
     reloadDependenciesPeriodMillis: Long? = null,
     coroutineScopeFactory: CoroutineScopeFactory? = null,
     transformation: ContainerTransformation<T>? = null,
+    loadConfig: LoadConfig = LoadConfig.Normal,
+    metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: ValueLoader<T>
 ): Flow<Container<T>> {
     return createSubject(
@@ -29,6 +34,8 @@ public fun <T> SubjectFactory.createFlow(
         reloadDependenciesPeriodMillis,
         coroutineScopeFactory,
         transformation,
+        loadConfig,
+        metadata,
         valueLoader
     ).listen(configuration)
 }
@@ -46,6 +53,8 @@ public fun <T> SubjectFactory.createReloadableFlow(
     reloadDependenciesPeriodMillis: Long? = null,
     coroutineScopeFactory: CoroutineScopeFactory? = null,
     transformation: ContainerTransformation<T>? = null,
+    loadConfig: LoadConfig = LoadConfig.Normal,
+    metadata: ContainerMetadata = EmptyMetadata,
     valueLoader: ValueLoader<T>
 ): Flow<Container<T>> {
     return createSubject(
@@ -53,6 +62,8 @@ public fun <T> SubjectFactory.createReloadableFlow(
         reloadDependenciesPeriodMillis,
         coroutineScopeFactory,
         transformation,
+        loadConfig,
+        metadata,
         valueLoader
     ).listen(
         configuration = ContainerConfiguration(

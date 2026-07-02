@@ -51,6 +51,7 @@ import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.getOrNull
+import com.elveum.store.load.invalidate
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.serialization.Serializable
 
@@ -132,7 +133,7 @@ fun CartScreen() {
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Button(onClick = viewModel::tryAgain) {
+                Button(onClick = finalResult::invalidate) {
                     Text("Try Again")
                 }
             }

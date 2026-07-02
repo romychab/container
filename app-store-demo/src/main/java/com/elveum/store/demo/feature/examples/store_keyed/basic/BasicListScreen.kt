@@ -28,10 +28,12 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.feature.examples.store_keyed.basic.model.ListItem
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 
 @Composable
@@ -51,7 +53,7 @@ fun BasicListScreen() = DemoScaffold(
         is StoreResult.Loaded -> {
             PullToRefreshBox(
                 isRefreshing = result.isBackgroundLoading(),
-                onRefresh = viewModel::refresh,
+                onRefresh = { finalResult.invalidate(LoadConfig.SilentLoading) },
             ) {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
@@ -65,7 +67,7 @@ fun BasicListScreen() = DemoScaffold(
         is StoreResult.Failed -> {
             Text("Failed to load items")
             Button(
-                onClick = viewModel::tryAgain,
+                onClick = finalResult::invalidate,
             ) {
                 Text("Try Again")
             }

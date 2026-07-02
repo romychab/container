@@ -1,5 +1,6 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleKeyedReactiveBuilder
 import com.elveum.store.builders.SimpleQueryReactiveBuilder
 import com.elveum.store.builders.SimpleReactiveBuilder
 import com.elveum.store.builders.SimpleReactiveNoFetcherBuilder
@@ -7,7 +8,8 @@ import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleReactiveContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
 import com.elveum.store.internal.builders.SharedConfig
-import com.elveum.store.internal.stores.SimpleQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.SimpleKeyedReactiveBuilderImpl
+import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asSimpleStore
 import com.elveum.store.stores.simple.SimpleStore
 import kotlinx.coroutines.flow.Flow
@@ -19,6 +21,10 @@ internal class SimpleReactiveBuilderImpl<T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun <Key : Any> withKeys(): SimpleKeyedReactiveBuilder<Key, T> {
+        return SimpleKeyedReactiveBuilderImpl(config)
     }
 
     override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): SimpleQueryReactiveBuilder<Q, T> {
@@ -34,12 +40,12 @@ internal class SimpleReactiveBuilderImpl<T : Any>(
         onSaveToStorage: suspend (T) -> Unit,
         onObserveStorage: () -> Flow<T?>
     ): SimpleStore<T> {
-        return SimpleQueryStoreImpl(
+        return KeyedQueryStoreImpl<Unit, Unit, T>(
             initialQuery = Unit,
             config = config,
-            fetcher = { onFetch() },
-            saver = { _, data -> onSaveToStorage(data) },
-            observer = { onObserveStorage() }
+            fetcher = { _, _ -> onFetch() },
+            saver = { _, _, data -> onSaveToStorage(data) },
+            observer = { _, _ -> onObserveStorage() }
         ).asSimpleStore()
     }
 

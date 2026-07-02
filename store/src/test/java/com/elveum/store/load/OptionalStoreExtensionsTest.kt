@@ -151,7 +151,8 @@ class OptionalStoreExtensionsTest : AbstractStoreTest() {
 
     private fun optionalKeyedStore(
         onFetch: suspend (String) -> Optional<String>,
-    ) = StoreFactory.keyedStoreBuilder<String, Optional<String>>()
+    ) = StoreFactory.simpleStoreBuilder<Optional<String>>()
+        .withKeys<String>()
         .setCoroutineScopeFactory(createStoreScopeFactory())
         .build { key -> onFetch(key) }
 

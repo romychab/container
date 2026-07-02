@@ -101,10 +101,10 @@ class SimpleStoreTest : AbstractSimpleStoreTest() {
             delay(10)
             "value${++counter}"
         }
-        val collector = store.observe().startCollecting()
+        val collector = store.observe(LoadRequest.Silent).startCollecting()
         advanceTimeBy(11) // first load
 
-        store.invalidateAsync(LoadRequest.Silent)
+        store.invalidateAsync()
 
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loaded("value1"), collector.lastItem)
@@ -127,6 +127,27 @@ class SimpleStoreTest : AbstractSimpleStoreTest() {
 
         advanceTimeBy(1)
         assertResult(StoreResult.Loaded("value"), store.get())
+    }
+
+    @Test
+    fun `GIVEN store with configured silent load request WHEN async invalidate without request THEN emit background load`() = runFlowTest {
+        var counter = 0
+        val store = storeBuilder()
+            .setLoadRequest(LoadRequest.Silent)
+            .build {
+                delay(10)
+                "value${++counter}"
+            }
+        val collector = store.observe().startCollecting()
+        advanceTimeBy(11) // first load
+
+        store.invalidateAsync()
+
+        advanceTimeBy(10) // almost done second load
+        assertResult(StoreResult.Loaded("value1"), collector.lastItem)
+        assertTrue(collector.lastItem.isBackgroundLoading())
+        advanceTimeBy(1) // now loaded
+        assertResult(StoreResult.Loaded("value2"), collector.lastItem)
     }
 
     @Test

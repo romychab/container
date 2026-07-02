@@ -8,3 +8,5 @@ internal data class LoadRequestImpl(
     override val config: LoadConfig = LoadConfig.Normal,
     override val requestSource: LoadRequestSource = LoadRequestSource.Default
 ) : LoadRequest
+
+internal val LoadRequest.metadata get() = LoadRequestSourceMetadata(requestSource)

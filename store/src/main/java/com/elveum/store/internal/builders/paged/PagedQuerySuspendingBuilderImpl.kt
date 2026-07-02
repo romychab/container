@@ -1,9 +1,12 @@
 package com.elveum.store.internal.builders.paged
 
 import com.elveum.store.builders.BasePagedBuilder
+import com.elveum.store.builders.PagedKeyedQuerySuspendingBuilder
 import com.elveum.store.builders.PagedQuerySuspendingBuilder
 import com.elveum.store.contracts.PagedQuerySuspendingContract
-import com.elveum.store.internal.stores.PagedQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.PagedKeyedQuerySuspendingBuilderImpl
+import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
+import com.elveum.store.internal.stores.asPagedQueryStore
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedQueryStore
 
@@ -16,6 +19,10 @@ internal class PagedQuerySuspendingBuilderImpl<Q : Any, P : Any, T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun <Key : Any> withKeys(): PagedKeyedQuerySuspendingBuilder<Key, Q, P, T> {
+        return PagedKeyedQuerySuspendingBuilderImpl(initialQuery, queryDebounceMillis, config)
     }
 
     override fun build(contract: PagedQuerySuspendingContract<Q, P, T>): PagedQueryStore<Q, T> {
@@ -31,14 +38,14 @@ internal class PagedQuerySuspendingBuilderImpl<Q : Any, P : Any, T : Any>(
         onSaveToStorage: suspend (Q, P, PagedList<P, T>) -> Unit,
         onLoadFromStorage: suspend (Q, P) -> PagedList<P, T>?
     ): PagedQueryStore<Q, T> {
-        return PagedQueryStoreImpl(
+        return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
             initialQuery = initialQuery,
             queryDebounceMillis = queryDebounceMillis,
             config = config,
-            fetcher = { query, pageKey -> onFetch(query, pageKey) },
-            loader = { query, pageKey -> onLoadFromStorage(query, pageKey) },
-            saver = { query, pageKey, list -> onSaveToStorage(query, pageKey, list) },
-        )
+            fetcher = { _, query, pageKey -> onFetch(query, pageKey) },
+            loader = { _, query, pageKey -> onLoadFromStorage(query, pageKey) },
+            saver = { _, query, pageKey, list -> onSaveToStorage(query, pageKey, list) },
+        ).asPagedQueryStore()
     }
 
 }

@@ -29,11 +29,13 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.feature.examples.store_paged.pagination_statuses.BookRepository.Book
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.components.NextPageFooter
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.nextPageState
 
@@ -70,7 +72,7 @@ fun PaginationStatusesScreen() {
 
         PullToRefreshBox(
             isRefreshing = result.isBackgroundLoading(),
-            onRefresh = viewModel::refresh,
+            onRefresh = { result.invalidate(LoadConfig.SilentLoading) },
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth(),
@@ -98,7 +100,7 @@ fun PaginationStatusesScreen() {
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        Button(onClick = viewModel::tryAgain) {
+                        Button(onClick = finalResult::invalidate) {
                             Text("Try Again")
                         }
                     }

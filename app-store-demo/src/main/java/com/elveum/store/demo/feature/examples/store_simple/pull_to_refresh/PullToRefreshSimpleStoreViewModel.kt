@@ -2,28 +2,31 @@ package com.elveum.store.demo.feature.examples.store_simple.pull_to_refresh
 
 import com.elveum.store.demo.ui.AbstractViewModel
 import com.elveum.container.reducer.stateIn
+import com.elveum.store.demo.errors.ErrorFlagRepository
 import com.elveum.store.load.StoreResult
-import com.elveum.store.load.storeMap
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
 import javax.inject.Inject
 
 @HiltViewModel
 class PullToRefreshSimpleStoreViewModel @Inject constructor(
-    private val repository: CatsRepository,
+    repository: CatsRepository,
+    private val errorFlagRepository: ErrorFlagRepository,
 ) : AbstractViewModel() {
 
-    val stateFlow: StateFlow<StoreResult<State>> = repository
-        .getCats()
-        .storeMap(::State)
-        .stateIn(StoreResult.Loading)
+    val stateFlow = combine(
+        repository.getCats(),
+        errorFlagRepository.getErrorFlag(),
+        ::State,
+    ).stateIn(State())
 
-    fun refresh() {
-        repository.refresh()
+    fun toggleErrors() {
+        errorFlagRepository.toggleErrorFlag()
     }
 
     data class State(
-        val cats: List<CatsRepository.Cat>,
+        val catsResult: StoreResult<List<CatsRepository.Cat>> = StoreResult.Loading,
+        val isErrorsEnabled: Boolean = false,
     )
 
 }

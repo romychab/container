@@ -4,6 +4,7 @@ import com.elveum.container.BackgroundLoadState
 import com.elveum.container.LocalSourceType
 import com.elveum.container.UnknownSourceType
 import com.elveum.container.defaultMetadata
+import com.elveum.container.subject.paging.TotalPagedItemsCountMetadata
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -184,5 +185,32 @@ class StoreResultExtensionsTest {
         val loaded: StoreResult<String> = StoreResult.Loaded("value")
 
         assertEquals(BackgroundLoadState.Idle, loaded.backgroundLoadState)
+    }
+
+    @Test
+    fun `GIVEN loaded result with total count metadata WHEN read totalPagedItemsCount THEN it is returned`() {
+        val metadata = defaultMetadata(sourceType = LocalSourceType) + TotalPagedItemsCountMetadata(42)
+        val loaded: StoreResult<List<String>> = StoreResult.Loaded(listOf("value"), metadata)
+
+        assertEquals(42, loaded.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN failed result with total count metadata WHEN read totalPagedItemsCount THEN it is returned`() {
+        val failed: StoreResult<List<String>> = StoreResult.Failed(exception, TotalPagedItemsCountMetadata(7))
+
+        assertEquals(7, failed.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN result without total count metadata WHEN read totalPagedItemsCount THEN minus one is returned`() {
+        val loaded: StoreResult<List<String>> = StoreResult.Loaded(listOf("value"))
+
+        assertEquals(-1, loaded.totalPagedItemsCount)
+    }
+
+    @Test
+    fun `GIVEN loading result WHEN read totalPagedItemsCount THEN minus one is returned`() {
+        assertEquals(-1, StoreResult.Loading.totalPagedItemsCount)
     }
 }

@@ -91,6 +91,18 @@ LazyFlowSubject.create(
 }
 ```
 
+You can also configure how the *initial* load behaves via `loadConfig` and
+`metadata`, the same options accepted by [`reload`](#reloading-data):
+
+```kotlin
+LazyFlowSubject.create(
+    loadConfig = LoadConfig.SilentLoading,
+    metadata = MyCustomMetadata,
+) {
+    emit(loadData())
+}
+```
+
 ### Reloading Data
 
 Re-run the previous loader without changing it:

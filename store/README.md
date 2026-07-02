@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.1.2"
+implementation "com.elveum:store:3.2.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -92,12 +92,13 @@ class MyRepository @Inject constructor(
 )
 ```
 
-All builders share two base options:
+All builders share a few base options:
 
 ```kotlin
 val store = factory.simpleStoreBuilder<UserProfile>()
     .setInMemoryCacheTimeout(60.seconds) // default is 5 seconds
     .setCoroutineContext(Dispatchers.IO) // context for fetch/storage calls
+    .setLoadRequest(LoadRequest.Silent)  // default request used by observe/invalidate/invalidateAsync
     .build(onFetch = { api.fetchUserProfile() })
 ```
 
@@ -162,7 +163,7 @@ class ProductDetailsRepository(
     private val dataSource: ProductsDataSource,
 ) {
 
-    private val store = StoreFactory.keyedStoreBuilder<Long, ProductDetails>()
+    private val store = StoreFactory.simpleStoreBuilder<ProductDetails>().withKeys<Long>()
         .setInMemoryCacheTimeout(10.seconds)
         .build(onFetch = dataSource::fetchProductById)
 
@@ -298,37 +299,94 @@ suspend fun toggleLike(image: GalleryImage) {
 }
 ```
 
-For a plain cache update after the real data source has already been
-changed, use the `update` extension:
+To transform the currently loaded value after the real data source has
+already been changed, use `updateIfSuccess` (a read-modify-write helper that
+runs only when the current value is `Loaded`):
+
+```kotlin
+suspend fun renameProfile(newName: String) {
+    dataSource.renameProfile(newName)
+    store.updateIfSuccess { it.copy(name = newName) }
+}
+```
+
+To replace the cached result regardless of the current state, use `updateWith`:
 
 ```kotlin
 suspend fun clearCart() {
     cartDataSource.clear()
-    store.update { emptyList() }
+    store.updateWith(StoreResult.Loaded(emptyList()))
 }
 ```
 
+Note that `optimisticUpdate`, `updateIfSuccess`, `submitQuery` and
+`submitQueryAsync` act on the in-memory cache, which exists only while the
+store (or key) has at least one active observer; calling them for a store that
+is not currently observed is a no-op.
+
 ## Load Requests
 
-`invalidate`, `observe` and `submitQuery` accept a `LoadRequest` that
-controls which sources are used and how the loading state is shown:
+A `LoadRequest` controls which sources are used and how the loading state
+is shown. It is accepted in exactly two places: on `observe`, and on the
+store builder via `setLoadRequest(...)`. The mutating/query calls
+(`invalidate`, `invalidateAsync`, `submitQuery`, `submitQueryAsync`) do
+**not** take a request.
+
+`observe` accepts a *nullable* `LoadRequest`; omitting it (or passing
+`null`) falls back to the store's configured default request, which is
+`LoadRequest.Default` unless overridden via `setLoadRequest(...)` on the
+builder:
 
 ```kotlin
-// Default: emit Loading, then fetch (only if not cached yet)
-store.invalidateAsync()
+// Use the store's configured default request
+fun getUserProfile() = store.observe()
 
-// Silent: keep current content visible while reloading (pull-to-refresh)
-store.invalidateAsync(LoadRequest.Silent)
+// Keep current content visible while reloading (per this observer)
+fun getUserProfileSilently() = store.observe(LoadRequest.Silent)
 
 // Custom: fine-grained control
 val request = LoadRequest.builder()
     .keepContentOnLoadAndError() // keep old data even if the reload fails
     .build()
-store.invalidateAsync(request)
+fun getUserProfileKeepingContent() = store.observe(request)
 ```
 
-The builder also supports `freshMode()` (skip caches, force a remote fetch)
-and `offlineMode()` (use only cached data). See
+The default request is configured once on the builder. Besides a fixed
+request, `setLoadRequest` also accepts a `Flow<LoadRequest>` whose latest
+emission becomes the current default - handy for reacting to changing
+conditions: switching to offline mode when connectivity drops, or honoring a
+user-controlled "offline mode" flag stored in DataStore/preferences and toggled
+from a settings screen (a "data saver" or battery-saver setting works the same
+way):
+
+```kotlin
+// Fixed default request
+factory.simpleStoreBuilder<UserProfile>()
+    .setLoadRequest(LoadRequest.Silent)
+
+// Reactive default request driven by connectivity
+factory.simpleStoreBuilder<UserProfile>()
+    .setLoadRequest(connectivity.map { online ->
+        if (online) LoadRequest.Default
+        else LoadRequest.builder().offlineMode().build()
+    })
+
+// Reactive default request driven by a persisted user setting (Flow<Boolean>)
+factory.simpleStoreBuilder<UserProfile>()
+    .setLoadRequest(settings.offlineModeEnabled.map { offline ->
+        if (offline) LoadRequest.builder().offlineMode().build()
+        else LoadRequest.Default
+    })
+```
+
+Invalidation intentionally does **not** take a request: a store (or a key)
+may have several observers, each subscribed with its own request (fresh,
+offline, keep-content, ...). `invalidate`/`invalidateAsync` simply trigger a
+reload, and every observer keeps receiving data according to the request
+**it** subscribed with via `observe(...)` (or the builder default).
+
+The `LoadRequest.builder()` also supports `freshMode()` (skip caches, force
+a remote fetch) and `offlineMode()` (use only cached data). See
 [Load Requests](docs/load-requests.md).
 
 ## Consuming Stores in ViewModels

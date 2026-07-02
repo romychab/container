@@ -26,12 +26,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.feature.examples.store_paged.pagination_updates.ProductRepository.Product
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.components.NextPageFooter
 import com.elveum.store.demo.ui.components.ProgressIconButton
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.nextPageState
 
@@ -53,7 +55,7 @@ fun PaginationUpdatesScreen() = DemoScaffold(
             val products = finalResult.value
             PullToRefreshBox(
                 isRefreshing = finalResult.isBackgroundLoading(),
-                onRefresh = { viewModel.refresh() },
+                onRefresh = { finalResult.invalidate(LoadConfig.SilentLoading) },
                 modifier = Modifier.weight(1f).fillMaxWidth()
             ) {
                 LazyColumn(

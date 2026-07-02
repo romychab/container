@@ -14,6 +14,7 @@ import com.elveum.container.sourceType
 import com.elveum.container.subject.paging.PageState
 import com.elveum.container.subject.paging.nextPageState
 import com.elveum.container.subject.paging.onItemRendered
+import com.elveum.container.subject.paging.totalPagedItemsCount
 
 /**
  * The current store result emitted by all stores.
@@ -73,7 +74,7 @@ public val <T> StoreResult<T>.nextPageState: PageState get() = metadata.nextPage
 /**
  * Invalidate an origin store which has been emitted this [StoreResult] instance.
  */
-public fun <T> StoreResult<T>.invalidate(config: LoadConfig = LoadConfig.Normal) {
+public fun <T> StoreResult<T>.invalidate(config: LoadConfig? = null) {
     metadata.reload(config)
 }
 
@@ -84,3 +85,14 @@ public fun <T> StoreResult<T>.invalidate(config: LoadConfig = LoadConfig.Normal)
 public fun <T> StoreResult<T>.onItemRendered(index: Int) {
     metadata.onItemRendered(index)
 }
+
+/**
+ * The total number of items available across all pages, as reported by a paged
+ * data source via `PagedList(totalCount = ...)` (which attaches
+ * `TotalPagedItemsCountMetadata` to the page).
+ *
+ * A convenience shortcut for `metadata.totalPagedItemsCount`. Returns `-1` when
+ * the total count is unknown, i.e. for non-paged results or when no total count
+ * was provided by the data source.
+ */
+public val <T> StoreResult<T>.totalPagedItemsCount: Int get() = metadata.totalPagedItemsCount

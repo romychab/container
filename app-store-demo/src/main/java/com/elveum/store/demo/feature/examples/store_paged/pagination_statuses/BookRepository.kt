@@ -17,14 +17,6 @@ class BookRepository @Inject constructor(
 
     fun getBooks(): Flow<StoreResult<List<Book>>> = store.observe()
 
-    fun refresh() {
-        store.invalidateAsync(LoadRequest.Silent)
-    }
-
-    fun tryAgain() {
-        store.invalidateAsync()
-    }
-
     fun onItemRendered(index: Int) {
         store.onItemRendered(index)
     }

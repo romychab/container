@@ -465,6 +465,29 @@ class LoadTaskTest {
     }
 
     @Test
+    fun loadTask_restoreLoadTask_preservesLoadConfig() {
+        val loadTask = makeLoadTask(config = LoadConfig.SilentLoading)
+
+        val newTask = loadTask.restoreLoadTask(EmptyMetadata)
+
+        assertEquals(LoadConfig.SilentLoading, newTask.lastLoadConfig)
+    }
+
+    @Test
+    fun instantTask_restoreLoadTask_withRealLoader_preservesLoadConfig() {
+        val loadTask = LoadTask.Instant(
+            initialContainer = successContainer("item"),
+            lastRealLoader = valueLoader,
+            lastRealMetadata = EmptyMetadata,
+            lastLoadConfig = LoadConfig.SilentLoadingAndError,
+        )
+
+        val newTask = loadTask.restoreLoadTask(EmptyMetadata)
+
+        assertEquals(LoadConfig.SilentLoadingAndError, newTask.lastLoadConfig)
+    }
+
+    @Test
     fun instantTask_restoreLoadTask_withRealLoader_overridesMetadataOfSameType() {
         val loadTask = LoadTask.Instant(
             initialContainer = successContainer("item"),

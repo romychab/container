@@ -1,7 +1,7 @@
 package com.elveum.store.simple
 
 import com.elveum.store.load.StoreResult
-import com.elveum.store.stores.base.update
+import com.elveum.store.stores.base.updateIfSuccess
 import com.uandcode.flowtest.assertCompleted
 import com.uandcode.flowtest.assertExecuting
 import com.uandcode.flowtest.assertFailure
@@ -15,14 +15,14 @@ import kotlin.time.Duration.Companion.seconds
 class SimpleStoreUpdateTest : AbstractSimpleStoreTest() {
 
     @Test
-    fun `GIVEN loaded value WHEN update THEN new value is emitted to observers`() = runFlowTest {
+    fun `GIVEN loaded value WHEN updateWith from current value THEN new value is emitted to observers`() = runFlowTest {
         val store = storeBuilder().build { "value" }
         val collector = store.observe().startCollecting()
         runCurrent()
 
-        executeInBackground {
-            store.update { oldValue -> "$oldValue-updated" }
-        }
+
+        val oldValue = (store.get() as StoreResult.Loaded).value
+        store.updateWith(StoreResult.Loaded("$oldValue-updated"))
         runCurrent()
 
         assertResult(StoreResult.Loaded("value-updated"), collector.lastItem)
@@ -56,18 +56,47 @@ class SimpleStoreUpdateTest : AbstractSimpleStoreTest() {
     }
 
     @Test
+    fun `GIVEN loaded value WHEN updateIfSuccess THEN transformed value is emitted to observers`() = runFlowTest {
+        val store = storeBuilder().build { "value" }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+
+
+        store.updateIfSuccess { "$it-updated" }
+        runCurrent()
+
+        assertResult(StoreResult.Loaded("value-updated"), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN failed value WHEN updateIfSuccess THEN updater is not invoked and result is unchanged`() = runFlowTest {
+        val exception = IllegalStateException("load failed")
+        val store = storeBuilder().build { throw exception }
+        val collector = store.observe().startCollecting()
+        runCurrent()
+        assertResult(StoreResult.Failed(exception), collector.lastItem)
+
+        var invoked = false
+
+        store.updateIfSuccess { invoked = true; "$it-updated" }
+        runCurrent()
+
+        assertFalse(invoked)
+        assertResult(StoreResult.Failed(exception), collector.lastItem)
+    }
+
+    @Test
     fun `GIVEN successful real update WHEN optimisticUpdate THEN optimistic value is kept`() = runFlowTest {
         val store = storeBuilder().build { "value" }
         val collector = store.observe().startCollecting()
         runCurrent()
 
-        executeInBackground {
-            store.optimisticUpdate {
-                emit("optimistic")
-                delay(10) // simulate a real update
-            }
+        store.optimisticUpdate {
+            emit("optimistic")
+            delay(10) // simulate a real update
         }
         runCurrent()
+
         // optimistic value is visible while the real update is in progress
         assertResult(StoreResult.Loaded("optimistic"), collector.lastItem)
 
@@ -158,7 +187,7 @@ class SimpleStoreUpdateTest : AbstractSimpleStoreTest() {
             .build { "value" }
             .whenActive {
                 events.collect { event ->
-                    update { event }
+                    updateWith(StoreResult.Loaded(event))
                 }
             }
         val collector = store.observe().startCollecting()

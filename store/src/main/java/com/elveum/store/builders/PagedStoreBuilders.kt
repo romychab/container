@@ -1,5 +1,6 @@
 package com.elveum.store.builders
 
+import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.PagedContract
 import com.elveum.store.contracts.PagedQueryContract
@@ -41,6 +42,15 @@ public interface BasePagedBuilder<OutBuilder> : BaseBuilder<OutBuilder> {
 public interface PagedBuilder<PageKey : Any, T : Any> : BasePagedBuilder<PagedBuilder<PageKey, T>> {
 
     /**
+     * Transitions the builder into a keyed variant: instead of a single paged list, the
+     * resulting store manages one independently-paged list per key. See [PagedKeyedBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [PagedKeyedBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): PagedKeyedBuilder<Key, PageKey, T>
+
+    /**
      * Transitions the builder to a query-aware variant that reloads the paged data
      * whenever the active query changes.
      *
@@ -77,6 +87,15 @@ public interface PagedBuilder<PageKey : Any, T : Any> : BasePagedBuilder<PagedBu
     public fun build(
         onFetch: suspend (PageKey) -> PagedList<PageKey, T>,
     ): PagedStore<T>
+
+    /**
+     * Builds a [PagedStore] with a custom loader that emits pages manually through a
+     * [PageEmitter], giving full control over how each page is produced.
+     *
+     * @param loader suspending lambda, receiving the page key, that emits pages via [PageEmitter].
+     * @return the configured [PagedStore].
+     */
+    public fun buildCustom(loader: suspend PageEmitter<PageKey, T>.(PageKey) -> Unit): PagedStore<T>
 }
 
 /**
@@ -88,6 +107,15 @@ public interface PagedBuilder<PageKey : Any, T : Any> : BasePagedBuilder<PagedBu
  */
 public interface PagedQueryBuilder<Q : Any, PageKey : Any, T : Any> :
         BasePagedBuilder<PagedQueryBuilder<Q, PageKey, T>> {
+
+    /**
+     * Transitions the builder into a keyed variant that manages one independently-paged,
+     * query-driven list per key. See [PagedKeyedQueryBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [PagedKeyedQueryBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): PagedKeyedQueryBuilder<Key, Q, PageKey, T>
 
     /**
      * Transitions the builder to a variant that supports a suspending (one-shot)
@@ -117,6 +145,16 @@ public interface PagedQueryBuilder<Q : Any, PageKey : Any, T : Any> :
         onFetch: suspend (Q, PageKey) -> PagedList<PageKey, T>,
     ): PagedQueryStore<Q, T>
 
+    /**
+     * Builds a [PagedQueryStore] with a custom loader that emits pages manually through a
+     * [PageEmitter].
+     *
+     * @param loader suspending lambda, receiving the current query and page key, that emits
+     *   pages via [PageEmitter].
+     * @return the configured [PagedQueryStore].
+     */
+    public fun buildCustom(loader: suspend PageEmitter<PageKey, T>.(Q, PageKey) -> Unit): PagedQueryStore<Q, T>
+
 }
 
 /**
@@ -127,6 +165,15 @@ public interface PagedQueryBuilder<Q : Any, PageKey : Any, T : Any> :
  */
 public interface PagedSuspendingBuilder<PageKey : Any, T : Any> :
         BasePagedBuilder<PagedSuspendingBuilder<PageKey, T>> {
+
+    /**
+     * Transitions the builder into a keyed variant with suspending local storage that
+     * manages one independently-paged list per key. See [PagedKeyedSuspendingBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [PagedKeyedSuspendingBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): PagedKeyedSuspendingBuilder<Key, PageKey, T>
 
     /**
      * Transitions the builder to a query-aware variant with suspending local storage.
@@ -176,6 +223,16 @@ public interface PagedSuspendingBuilder<PageKey : Any, T : Any> :
  */
 public interface PagedQuerySuspendingBuilder<Q : Any, PageKey: Any, T : Any> :
         BasePagedBuilder<PagedQuerySuspendingBuilder<Q, PageKey, T>> {
+
+    /**
+     * Transitions the builder into a keyed variant that manages one independently-paged,
+     * query-driven list per key, backed by suspending local storage. See
+     * [PagedKeyedQuerySuspendingBuilder].
+     *
+     * @param Key the type of the keys managed by the resulting store.
+     * @return a [PagedKeyedQuerySuspendingBuilder] preserving the configuration applied so far.
+     */
+    public fun <Key : Any> withKeys(): PagedKeyedQuerySuspendingBuilder<Key, Q, PageKey, T>
 
     /**
      * Builds a [PagedQueryStore] using the provided [PagedQuerySuspendingContract] implementation.

@@ -5,7 +5,6 @@ import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.nextPageState
-import com.elveum.store.stores.base.update
 import com.elveum.store.stores.paged.PagedList
 import com.uandcode.flowtest.assertFailure
 import kotlinx.coroutines.delay
@@ -88,10 +87,10 @@ class PagedStoreErrorsAndUpdatesTest : AbstractPagedStoreTest() {
             counter++
             PagedList(listOf("value$counter"), null)
         }
-        val collector = store.observe().startCollecting()
+        val collector = store.observe(LoadRequest.Silent).startCollecting()
         advanceTimeBy(11) // first load
 
-        store.invalidateAsync(LoadRequest.Silent)
+        store.invalidateAsync()
 
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loaded(listOf("value1")), collector.lastItem)
@@ -106,9 +105,9 @@ class PagedStoreErrorsAndUpdatesTest : AbstractPagedStoreTest() {
         val collector = store.observe().startCollecting()
         runCurrent()
 
-        executeInBackground {
-            store.update { oldList -> oldList + "appended" }
-        }
+
+        val oldList = (store.get() as StoreResult.Loaded).value
+        store.updateWith(StoreResult.Loaded(oldList + "appended"))
         runCurrent()
 
         assertResult(

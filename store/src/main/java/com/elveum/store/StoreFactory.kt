@@ -1,25 +1,25 @@
 package com.elveum.store
 
 import com.elveum.store.builders.PagedBuilder
-import com.elveum.store.builders.KeyedBuilder
 import com.elveum.store.builders.SimpleBuilder
 import com.elveum.store.internal.StoreFactoryImpl
 
 /**
- * A factory that provides 3 builders for creating Store instances:
+ * A factory that provides builders for creating Store instances:
  *
  * - `simpleStoreBuilder()` builds a store for fetching and caching
  *   data without keys. For example: user profile, non-paged lists,
  *   shopping cart, etc.
  *
- * - `keyedStoreBuilder()` acts like a map of stores, where each store has a
- *   key with auto-managed lifecycle determined by observers. Usually such
- *   stores can be used for item details fetched by unique identifiers:
- *   friend profiles, product details, movie details, etc.
- *
  * - `pagedStoreBuilder()` builds a store which data should be rendered
  *   as infinite scrollable list, loaded by chunks. For example: news feed,
  *   reels, posts, gallery, etc.
+ *
+ * Keyed stores - which act like a map of stores, where each key has an
+ * auto-managed lifecycle determined by its observers (friend profiles,
+ * product details, movie details, etc.) - are not created directly by this
+ * factory. Instead, call `withKeys<Key>()` on a simple or paged builder, e.g.
+ * `simpleStoreBuilder<Product>().withKeys<Long>()`.
  */
 public interface StoreFactory {
 
@@ -37,23 +37,6 @@ public interface StoreFactory {
      * and returns pre-configured store with different capabilities.
      */
     public fun <T : Any> simpleStoreBuilder(): SimpleBuilder<T>
-
-    /**
-     * Build a map of stores where each key-store pair has auto-managed lifecycle
-     * determined by observers. The key and corresponding loaded value is cached
-     * while observers are interested in its value (plus configurable in-memory
-     * cache timeout). This store builder can configure:
-     *
-     * - key type (e.g. user ID, movie ID)
-     * - in-memory cache timeout
-     * - coroutine context (e.g. dispatcher)
-     * - suspending local storage (e.g. DAO class with suspend functions)
-     * - reactive local storage (e.g. Data Store with Flow)
-     *
-     * Depending on configured values, the `build` method accepts different contracts
-     * and returns pre-configured keyed store with different capabilities.
-     */
-    public fun <Key : Any, T : Any> keyedStoreBuilder(): KeyedBuilder<Key, T>
 
     /**
      * Build a store which data should be rendered as infinite scrollable list,
@@ -81,7 +64,8 @@ public interface StoreFactory {
      * Default implementation that creates new stores without having a separate factory instance.
      *
      * ```
-     * val store = StoreFactory.keyedStoreBuilder<Long, Product>()
+     * val store = StoreFactory.simpleStoreBuilder<Product>()
+     *     .withKeys<Long>()
      *     .setInMemoryCacheTimeout(60.seconds)
      *     .addSuspendingLocalStorage()
      *     .build(...)
@@ -105,10 +89,6 @@ public interface StoreFactory {
      *
      */
     public companion object : StoreFactory {
-
-        override fun <Key : Any, T : Any> keyedStoreBuilder(): KeyedBuilder<Key, T> {
-            return StoreFactoryImpl.keyedStoreBuilder()
-        }
 
         override fun <PageKey : Any, T : Any> pagedStoreBuilder(
             initialKey: PageKey,

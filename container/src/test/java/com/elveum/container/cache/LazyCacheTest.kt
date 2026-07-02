@@ -3,25 +3,19 @@
 package com.elveum.container.cache
 
 import com.elveum.container.Container
-import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
 import com.elveum.container.LocalSourceType
 import com.elveum.container.SourceTypeMetadata
-import com.elveum.container.cache.LazyCacheImpl.LazyFlowSubjectFactory
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject
-import com.elveum.container.subject.ValueLoader
 import com.elveum.container.successContainer
-import com.elveum.container.utils.invokeOn
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
-import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -42,9 +36,7 @@ class LazyCacheTest {
     private val key2 = "key2"
 
     @MockK
-    private lateinit var subjectFactory: LazyFlowSubjectFactory<String>
-
-    private lateinit var loader: CacheValueLoader<String, String>
+    private lateinit var subjectFactory: LazyFlowSubjectFactory<String, String>
 
     @MockK
     private lateinit var coroutineScopeFactory: CoroutineScopeFactory
@@ -56,20 +48,14 @@ class LazyCacheTest {
     @Before
     fun setUp() {
         MockKAnnotations.init(this)
-        loader = mockk(relaxed = true)
         scope = TestScope()
         every { coroutineScopeFactory.createScope() } answers {
             TestScope(scope.testScheduler)
         }
         lazyCache = LazyCacheImpl(
-            cacheTimeoutMillis = timeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory,
-            valueLoaderFactory = { arg ->
-                ValueLoader {
-                    loader(this, arg)
-                }
-            },
-            subjectFactory = subjectFactory,
+            cacheTimeoutMillis = timeoutMillis,
+            factory = subjectFactory,
         )
     }
 
@@ -78,26 +64,19 @@ class LazyCacheTest {
         lazyCache.listen(key)
 
         verify(exactly = 0) {
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
     }
 
     @Test
     fun listen_afterStartOfCollecting_opensCacheSlot() = scope.runFlowTest {
-        val expectedKey = key
-        val expectedEmitter = mockk<Emitter<String>>()
         val subject = mockSubject()
         every { subject.listen() } returns MutableStateFlow(Container.Pending)
 
         lazyCache.listen(key).startCollecting()
 
-        val valueLoader = slot<ValueLoader<String>>()
         verify(exactly = 1) {
-            subjectFactory.create(capture(valueLoader))
-        }
-        valueLoader.captured.invokeOn(expectedEmitter)
-        coVerify(exactly = 1) {
-            loader(refEq(expectedEmitter), expectedKey)
+            subjectFactory.create(key, coroutineScopeFactory, timeoutMillis)
         }
     }
 
@@ -196,7 +175,7 @@ class LazyCacheTest {
 
         verify(exactly = 1) { // as a result: coroutineScope and subject should not be created twice
             coroutineScopeFactory.createScope()
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
     }
 
@@ -204,7 +183,7 @@ class LazyCacheTest {
     fun get_withoutActiveCacheSlot_returnsPendingContainer() {
         assertEquals(Container.Pending, lazyCache.get(key))
         verify(exactly = 0) {
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
     }
 
@@ -241,7 +220,7 @@ class LazyCacheTest {
     fun getActiveCollectorsCount_withoutActiveCacheSlot_returnsZero() {
         assertEquals(0, lazyCache.getActiveCollectorsCount(key))
         verify(exactly = 0) {
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
     }
 
@@ -300,7 +279,7 @@ class LazyCacheTest {
         val state = flow.startCollecting()
 
         verify(exactly = 0) {
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
         assertEquals(CollectStatus.Completed, state.collectStatus)
         assertTrue(state.collectedItems.isEmpty())
@@ -333,7 +312,7 @@ class LazyCacheTest {
         lazyCache.updateWith(key, successContainer("value"))
 
         verify(exactly = 0) {
-            subjectFactory.create(any())
+            subjectFactory.create(any(), any(), any())
         }
         assertEquals(Container.Pending, lazyCache.get(key))
     }
@@ -353,14 +332,14 @@ class LazyCacheTest {
 
     private fun mockSubject(): LazyFlowSubject<String> {
         val subject = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
-        every { subjectFactory.create(any()) } returns subject
+        every { subjectFactory.create(any(), any(), any()) } returns subject
         return subject
     }
 
     private fun mockTwoSubjects(): Pair<LazyFlowSubject<String>, LazyFlowSubject<String>> {
         val subject1 = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
         val subject2 = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
-        every { subjectFactory.create(any()) } returns subject1 andThen subject2
+        every { subjectFactory.create(any(), any(), any()) } returns subject1 andThen subject2
         return subject1 to subject2
     }
 

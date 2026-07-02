@@ -1,6 +1,7 @@
 package com.elveum.store.demo.errors
 
 import com.uandcode.hilt.autobind.AutoBinds
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -18,8 +19,8 @@ class ErrorFlagStore @Inject constructor() : ErrorFlagProvider, ErrorFlagReposit
         return errorFlagFlow.value
     }
 
-    override fun isKeepContentOnErrorFlagEnabled(): Boolean {
-        return keepContentOnErrorFlow.value
+    override fun isKeepContentOnErrorFlagEnabled(): Flow<Boolean> {
+        return keepContentOnErrorFlow
     }
 
     override fun toggleErrorFlag() {

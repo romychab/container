@@ -8,6 +8,7 @@ import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.isError
 import com.elveum.container.subject.lazy.LoadTask.ExecuteParams
 import com.elveum.container.update
 import kotlinx.coroutines.CancellationException
@@ -27,10 +28,13 @@ internal class StatefulEmitterImpl<T>(
     override val hasEmittedValues: Boolean get() = emitter.hasEmittedValues
 
     override suspend fun emitPendingState() = with(flowCollector) {
-        if (!loadConfig.isSilentLoadingEnabled) {
+        val isSilentLoadingEnabled = loadConfig.isSilentLoadingEnabled
+        val replaceErrorsOnReload = loadConfig.replaceErrorsOnReload
+        val currentContainer = executeParams.currentContainer()
+        if (!isSilentLoadingEnabled || currentContainer.isError() && replaceErrorsOnReload) {
             emit(Container.Pending)
         } else {
-            executeParams.currentContainer()
+            currentContainer
                 .update { backgroundLoadState = BackgroundLoadState.Loading }
                 .let { emit(it) }
         }

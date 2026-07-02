@@ -20,16 +20,24 @@ public interface LoadRequestKeepContentBuilder : BaseLoadRequestBuilder {
      * Keep existing content in all observed flows while new content is being loaded.
      *
      * You can still observe the load state using background metadata.
+     *
+     * @param replaceErrorsOnReload when `true` (the default), a current *error* state is
+     *   replaced by a loading state on reload instead of being kept silently; i.e. content is
+     *   kept only while it is actually loaded.
      */
-    public fun keepContentOnLoad(): LoadRequestSourceBuilder
+    public fun keepContentOnLoad(replaceErrorsOnReload: Boolean = true): LoadRequestSourceBuilder
 
     /**
      * Keep existing content in all observed flows while new content is being loaded and
      * if the new content loading has been failed.
      *
      * You can still observe the load state using background metadata.
+     *
+     * @param replaceErrorsOnReload when `true` (the default), a current *error* state is
+     *   replaced by a loading state on reload instead of being kept silently; i.e. content is
+     *   kept only while it is actually loaded.
      */
-    public fun keepContentOnLoadAndError(): LoadRequestSourceBuilder
+    public fun keepContentOnLoadAndError(replaceErrorsOnReload: Boolean = true): LoadRequestSourceBuilder
 }
 
 public interface BaseLoadRequestBuilder {

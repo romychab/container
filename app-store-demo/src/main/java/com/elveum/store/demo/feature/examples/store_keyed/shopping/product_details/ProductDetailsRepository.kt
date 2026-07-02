@@ -19,7 +19,8 @@ class ProductDetailsRepository @Inject constructor(
     private val productsDataSource: ProductsDataSource,
 ) : CartRepository.ProductDetailsObserver {
 
-    private val productStore = StoreFactory.keyedStoreBuilder<Long, ProductDetails>()
+    private val productStore = StoreFactory.simpleStoreBuilder<ProductDetails>()
+        .withKeys<Long>()
         .setInMemoryCacheTimeout(10.seconds)
         .build(onFetch = productsDataSource::fetchProductById)
 

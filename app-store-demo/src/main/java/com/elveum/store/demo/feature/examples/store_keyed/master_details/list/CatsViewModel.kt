@@ -25,14 +25,6 @@ class CatListViewModel @Inject constructor(
         errorFlagRepository.toggleErrorFlag()
     }
 
-    fun tryAgain() {
-        catsRepository.tryAgain()
-    }
-
-    fun refresh() {
-        catsRepository.refresh()
-    }
-
     data class State(
         val catsResult: StoreResult<List<Cat>> = StoreResult.Loading,
         val isErrorsEnabled: Boolean = false,

@@ -53,13 +53,16 @@ configuration (store type × `withQuery` × local storage mode):
 | `simpleStoreBuilder` + `withQuery` + suspending/reactive storage | `SimpleQuerySuspendingContract` / `SimpleQueryReactiveContract` |
 | `simpleStoreBuilder` + `disableFetcher` | `SimpleReactiveNoFetcherContract<T>` |
 | `simpleStoreBuilder` + `disableFetcher` + `withQuery` | `SimpleQueryReactiveNoFetcherContract<Q, T>` |
-| `keyedStoreBuilder` | `KeyedContract<Key, T>` |
-| `keyedStoreBuilder` + suspending/reactive storage | `KeyedSuspendingContract` / `KeyedReactiveContract` |
-| `keyedStoreBuilder` + `disableFetcher` | `KeyedReactiveNoFetcherContract<Key, T>` |
+| `simpleStoreBuilder` + `withKeys` | `SimpleKeyedContract<Key, T>` |
+| `simpleStoreBuilder` + `withKeys` + suspending/reactive storage | `SimpleKeyedSuspendingContract` / `SimpleKeyedReactiveContract` |
+| `simpleStoreBuilder` + `withKeys` + `disableFetcher` | `SimpleKeyedReactiveNoFetcherContract<Key, T>` |
+| `simpleStoreBuilder` + `withKeys` + `withQuery` | `SimpleKeyedQueryContract<Key, Q, T>` (suspending/reactive/no-fetcher variants: `SimpleKeyedQuerySuspendingContract` / `SimpleKeyedQueryReactiveContract` / `SimpleKeyedQueryReactiveNoFetcherContract`) |
 | `pagedStoreBuilder` | `PagedContract<PageKey, T>` |
 | `pagedStoreBuilder` + `addSuspendingLocalStorage` | `PagedSuspendingContract<PageKey, T>` |
 | `pagedStoreBuilder` + `withQuery` | `PagedQueryContract<Q, PageKey, T>` |
 | `pagedStoreBuilder` + `withQuery` + suspending storage | `PagedQuerySuspendingContract<Q, PageKey, T>` |
+| `pagedStoreBuilder` + `withKeys` | `PagedKeyedContract<Key, PageKey, T>` (suspending: `PagedKeyedSuspendingContract` - `fetch`, `saveToLocalStorage`, `loadFromLocalStorage`) |
+| `pagedStoreBuilder` + `withKeys` + `withQuery` | `PagedKeyedQueryContract<Key, Q, PageKey, T>` (suspending: `PagedKeyedQuerySuspendingContract`) |
 
 Contracts are optional - `build` also accepts plain lambdas (`onFetch`,
 `onSaveToStorage`, `onLoadFromStorage` / `onObserveStorage`). Use lambdas
@@ -109,11 +112,14 @@ class ProductDetailsRepository(
     private val productsDataSource: ProductsDataSource,
 ) {
 
-    private val store = storeFactory.keyedStoreBuilder<Long, ProductDetails>()
+    private val store = storeFactory.simpleStoreBuilder<ProductDetails>()
+        .withKeys<Long>()
         .build(onFetch = productsDataSource::fetchProductById)
 
     fun getProductById(id: Long): Flow<StoreResult<ProductDetails>> = store.observe(id)
 
+    // Optional wrapper: the UI can also reload this id directly via
+    // result.invalidate() on the result observed for it (see Composable Screens).
     fun reloadProduct(id: Long) = store.invalidateAsync(id)
 }
 ```
@@ -139,6 +145,7 @@ class FeedRepository(
         itemId = Post::id,
     )
         .setFetchDistance(20)  // optional; default 20 items before the list end
+        .setLoadRequest(LoadRequest.Silent)  // reloads keep existing content (pull-to-refresh)
         .build(
             onFetch = { pageKey ->
                 val page = feedDataSource.fetchPage(pageKey)
@@ -148,7 +155,14 @@ class FeedRepository(
 
     fun getFeed(): Flow<StoreResult<List<Post>>> = store.observe()
     fun onItemRendered(index: Int) = store.onItemRendered(index)
-    fun refresh() = store.invalidateAsync(LoadRequest.Silent)
+
+    // OPTIONAL: prefer reloading straight from the UI via result.invalidate()
+    // (see "Reloading data" under Composable Screens). Keep these wrappers only
+    // when the reload needs extra logic, when the call site has no StoreResult,
+    // or to match an existing project convention.
+    // invalidate/invalidateAsync take NO request; each observer keeps receiving
+    // data per the request it subscribed with (here the builder default, Silent).
+    fun refresh() = store.invalidateAsync()
     fun tryAgain() = store.invalidateAsync()
 }
 ```
@@ -159,6 +173,46 @@ updates and queries.
 IMPORTANT: Usually there is NO need to set dispatcher via `setCoroutineContext(Dispatchers.IO)`, since
 most of modern IO operations (Room database, Retrofit) already operate on non-UI thread.
 
+### Reactive default request (runtime-controlled loading policy)
+
+`setLoadRequest` has two overloads: a fixed `setLoadRequest(LoadRequest)` and a
+reactive `setLoadRequest(Flow<LoadRequest>)`. Use the reactive overload when the
+loading policy must change at runtime - its latest emission becomes the default
+request for subsequent loads and new observers, with no store recreation and no
+change to any `observe(...)` call site. Typical use cases: automatic
+online/offline switching on connectivity changes, or a user-controlled "offline
+mode" / "data saver" flag stored in DataStore/preferences and toggled from a
+settings screen.
+
+```kotlin
+import com.elveum.store.StoreFactory
+import com.elveum.store.load.LoadRequest
+import com.elveum.store.load.StoreResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
+
+class ArticlesRepository(
+    storeFactory: StoreFactory,
+    settings: SettingsStore,                // exposes the persisted flag as Flow<Boolean>
+    articlesDataSource: ArticlesDataSource,
+) {
+
+    private val store = storeFactory.simpleStoreBuilder<List<Article>>()
+        .addSuspendingLocalStorage()        // so offlineMode() has cached data to serve
+        .setLoadRequest(
+            settings.offlineModeEnabled.map { offline ->
+                if (offline) LoadRequest.builder().offlineMode().build()
+                else LoadRequest.Default
+            }
+        )
+        .build(articlesDataSource)
+
+    fun getArticles(): Flow<StoreResult<List<Article>>> = store.observe()
+}
+```
+
+Available on every builder (simple, keyed, paged, and their query variants).
+
 ### Relations between stores (entity dependencies)
 
 When data managed by one store depends on another store (e.g. editing an
@@ -168,8 +222,8 @@ has observers and is cancelled when the cache is released:
 
 ```kotlin
 import com.elveum.store.StoreFactory
+import com.elveum.store.load.StoreResult
 import kotlinx.coroutines.flow.Flow
-import com.elveum.store.stores.base.update
 
 // Contract exposing ONLY what this repository needs from the other one.
 // Preferred over a direct repository->repository dependency.
@@ -187,8 +241,9 @@ class CatsRepository(
         .build(onFetch = catsDataSource::fetchCats)
         .whenActive {
             catEvents.observeCatEvents().collect { event ->
-                update { oldList ->
-                    oldList.map { if (it.id == event.cat.id) event.cat else it }
+                // read-modify-write the loaded list; no-op if not loaded yet
+                updateIfSuccess { cats ->
+                    cats.map { if (it.id == event.cat.id) event.cat else it }
                 }
             }
         }
@@ -250,9 +305,13 @@ class FeedViewModel(
         .getFeed()
         .stateIn(viewModelScope, SharingStarted.Lazily, StoreResult.Loading)
 
-    fun refresh() = feedRepository.refresh()        // silent
-    fun tryAgain() = feedRepository.tryAgain()      // non-silent
     fun onItemRendered(index: Int) = feedRepository.onItemRendered(index) // for paged data
+
+    // OPTIONAL: a screen can reload directly with result.invalidate() instead
+    // (see "Reloading data" under Composable Screens). Keep these for reloads
+    // that need extra logic or to match an established project convention.
+    fun refresh() = feedRepository.refresh()        // silent (observer uses LoadRequest.Silent)
+    fun tryAgain() = feedRepository.tryAgain()      // non-silent
 }
 ```
 
@@ -420,7 +479,9 @@ fun ArticlesScreen(viewModel: ArticlesViewModel) {
             StoreResult.Loading -> CircularProgressIndicator()
             is StoreResult.Failed -> Column {
                 Text("Failed to load: ${r.exception.message}")
-                Button(onClick = viewModel::tryAgain) { Text("Try again") } // non-silent reload
+                // Reload the origin store directly from the result - no ViewModel
+                // or repository function needed (see below).
+                Button(onClick = { r.invalidate() }) { Text("Try again") }
             }
             is StoreResult.Loaded -> ArticlesContent(r.value, viewModel)
         }
@@ -428,25 +489,54 @@ fun ArticlesScreen(viewModel: ArticlesViewModel) {
 }
 ```
 
-### Pull-to-refresh (silent) vs try-again (non-silent)
+### Reloading data: try-again and pull-to-refresh
 
-- **Try again** (error screen button) → `store.invalidateAsync()` -
-  observers go through `Loading` again.
-- **Pull-to-refresh** → `store.invalidateAsync(LoadRequest.Silent)` - the
-  old content stays; the in-flight refresh is visible through
-  `result.isBackgroundLoading()`:
+**Prefer reloading straight from the result.** A `StoreResult` can reload the
+store that produced it via `result.invalidate()` - with no reference to the
+store, and no `reload()` / `tryAgain()` / `refresh()` function threaded through
+the ViewModel and repository. The composable that renders the result calls
+`invalidate()` directly. `invalidate()` is fire-and-forget (safe to call from
+an `onClick` / `onRefresh` lambda).
+
+Whether the reload shows a spinner or keeps the current content is decided by
+the request the observer subscribed with (via `observe(request)` or the
+builder's `setLoadRequest`), **not** by the `invalidate()` call:
+
+- **Try again** (error screen, no content visible) → default request → the
+  observer goes through `Loading` again:
+
+```kotlin
+is StoreResult.Failed -> Button(onClick = { result.invalidate() }) {
+    Text("Try again")
+}
+```
+
+- **Pull-to-refresh** (content already visible) → subscribe with
+  `LoadRequest.Silent` (per-observer `observe(LoadRequest.Silent)` or builder
+  `setLoadRequest(LoadRequest.Silent)`) so `invalidate()` keeps the old content;
+  the in-flight refresh shows through `result.isBackgroundLoading()`:
 
 ```kotlin
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import com.elveum.store.load.isBackgroundLoading
+import com.elveum.store.load.invalidate
 
 is StoreResult.Loaded -> PullToRefreshBox(
     isRefreshing = result.isBackgroundLoading(),
-    onRefresh = viewModel::refresh,          // invalidateAsync(LoadRequest.Silent)
+    onRefresh = { result.invalidate() },     // observer uses LoadRequest.Silent
 ) {
     ArticlesList(result.value)
 }
 ```
+
+**The old way still works.** A `refresh()` / `tryAgain()` function on the
+ViewModel delegating to `store.invalidateAsync()` in the repository is
+equivalent and remains valid. Reach for it when the reload needs extra logic
+beyond a plain invalidate, when no `StoreResult` is available at the call site,
+or when the project has already established that convention - in an existing
+project, mirror what is already there rather than mixing both styles (see
+"Working in an Existing Project"). For a new screen, prefer
+`result.invalidate()`.
 
 ### Pagination
 

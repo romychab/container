@@ -34,14 +34,6 @@ class CombinedSimpleStoreViewModel @Inject constructor(
         galleryRepository.toggleLike(image)
     }
 
-    fun refresh() = safeLaunch(toaster) {
-        galleryRepository.refresh()
-    }
-
-    fun tryAgain() {
-        galleryRepository.reload()
-    }
-
     fun toggleErrors() {
         errorFlagRepository.toggleErrorFlag()
     }

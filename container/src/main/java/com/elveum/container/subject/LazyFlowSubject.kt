@@ -120,7 +120,7 @@ public interface LazyFlowSubject<T> {
      *         been unsubscribed or a new load has been submitted)
      */
     public fun newLoad(
-        config: LoadConfig = LoadConfig.Normal,
+        config: LoadConfig? = null,
         metadata: ContainerMetadata = EmptyMetadata,
         valueLoader: ValueLoader<T>
     ): Flow<T>
@@ -150,7 +150,7 @@ public interface LazyFlowSubject<T> {
      * @see newLoad
      */
     public fun reload(
-        config: LoadConfig = LoadConfig.Normal,
+        config: LoadConfig? = null,
         metadata: ContainerMetadata = EmptyMetadata,
     ): Flow<T>
 
@@ -174,11 +174,26 @@ public interface LazyFlowSubject<T> {
 
     public companion object {
 
+        /**
+         * Create a new [LazyFlowSubject] instance.
+         *
+         * @param T the type of values held by the subject.
+         * @param cacheTimeoutMillis how much time loaded values remain cached when there are no collectors
+         * @param reloadDependenciesPeriodMillis how often dependencies are checked for reload triggers
+         * @param coroutineScopeFactory factory used to create coroutine scopes for loading
+         * @param transformation optional transformation applied to loaded containers
+         * @param loadConfig defines how the loading state of the initial load is propagated
+         * @param metadata metadata values to be attached to the initial load request
+         * @param valueLoader optional function that loads data into the subject; when `null` no initial load is started
+         * @return the created [LazyFlowSubject] instance
+         */
         public fun <T> create(
             cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
             reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+            loadConfig: LoadConfig = LoadConfig.Normal,
+            metadata: ContainerMetadata = EmptyMetadata,
             valueLoader: ValueLoader<T>? = null,
         ): LazyFlowSubject<T> {
             return LazyFlowSubjectImpl(
@@ -188,7 +203,7 @@ public interface LazyFlowSubject<T> {
                 reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
             ).apply {
                 if (valueLoader != null) {
-                    newAsyncLoad(valueLoader = valueLoader)
+                    newAsyncLoad(valueLoader = valueLoader, config = loadConfig, metadata = metadata)
                 }
             }
         }

@@ -1,13 +1,12 @@
 package com.elveum.store.demo.feature.examples.store_keyed.master_details.details
 
+import com.elveum.store.StoreFactory
+import com.elveum.store.demo.feature.examples.store_keyed.master_details.data.CatsDataSource
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.list.CatEvents
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.list.CatEvents.CatUpdatedEvent
-import com.elveum.store.demo.feature.examples.store_keyed.master_details.data.CatsDataSource
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.model.CatDetails
-import com.elveum.store.StoreFactory
-import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
-import com.elveum.store.stores.keyed.update
+import com.elveum.store.stores.keyed.updateIfSuccess
 import com.uandcode.hilt.autobind.AutoBinds
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,7 +19,8 @@ class CatDetailsRepository @Inject constructor(
     private val catsDataSource: CatsDataSource,
 ) : CatEvents {
 
-    private val store = StoreFactory.keyedStoreBuilder<Long, CatDetails>()
+    private val store = StoreFactory.simpleStoreBuilder<CatDetails>()
+        .withKeys<Long>()
         .build(onFetch = catsDataSource::fetchCatDetails)
 
     private val catEvents = MutableSharedFlow<CatUpdatedEvent>()
@@ -41,12 +41,8 @@ class CatDetailsRepository @Inject constructor(
         return catEvents
     }
 
-    fun tryAgain(catId: Long) {
+    fun invalidate(catId: Long) {
         store.invalidateAsync(catId)
-    }
-
-    fun refresh(catId: Long) {
-        store.invalidateAsync(catId, LoadRequest.Silent)
     }
 
     private suspend fun optimisticUpdate(id: Long, name: String) {
@@ -60,10 +56,9 @@ class CatDetailsRepository @Inject constructor(
 
     private suspend fun nonOptimisticUpdate(id: Long, name: String) {
         catsDataSource.updateCatName(id, name)
-        store.update(id) { old ->
-            old.copy(cat = old.cat.copy(name = name)).also {
-                catEvents.emit(CatUpdatedEvent(it.cat))
-            }
+        store.updateIfSuccess(id) { old ->
+            old.copy(cat = old.cat.copy(name = name))
+                .also { catEvents.emit(CatUpdatedEvent(it.cat)) }
         }
     }
 

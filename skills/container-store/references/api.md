@@ -13,13 +13,14 @@ import com.elveum.store.StoreFactory
 import com.elveum.store.stores.simple.SimpleStore
 import com.elveum.store.stores.simple.SimpleQueryStore
 import com.elveum.store.stores.keyed.KeyedStore
-import com.elveum.store.stores.keyed.update           // update(key) { } extension for KeyedStore
+import com.elveum.store.stores.keyed.KeyedQueryStore  // withKeys() + withQuery(); per-key query API
+import com.elveum.store.stores.keyed.PagedKeyedStore  // pagedStoreBuilder(...).withKeys(); per-key pagination
+import com.elveum.store.stores.keyed.PagedKeyedQueryStore // pagedStoreBuilder(...).withKeys().withQuery()
 import com.elveum.store.stores.paged.PagedStore
 import com.elveum.store.stores.paged.PagedQueryStore
 import com.elveum.store.stores.paged.PagedList        // data class PagedList(items, nextKey, metadata); also PagedList(items, nextKey, totalCount)
 
 // Base store members (extensions / supporting types)
-import com.elveum.store.stores.base.update            // update { } extension for SimpleStore/PagedStore
 import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.base.BaseStore
 import com.elveum.store.stores.base.BaseSimpleStore
@@ -60,6 +61,7 @@ import com.elveum.store.load.hasAnyLoading
 import com.elveum.store.load.nextPageState            // StoreResult<T>.nextPageState: PageState (paged stores)
 import com.elveum.store.load.invalidate               // StoreResult<T>.invalidate(): reload the origin store
 import com.elveum.store.load.onItemRendered           // StoreResult<T>.onItemRendered(index) (paged stores)
+import com.elveum.store.load.totalPagedItemsCount     // StoreResult<T>.totalPagedItemsCount: Int (-1 if unknown); shortcut for result.metadata.totalPagedItemsCount
 
 // Reducers (view-model layer)
 import com.elveum.store.reducers.StoreResultReducer
@@ -74,16 +76,26 @@ import com.elveum.store.contracts.SimpleReactiveContract
 import com.elveum.store.contracts.SimpleQueryContract
 import com.elveum.store.contracts.SimpleQuerySuspendingContract
 import com.elveum.store.contracts.SimpleQueryReactiveContract
-import com.elveum.store.contracts.KeyedContract
-import com.elveum.store.contracts.KeyedSuspendingContract
-import com.elveum.store.contracts.KeyedReactiveContract
+import com.elveum.store.contracts.SimpleKeyedContract                   // withKeys(): fetch(key)
+import com.elveum.store.contracts.SimpleKeyedSuspendingContract         // withKeys() + suspending storage: fetch(key), loadFromLocalStorage(key), saveToLocalStorage(key, data)
+import com.elveum.store.contracts.SimpleKeyedReactiveContract           // withKeys() + reactive storage: fetch(key), observeLocalStorage(key), saveToLocalStorage(key, data)
 import com.elveum.store.contracts.SimpleReactiveNoFetcherContract       // disableFetcher(): observe(): Flow<T>
 import com.elveum.store.contracts.SimpleQueryReactiveNoFetcherContract  // disableFetcher() + withQuery: observe(query): Flow<T>
-import com.elveum.store.contracts.KeyedReactiveNoFetcherContract        // disableFetcher(): observe(key): Flow<T>
+import com.elveum.store.contracts.SimpleKeyedReactiveNoFetcherContract  // withKeys() + disableFetcher(): observe(key): Flow<T>
+// Keyed query contracts (withKeys() + withQuery())
+import com.elveum.store.contracts.SimpleKeyedQueryContract              // fetch(key, query)
+import com.elveum.store.contracts.SimpleKeyedQuerySuspendingContract
+import com.elveum.store.contracts.SimpleKeyedQueryReactiveContract
+import com.elveum.store.contracts.SimpleKeyedQueryReactiveNoFetcherContract
 import com.elveum.store.contracts.PagedContract
 import com.elveum.store.contracts.PagedSuspendingContract
 import com.elveum.store.contracts.PagedQueryContract
 import com.elveum.store.contracts.PagedQuerySuspendingContract
+// Paged keyed contracts (pagedStoreBuilder(...).withKeys())
+import com.elveum.store.contracts.PagedKeyedContract                    // fetch(key, pageKey)
+import com.elveum.store.contracts.PagedKeyedQueryContract               // fetch(key, query, pageKey)
+import com.elveum.store.contracts.PagedKeyedSuspendingContract          // fetch, saveToLocalStorage, loadFromLocalStorage
+import com.elveum.store.contracts.PagedKeyedQuerySuspendingContract
 
 // Exceptions
 import com.elveum.store.exceptions.NoCachedDataException // emitted by offlineMode() without cache
@@ -110,9 +122,18 @@ Notes:
 - There is **no** reactive local storage for paged stores
   (`PagedReactiveContract` does not exist; paged builders have no
   `addReactiveLocalStorage()`). It is planned for future versions.
-- The `update` extension exists in two packages: import
-  `com.elveum.store.stores.base.update` for simple/paged stores and
-  `com.elveum.store.stores.keyed.update` for keyed stores.
+- The `update { }` extension was **renamed to `updateIfSuccess`**
+  (`store.updateIfSuccess { old -> new }`; keyed: `store.updateIfSuccess(key) { old -> new }`).
+  It is a read-modify-write helper that transforms the currently loaded value and writes it
+  back, running **only when the current value is `Loaded`** (no-op otherwise) - the rename
+  makes that condition explicit. Use `updateWith(StoreResult.Loaded(new))` for an
+  unconditional overwrite. `optimisticUpdate { }` and `updateWith(...)` are unchanged.
+- `optimisticUpdate`, `updateIfSuccess`, `submitQuery` and `submitQueryAsync` operate on the
+  in-memory cache, which exists **only while the store (or key) has an active observer**.
+  Calling them for an unobserved store/key is a silent no-op.
+- Keyed stores are created by calling `.withKeys<Key>()` on a simple or paged
+  builder (there is no `keyedStoreBuilder`). `withKeys()` preserves the
+  configuration applied before it (cache timeout, local storage, query, etc.).
 - The zero-arg-context overloads of `storeResultToReducer` /
   `toStoreResultReducer` use Kotlin context parameters
   (`context(owner: ReducerOwner)`); they require the
@@ -172,13 +193,21 @@ if (userStore.isOptionalEmpty()) showEmptyState()                 // isOptionalE
 
 ### LoadRequest
 
-Accepted by `observe`, `invalidate`, `invalidateAsync`, `submitQuery`:
+A `LoadRequest` is supplied in only two places: `observe(request? = null)`
+(per-observer) and the builder's `setLoadRequest(...)` (the default).
+`invalidate` / `invalidateAsync` / `submitQuery` / `submitQueryAsync` do
+**not** take a request - they just trigger a reload, and each observer keeps
+receiving data according to the request IT subscribed with (a store/key may
+have several observers, each with its own request: fresh, offline,
+keep-content, ...). `observe` takes a *nullable* `LoadRequest`; passing `null`
+(or omitting it) falls back to the store's configured default request instead
+of always meaning `LoadRequest.Default`:
 
 | Request | Effect |
 |---------|--------|
 | `LoadRequest.Default` | Fetch only if not cached; observers see `Loading` during the load |
 | `LoadRequest.Silent` | Keep currently shown content while reloading (pull-to-refresh); progress visible via `isBackgroundLoading()` |
-| `LoadRequest.builder()` | Custom: `freshMode()` (skip caches), `offlineMode()` (cache only; emits `NoCachedDataException` if empty), `keepContentOnLoad()`, `keepContentOnLoadAndError()`, then `build()` |
+| `LoadRequest.builder()` | Custom: `freshMode()` (skip caches), `offlineMode()` (cache only; emits `NoCachedDataException` if empty), `keepContentOnLoad(replaceErrorsOnReload = true)`, `keepContentOnLoadAndError(replaceErrorsOnReload = true)`, then `build()`. `replaceErrorsOnReload = false` keeps even a current error visible while reloading | 
 
 ### Store behaviour (all types)
 
@@ -188,13 +217,25 @@ Accepted by `observe`, `invalidate`, `invalidateAsync`, `submitQuery`:
   configured timeout (`setInMemoryCacheTimeout`, default **5 seconds**).
 - `setCoroutineContext(Dispatchers.IO)` sets the context for
   fetch/storage callbacks.
+- `setLoadRequest(loadRequest: LoadRequest)` sets the default `LoadRequest`
+  used whenever `observe` is called without an explicit request (default:
+  `LoadRequest.Default`).
+- `setLoadRequest(flow: Flow<LoadRequest>)` - reactive overload: the flow's
+  latest emission becomes the current default request, so the loading policy can
+  change at runtime without recreating the store or touching `observe(...)` call
+  sites. Use it to switch offline/online automatically when connectivity drops,
+  or to honor a user-controlled "offline mode" / "data saver" flag stored in
+  DataStore/preferences: map the flag `Flow<Boolean>` into a `LoadRequest`
+  (`if (offline) LoadRequest.builder().offlineMode().build() else LoadRequest.Default`).
+  See patterns.md ("Reactive default request").
 
 ## Typical Operations
 
 ```kotlin
 // Observe (Flow<StoreResult<T>>); lazy, shared, cached:
-store.observe()
-store.observe(key)                       // keyed store
+store.observe()                          // observe(request: LoadRequest? = null)
+store.observe(LoadRequest.Silent)        // per-observer request; null -> builder default
+store.observe(key)                       // keyed store; observe(key, request: LoadRequest? = null)
 
 // Read the latest result synchronously (no collection):
 val current: StoreResult<T> = store.get()
@@ -207,29 +248,54 @@ val error: Exception? = store.failureOrNull()        // failureOrNull(key) for k
 StoreFactory.simpleStoreBuilder<Settings>()
     .disableFetcher()
     .build(onObserve = dataStore::observeSettings)   // () -> Flow<Settings>
-StoreFactory.keyedStoreBuilder<BookId, Book>()
+StoreFactory.simpleStoreBuilder<Book>()
+    .withKeys<BookId>()
     .disableFetcher()
     .build(onObserve = { id -> dao.observeBook(id) }) // (Key) -> Flow<T>
 
+// Custom loader (no local storage) that emits values MANUALLY - use it only in rare cases
+// that can't be covered by other API provided by the library.
+StoreFactory.simpleStoreBuilder<Article>()
+    .buildCustom { /* this: Emitter<Article> */ emit(value1); emit(value2); emit(value3) }
+StoreFactory.simpleStoreBuilder<Book>().withKeys<BookId>()
+    .buildCustom { id -> emit(dao.peek(id)); emit(api.fetch(id)) }   // keyed: block receives the key
+// paged builder: block receives the page key and gets a PageEmitter receiver:
+StoreFactory.pagedStoreBuilder<Int, Post>(initialKey = 0, itemId = Post::id)
+    .buildCustom { pageKey -> emitPage(items); emitNextKey(nextKey) }
+
 // Paged store reporting the total item count; read it back from the result:
 PagedList(items = page.items, nextKey = page.nextKey, totalCount = page.total)
-val total: Int = result.metadata.totalPagedItemsCount  // -1 if not provided
+val total: Int = result.totalPagedItemsCount  // -1 if not provided; = result.metadata.totalPagedItemsCount
 
 // Await a single completed result (skips Loading), or throw on failure:
 suspend fun loadOnce(): T = store.observe().firstGetOrThrow()
 
-// Silent refresh (pull-to-refresh): old content stays visible
-store.invalidateAsync(LoadRequest.Silent)
-
-// Non-silent reload ("Try again" after an error): shows Loading
-store.invalidateAsync()                  // = LoadRequest.Default
+// Reload the store. From the UI, PREFER reloading straight from the rendered
+// result - no store/ViewModel/repository reference needed:
+result.invalidate()                      // reloads the origin store (fire-and-forget)
+// invalidate/invalidateAsync (on the store) are the reference-based equivalents,
+// useful when no StoreResult is at hand. All of them take NO request; each
+// observer keeps receiving data per the request it subscribed with (via
+// observe(...) or the builder default). For a silent refresh (pull-to-refresh)
+// subscribe with LoadRequest.Silent - observe(LoadRequest.Silent) or builder
+// setLoadRequest(LoadRequest.Silent) - so old content stays visible:
+store.invalidateAsync()                  // fire-and-forget reload
 suspend fun refresh() = store.invalidate()  // suspend until done
 
-// Plain cache update AFTER the real data source has been changed:
-import com.elveum.store.stores.base.update
+// Keys currently active (have an observer, or within the cache-timeout window):
+val active: StateFlow<Set<Key>> = keyedStore.activeKeys
+
+// Read-modify-write the loaded value AFTER the real data source changed
+// (updateIfSuccess = the old update { } extension, renamed; runs only if Loaded):
+suspend fun renameProfile(newName: String) {
+    dataSource.renameProfile(newName)
+    store.updateIfSuccess { it.copy(name = newName) }
+}
+
+// Unconditional overwrite regardless of current state:
 suspend fun clear() {
     cartDataSource.clear()
-    store.update { emptyList() }
+    store.updateWith(StoreResult.Loaded(emptyList()))
 }
 
 // Optimistic update: emit the expected value first, then do the real
@@ -244,15 +310,20 @@ suspend fun toggleLike(post: Post) {
 
 // Keyed variants take the key first:
 store.optimisticUpdate(productId) { old -> emit(old.copy(title = title)); api.rename(productId, title) }
-import com.elveum.store.stores.keyed.update
-store.update(productId) { it.copy(isRead = true) }
+// Keyed read-modify-write (runs only if that key is currently Loaded):
+store.updateIfSuccess(productId) { it.copy(isRead = true) }
 
 // Replace the cached result entirely (any StoreResult, no previous value needed):
 store.updateWith(StoreResult.Loaded(value))
 store.updateWith(productId, StoreResult.Loaded(value))   // keyed store
 
-// Query stores:
+// Query stores (submitQuery/submitQueryAsync take NO request):
 store.queryFlow                          // StateFlow<Q> - current query
-store.submitQueryAsync(newQuery)         // re-fetch; default LoadRequest.Silent
+store.submitQueryAsync(newQuery)         // re-fetch
 suspend fun search(q: Q) = store.submitQuery(q)  // suspends
+
+// Keyed query store (withKeys() + withQuery()): each key holds its own query:
+keyedQueryStore.observeQueryFlow(key)    // StateFlow<Q> for that key
+keyedQueryStore.submitQueryAsync(key, newQuery)
+suspend fun search(key: Key, q: Q) = keyedQueryStore.submitQuery(key, q)
 ```

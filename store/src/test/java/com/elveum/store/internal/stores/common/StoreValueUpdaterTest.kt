@@ -4,7 +4,6 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerValue
 import com.elveum.container.LocalSourceType
 import com.elveum.container.defaultMetadata
-import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,10 +12,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class StoreValueUpdaterTest {
-
-    private val mutexOwner = object : MutexOwner {
-        override val mutex: Mutex = Mutex()
-    }
 
     private val initialMetadata = defaultMetadata(sourceType = LocalSourceType)
     private var cached: ContainerValue<String>? = ContainerValue("old", initialMetadata)
@@ -31,7 +26,7 @@ class StoreValueUpdaterTest {
         cached = null
         var updaterCalled = false
 
-        mutexOwner.processOptimisticUpdate(
+        processOptimisticUpdate(
             getter = { cached },
             setToCache = setToCache,
             updater = { updaterCalled = true },
@@ -43,7 +38,7 @@ class StoreValueUpdaterTest {
 
     @Test
     fun `GIVEN cached value WHEN optimistic update emits value THEN it is committed to the cache`() = runTest {
-        mutexOwner.processOptimisticUpdate(
+        processOptimisticUpdate(
             getter = { cached },
             setToCache = setToCache,
             updater = { emit("new") },
@@ -56,7 +51,7 @@ class StoreValueUpdaterTest {
     fun `GIVEN cached value WHEN optimistic update THEN updater receives the current value`() = runTest {
         var receivedValue: String? = null
 
-        mutexOwner.processOptimisticUpdate(
+        processOptimisticUpdate(
             getter = { cached },
             setToCache = setToCache,
             updater = { currentValue -> receivedValue = currentValue },
@@ -71,7 +66,7 @@ class StoreValueUpdaterTest {
         var thrown: Exception? = null
 
         try {
-            mutexOwner.processOptimisticUpdate(
+            processOptimisticUpdate(
                 getter = { cached },
                 setToCache = setToCache,
                 updater = {
@@ -94,7 +89,7 @@ class StoreValueUpdaterTest {
         var thrown: Exception? = null
 
         try {
-            mutexOwner.processOptimisticUpdate(
+            processOptimisticUpdate(
                 getter = { cached },
                 setToCache = setToCache,
                 updater = { throw exception },
@@ -109,7 +104,7 @@ class StoreValueUpdaterTest {
 
     @Test
     fun `GIVEN successful optimistic update WHEN it completes THEN value is not rolled back`() = runTest {
-        mutexOwner.processOptimisticUpdate(
+        processOptimisticUpdate(
             getter = { cached },
             setToCache = setToCache,
             updater = { emit("new") },

@@ -1,12 +1,15 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleKeyedQueryReactiveBuilder
 import com.elveum.store.builders.SimpleQueryReactiveBuilder
 import com.elveum.store.builders.SimpleQueryReactiveNoFetcherBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleQueryReactiveContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
 import com.elveum.store.internal.builders.SharedConfig
-import com.elveum.store.internal.stores.SimpleQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.SimpleKeyedQueryReactiveBuilderImpl
+import com.elveum.store.internal.stores.KeyedQueryStoreImpl
+import com.elveum.store.internal.stores.asSimpleQueryStore
 import com.elveum.store.stores.simple.SimpleQueryStore
 import kotlinx.coroutines.flow.Flow
 
@@ -19,6 +22,10 @@ internal class SimpleQueryReactiveBuilderImpl<Q : Any, T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun <Key : Any> withKeys(): SimpleKeyedQueryReactiveBuilder<Key, Q, T> {
+        return SimpleKeyedQueryReactiveBuilderImpl(initialQuery, queryDebounceMillis, config)
     }
 
     override fun disableFetcher(): SimpleQueryReactiveNoFetcherBuilder<Q, T> {
@@ -42,14 +49,14 @@ internal class SimpleQueryReactiveBuilderImpl<Q : Any, T : Any>(
         onSaveToStorage: suspend (Q, T) -> Unit,
         onObserveStorage: (Q) -> Flow<T?>
     ): SimpleQueryStore<Q, T> {
-        return SimpleQueryStoreImpl(
+        return KeyedQueryStoreImpl<Unit, Q, T>(
             initialQuery = initialQuery,
             queryDebounceMillis = queryDebounceMillis,
             config = config,
-            fetcher = onFetch,
-            saver = onSaveToStorage,
-            observer = onObserveStorage,
-        )
+            fetcher = { _, query -> onFetch(query) },
+            saver = { _, query, value -> onSaveToStorage(query, value) },
+            observer = { _, query -> onObserveStorage(query) },
+        ).asSimpleQueryStore()
     }
 
 }

@@ -16,6 +16,7 @@ import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.LoadConfig
+import com.elveum.container.ReplaceErrorsOnReload
 import com.elveum.container.backgroundLoadState
 import com.elveum.container.get
 import com.elveum.container.pendingContainer
@@ -571,6 +572,115 @@ class LazyFlowSubjectImplIntegrationTest {
             collectedItems.raw()
         )
         assertEquals(RemoteSourceType, collectedItems.last().metadata.sourceType)
+    }
+
+    @Test
+    fun reload_withSilentLoading_whenCurrentIsError_keepsErrorInsteadOfPending() = runFlowTest {
+        val subject = createLazyFlowSubject()
+        subject.newAsyncLoad(config = LoadConfig.SilentLoading, EmptyMetadata, ValueLoader {
+            if (loadTrigger == LoadTrigger.Reload) {
+                delay(10)
+                emit("reloaded")
+            } else {
+                throw IllegalStateException("boom")
+            }
+        })
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        assertTrue(state.lastItem is Error)
+
+        subject.reloadAsync()
+        runCurrent()
+        // SilentLoading without ReplaceErrorsOnReload keeps the stale error visible while reloading
+        assertTrue(state.lastItem is Error)
+
+        advanceTimeBy(11)
+        assertEquals(successContainer("reloaded"), state.lastItem.raw())
+    }
+
+    @Test
+    fun reload_withReplaceErrorsOnReload_whenCurrentIsError_emitsPending() = runFlowTest {
+        val subject = createLazyFlowSubject()
+        subject.newAsyncLoad(
+            config = LoadConfig.SilentLoading + ReplaceErrorsOnReload,
+            EmptyMetadata,
+            ValueLoader {
+                if (loadTrigger == LoadTrigger.Reload) {
+                    delay(10)
+                    emit("reloaded")
+                } else {
+                    throw IllegalStateException("boom")
+                }
+            },
+        )
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        assertTrue(state.lastItem is Error)
+
+        subject.reloadAsync()
+        runCurrent()
+        // ReplaceErrorsOnReload replaces the stale error with Pending while reloading
+        assertEquals(Pending, state.lastItem)
+
+        advanceTimeBy(11)
+        assertEquals(successContainer("reloaded"), state.lastItem.raw())
+    }
+
+    @Test
+    fun reload_withNullConfig_inheritsLastLoadConfig() = runFlowTest {
+        val subject = createLazyFlowSubject()
+        subject.newAsyncLoad(config = LoadConfig.SilentLoading, EmptyMetadata, ValueLoader {
+            if (loadTrigger == LoadTrigger.Reload) {
+                delay(10)
+                emit("v2")
+            } else {
+                emit("v1")
+            }
+        })
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        assertEquals(successContainer("v1"), state.lastItem.raw())
+
+        // reload without an explicit config -> inherits the previous load's SilentLoading config
+        subject.reloadAsync(config = null)
+        runCurrent()
+        // still visible (not Pending) because the inherited config is silent
+        assertEquals(successContainer("v1"), state.lastItem.raw())
+
+        advanceTimeBy(11)
+        assertEquals(successContainer("v2"), state.lastItem.raw())
+        // no Pending was ever emitted after the first successful value
+        val afterFirstSuccess = state.collectedItems.raw().dropWhile { it != successContainer("v1") }
+        assertFalse(afterFirstSuccess.contains(Pending))
+    }
+
+    @Test
+    fun dependencyChange_reloadsSilently_keepingCurrentValueVisible() = runFlowTest {
+        val dependency = MutableSharedFlow<String>()
+        // the subject uses the default (Normal) config; a dependency-triggered reload must
+        // still be silent and must not reset the currently displayed value to Pending.
+        val subject = createLazyFlowSubject {
+            val dep = dependsOnFlow("d") { dependency }
+            emit("value-$dep")
+        }
+
+        val state = subject.listen().startCollecting()
+        runCurrent()
+        dependency.emit("1")
+        runCurrent()
+        assertEquals(successContainer("value-1"), state.lastItem.raw())
+
+        // change the dependency -> triggers a (silent) dependency reload
+        dependency.emit("2")
+        advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
+
+        assertEquals(successContainer("value-2"), state.lastItem.raw())
+        // no Pending was emitted between the two values - the reload was silent
+        val afterFirstSuccess = state.collectedItems.raw().dropWhile { it != successContainer("value-1") }
+        assertFalse(afterFirstSuccess.contains(Pending))
     }
 
     @Test

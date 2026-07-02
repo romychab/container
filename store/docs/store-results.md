@@ -94,6 +94,7 @@ the Container library) and exposes shortcuts to its common entries:
 | `sourceType`          | `SourceType`          | Origin of the value: `LocalSourceType`, `RemoteSourceType`, etc.              |
 | `backgroundLoadState` | `BackgroundLoadState` | State of a background reload running behind the cached value                  |
 | `nextPageState`       | `PageState`           | Paged stores only: state of the next-page load (`Idle` / `Pending` / `Error`) |
+| `totalPagedItemsCount`| `Int`                 | Paged stores only: total item count reported via `PagedList(totalCount = …)`; `-1` when unknown |
 
 For example, with a local + remote store you can show a "data may be
 stale" hint while the value loaded from the local storage is being
@@ -113,8 +114,14 @@ holding a reference to the store itself - handy when all the UI has is the
 
 | Function                       | Effect                                                                                                |
 |--------------------------------|-------------------------------------------------------------------------------------------------------|
-| `invalidate(config)`           | Reload the origin store (defaults to `LoadConfig.Normal`); equivalent to `store.invalidateAsync()`    |
+| `invalidate(config? = null)`   | Reload the origin store. With `config = null` (the default) each observer keeps the load config it is already using; pass a `LoadConfig` to override it for this reload |
 | `onItemRendered(index)`        | Paged stores only: report that the item at `index` was rendered, which may trigger the next-page load |
+
+Because the result can reload itself, pull-to-refresh and "try again" usually
+need **no** ViewModel/repository function at all - the UI wires the gesture
+straight to `result::invalidate` (combine it with `LoadRequest.Silent` to keep
+the current content visible during a pull-to-refresh; see
+[Load Requests](load-requests.md)).
 
 ```kotlin
 // retry button rendered from a Failed result, without a store reference:

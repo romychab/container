@@ -1,10 +1,15 @@
 package com.elveum.store.internal.builders.paged
 
+import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.store.builders.BasePagedBuilder
+import com.elveum.store.builders.PagedKeyedQueryBuilder
 import com.elveum.store.builders.PagedQueryBuilder
 import com.elveum.store.builders.PagedQuerySuspendingBuilder
 import com.elveum.store.contracts.PagedQueryContract
-import com.elveum.store.internal.stores.PagedQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.PagedKeyedQueryBuilderImpl
+import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
+import com.elveum.store.internal.stores.asPagedQueryStore
+import com.elveum.store.internal.stores.common.CorePageFetcher
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedQueryStore
 
@@ -23,16 +28,29 @@ internal class PagedQueryBuilderImpl<Q : Any, P : Any, T : Any>(
         return PagedQuerySuspendingBuilderImpl(initialQuery, queryDebounceMillis, config)
     }
 
+    override fun <Key : Any> withKeys(): PagedKeyedQueryBuilder<Key, Q, P, T> {
+        return PagedKeyedQueryBuilderImpl(initialQuery, queryDebounceMillis, config)
+    }
+
     override fun build(contract: PagedQueryContract<Q, P, T>): PagedQueryStore<Q, T> {
         return build(onFetch = contract::fetch)
     }
 
     override fun build(onFetch: suspend (Q, P) -> PagedList<P, T>): PagedQueryStore<Q, T> {
-        return PagedQueryStoreImpl(
+        return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
             initialQuery = initialQuery,
             queryDebounceMillis = queryDebounceMillis,
             config = config,
-            fetcher = { query, pageKey -> onFetch(query, pageKey) },
-        )
+            fetcher = { _, query, pageKey -> onFetch(query, pageKey) },
+        ).asPagedQueryStore()
+    }
+
+    override fun buildCustom(loader: suspend PageEmitter<P, T>.(Q, P) -> Unit): PagedQueryStore<Q, T> {
+        return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
+            initialQuery = initialQuery,
+            queryDebounceMillis = queryDebounceMillis,
+            config = config,
+            fetcher = CorePageFetcher.Custom { _, query, pageKey -> loader(query, pageKey) },
+        ).asPagedQueryStore()
     }
 }

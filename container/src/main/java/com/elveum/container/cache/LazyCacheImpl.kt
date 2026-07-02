@@ -6,13 +6,9 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
-import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.stateMap
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
-import com.elveum.container.subject.ValueLoader
-import com.elveum.container.subject.transformation.ContainerTransformation
-import com.elveum.container.subject.transformation.EmptyContainerTransformation
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -27,14 +23,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 
 internal class LazyCacheImpl<Arg, T>(
-    private val cacheTimeoutMillis: Long,
     private val coroutineScopeFactory: CoroutineScopeFactory,
-    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
-    transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
-    private val valueLoaderFactory: ValueLoaderFactory<Arg, T>,
-    private val subjectFactory: LazyFlowSubjectFactory<T> = LazyFlowSubjectFactory.Default(
-        cacheTimeoutMillis, reloadDependenciesPeriodMillis, coroutineScopeFactory, transformation,
-    )
+    private val cacheTimeoutMillis: Long,
+    private val factory: LazyFlowSubjectFactory<Arg, T>,
 ) : LazyCache<Arg, T> {
 
     private val cacheSlotsFlow = MutableStateFlow<Map<Arg, CacheRecord<T>>>(emptyMap())
@@ -69,7 +60,7 @@ internal class LazyCacheImpl<Arg, T>(
 
     override fun reload(
         arg: Arg,
-        config: LoadConfig,
+        config: LoadConfig?,
         metadata: ContainerMetadata,
     ): Flow<T> {
         return getSubject(arg)?.reload(config, metadata) ?: emptyFlow()
@@ -107,9 +98,7 @@ internal class LazyCacheImpl<Arg, T>(
     private fun registerRecord(arg: Arg): CacheRecord<T> = synchronized(this) {
         val existingRecord = cacheSlots[arg]
         val record = if (existingRecord == null) {
-            val subject = subjectFactory.create(
-                valueLoader = valueLoaderFactory.create(arg)
-            )
+            val subject = factory.create(arg, coroutineScopeFactory, cacheTimeoutMillis)
             CacheRecord(subject).also {
                 cacheSlotsFlow.update { oldMap ->
                     oldMap + (arg to it)
@@ -196,34 +185,6 @@ internal class LazyCacheImpl<Arg, T>(
             }
         }
 
-    }
-
-    interface LazyFlowSubjectFactory<T> {
-
-        fun create(
-            valueLoader: ValueLoader<T>,
-        ): LazyFlowSubject<T>
-
-        class Default<T>(
-            private val cacheTimeoutMillis: Long,
-            private val reloadDependenciesPeriodMillis: Long,
-            private val coroutineScopeFactory: CoroutineScopeFactory,
-            private val transformation: ContainerTransformation<T>,
-        ) : LazyFlowSubjectFactory<T> {
-
-            override fun create(
-                valueLoader: ValueLoader<T>,
-            ): LazyFlowSubject<T> {
-                return LazyFlowSubject.create(
-                    cacheTimeoutMillis = cacheTimeoutMillis,
-                    reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
-                    coroutineScopeFactory = coroutineScopeFactory,
-                    transformation = transformation,
-                    valueLoader = valueLoader,
-                )
-            }
-
-        }
     }
 
 }

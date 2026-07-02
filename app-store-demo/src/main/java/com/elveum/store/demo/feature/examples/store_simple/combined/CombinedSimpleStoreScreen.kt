@@ -48,6 +48,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.elveum.container.BackgroundLoadState
+import com.elveum.container.LoadConfig
 import com.elveum.store.demo.feature.examples.store_simple.combined.GalleryRepository.GalleryImage
 import com.elveum.store.demo.ui.components.DemoAction
 import com.elveum.store.demo.ui.components.DemoActionState
@@ -55,6 +56,7 @@ import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.hasAnyLoading
+import com.elveum.store.load.invalidate
 import kotlinx.collections.immutable.persistentListOf
 
 
@@ -67,7 +69,7 @@ fun CombinedSimpleStoreScreen() {
         DemoAction(
             icon = Icons.Default.Refresh,
             state = if (isRefreshInProgress) DemoActionState.Loading else DemoActionState.Default,
-            onClick = viewModel::refresh,
+            onClick = { state.images.invalidate(LoadConfig.SilentLoading) },
         )
     )
 
@@ -136,7 +138,7 @@ fun CombinedSimpleStoreScreen() {
                     text = "${images.exception.message}",
                 )
                 Button(
-                    onClick = viewModel::tryAgain,
+                    onClick = images::invalidate,
                     enabled = images.backgroundLoadState == BackgroundLoadState.Idle,
                 ) {
                     Text("Try Again")

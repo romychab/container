@@ -1,6 +1,6 @@
 ---
 name: container-store
-description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, PagedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md.
+description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, KeyedQueryStore, PagedStore, PagedKeyedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md.
 ---
 
 # Container Store Library
@@ -18,17 +18,17 @@ understand it.** All public types and imports are documented in
 [references/api.md](references/api.md). Layer-by-layer code patterns
 (data sources, repositories, ViewModels, Compose screens, DI) are in
 [references/patterns.md](references/patterns.md). Read those files
-directly — no decompilation or dependency tree inspection needed.
+directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.1.2` (transitively brings
+Maven coordinates: `com.elveum:store:3.2.0` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.1.2"
+store = "3.2.0"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -47,9 +47,12 @@ resolves. Add the dependency to every module that references
 |----------|-------|---------|
 | One value: profile, settings, cart, non-paged list | `SimpleStore<T>` | `StoreFactory.simpleStoreBuilder<T>()` |
 | One value parameterized by search/filter | `SimpleQueryStore<Q, T>` | `simpleStoreBuilder<T>().withQuery(initialQuery)` |
-| Entities fetched by ID, each cached independently | `KeyedStore<Key, T>` | `StoreFactory.keyedStoreBuilder<Key, T>()` |
+| Entities fetched by ID, each cached independently | `KeyedStore<Key, T>` | `StoreFactory.simpleStoreBuilder<T>().withKeys<Key>()` |
+| Per-key value parameterized by query/filter | `KeyedQueryStore<Key, Q, T>` | `simpleStoreBuilder<T>().withKeys<Key>().withQuery(initialQuery)` |
 | Infinite-scroll list loaded in pages | `PagedStore<T>` | `StoreFactory.pagedStoreBuilder<PageKey, T>(initialKey, itemId)` |
 | Paged list parameterized by query/filter | `PagedQueryStore<Q, T>` | `pagedStoreBuilder(...).withQuery(initialQuery)` |
+| Independent paged list per key | `PagedKeyedStore<Key, T>` | `pagedStoreBuilder(...).withKeys<Key>()` |
+| Per-key paged list parameterized by query | `PagedKeyedQueryStore<Key, Q, T>` | `pagedStoreBuilder(...).withKeys<Key>().withQuery(initialQuery)` |
 
 Rules: data identified by an ID observed from different screens → keyed.
 List that grows while scrolling → paged; fully loaded list → simple store
@@ -68,6 +71,14 @@ Repository           - creates and HOLDS Store instances (scoped, usually single
 Data sources         - Retrofit/DAO wrappers; may implement Store contracts + mapping
 ```
 
+Reloads (try-again, pull-to-refresh) usually need **no** path through these
+layers: a composable can call `result.invalidate()` on the `StoreResult` it
+renders to reload the origin store directly - no `reload()`/`tryAgain()`
+function on the ViewModel or repository. Keep the current content visible
+during the reload by observing with `LoadRequest.Silent`. Prefer this for new
+screens; see "Common Mistakes" for when the old wrapper-function approach is
+still appropriate.
+
 ## Quick Reference
 
 | Operation | Call |
@@ -76,14 +87,17 @@ Data sources         - Retrofit/DAO wrappers; may implement Store contracts + ma
 | Read latest result synchronously | `store.get()` / `store.get(key)` → `StoreResult<T>` |
 | Read latest value/error synchronously | `store.getOrNull()` / `store.failureOrNull()` (key variants for keyed) |
 | Local-only store (no remote fetcher) | `builder.disableFetcher().build(onObserve = { ... })` (simple & keyed) |
-| Pagination: total item count | `PagedList(items, nextKey, totalCount = n)`; read `result.metadata.totalPagedItemsCount` |
+| Pagination: total item count | `PagedList(items, nextKey, totalCount = n)`; read `result.totalPagedItemsCount` (`-1` if unknown; shortcut for `result.metadata.totalPagedItemsCount`) |
 | Await first completed result | `store.observe().firstGetOrThrow()` (suspend; value or throws) |
-| Silent refresh (pull-to-refresh) | `store.invalidateAsync(LoadRequest.Silent)` |
-| Non-silent reload (try-again) | `store.invalidateAsync()` |
-| Update cache after real write | `store.update { new }` (suspend extension) |
+| Reload from the UI (try-again / pull-to-refresh) — PREFERRED | `result.invalidate()` on the rendered `StoreResult`; reloads the origin store with no ViewModel/repository plumbing |
+| Pull-to-refresh (keep content visible) | Observe with `LoadRequest.Silent`, then `result.invalidate()`; progress shows via `result.isBackgroundLoading()` |
+| Try-again (reload showing `Loading`) | `result.invalidate()` on the failed result (default request re-shows `Loading`) |
+| Reload without a result at hand (old way, still valid) | `store.invalidateAsync()` / `store.invalidate()` (key variants for keyed) |
 | Replace cached result outright | `store.updateWith(StoreResult.Loaded(new))` / `store.updateWith(key, ...)` |
+| Read-modify-write loaded value | `store.updateIfSuccess { old -> new }` / `store.updateIfSuccess(key) { old -> new }` (no-op unless `Loaded`) |
 | Optimistic update (auto-revert on failure) | `store.optimisticUpdate { old -> emit(new); realUpdate() }` |
-| Submit query | `store.submitQueryAsync(query)` (default `LoadRequest.Silent`) |
+| Submit query | `store.submitQueryAsync(query)` (no request argument) |
+| Keys currently active (observed / in cache window) | `keyedStore.activeKeys` → `StateFlow<Set<Key>>` |
 | Pagination: report visible item | `store.onItemRendered(index)` |
 | Pagination: next-page status | `result.nextPageState` (`Idle`/`Pending`/`Error(retry)`) |
 | React while store is observed | `.whenActive { ... }` (chain after `build`) |
@@ -106,8 +120,24 @@ cache, released after the last observer unsubscribes plus
 
 ## Common Mistakes
 
-- Guessing imports - the two `update` extensions live in different
-  packages (`stores.base` for simple/paged, `stores.keyed` for keyed).
+- Threading `reload()` / `tryAgain()` / `refresh()` functions through
+  ViewModel → repository → store when the UI already holds the `StoreResult`.
+  The **preferred** way is to reload the origin store directly from the
+  composable with `result.invalidate()` (keep content visible by observing with
+  `LoadRequest.Silent`). The wrapper-function approach is still valid - keep it
+  when the reload needs extra logic beyond a plain invalidate, when no
+  `StoreResult` is available at the call site, or when the project already
+  established that convention (do not rewrite existing screens unless asked).
+- Using the old `update { }` extension - it was **renamed to `updateIfSuccess`**
+  (`store.updateIfSuccess { old -> new }`, keyed: `store.updateIfSuccess(key) { old -> new }`).
+  The rename makes explicit that the transform runs **only when the current value is
+  `Loaded`**; use `updateWith(StoreResult.Loaded(new))` for an unconditional overwrite.
+- Calling `optimisticUpdate`, `updateIfSuccess`, `submitQuery` or `submitQueryAsync` for a
+  store/key with **no active observer** - these act on the in-memory cache, which only exists
+  while the store (or key) is observed, so the call is silently a no-op. Observe first.
+- Reaching for a `keyedStoreBuilder` - it was removed. Keyed stores are
+  created by calling `.withKeys<Key>()` on a simple or paged builder
+  (`simpleStoreBuilder<T>().withKeys<Key>()`).
 - No reactive local storage for paged stores (`addReactiveLocalStorage()`
   does not exist on paged builders; planned for future versions).
 - Wrapping `observe()` in `shareIn`/`stateIn` inside repositories -

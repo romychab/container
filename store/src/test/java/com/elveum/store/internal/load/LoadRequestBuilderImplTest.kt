@@ -4,6 +4,8 @@ import com.elveum.container.LoadConfig
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.LoadRequestSource
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class LoadRequestBuilderImplTest {
@@ -33,19 +35,38 @@ class LoadRequestBuilderImplTest {
     }
 
     @Test
-    fun `GIVEN builder WHEN keepContentOnLoad THEN config is silent loading`() {
-        val request = LoadRequestBuilderImpl().keepContentOnLoad().build()
+    fun `GIVEN builder WHEN keepContentOnLoad without replacing errors THEN config is plain silent loading`() {
+        val request = LoadRequestBuilderImpl().keepContentOnLoad(replaceErrorsOnReload = false).build()
 
         assertEquals(LoadConfig.SilentLoading, request.config)
         assertEquals(LoadRequestSource.Default, request.requestSource)
     }
 
     @Test
-    fun `GIVEN builder WHEN keepContentOnLoadAndError THEN config is silent loading and error`() {
-        val request = LoadRequestBuilderImpl().keepContentOnLoadAndError().build()
+    fun `GIVEN builder WHEN keepContentOnLoad THEN silent loading replaces errors on reload by default`() {
+        // replaceErrorsOnReload defaults to true, so a stale error is not kept silently while reloading.
+        val config = LoadRequestBuilderImpl().keepContentOnLoad().build().config
+
+        assertTrue(config.isSilentLoadingEnabled)
+        assertFalse(config.isSilentErrorsEnabled)
+        assertTrue(config.replaceErrorsOnReload)
+    }
+
+    @Test
+    fun `GIVEN builder WHEN keepContentOnLoadAndError without replacing errors THEN config is plain silent loading and error`() {
+        val request = LoadRequestBuilderImpl().keepContentOnLoadAndError(replaceErrorsOnReload = false).build()
 
         assertEquals(LoadConfig.SilentLoadingAndError, request.config)
         assertEquals(LoadRequestSource.Default, request.requestSource)
+    }
+
+    @Test
+    fun `GIVEN builder WHEN keepContentOnLoadAndError THEN silent loading and error replaces errors on reload by default`() {
+        val config = LoadRequestBuilderImpl().keepContentOnLoadAndError().build().config
+
+        assertTrue(config.isSilentLoadingEnabled)
+        assertTrue(config.isSilentErrorsEnabled)
+        assertTrue(config.replaceErrorsOnReload)
     }
 
     @Test
@@ -55,7 +76,9 @@ class LoadRequestBuilderImplTest {
             .keepContentOnLoadAndError()
             .build()
 
-        assertEquals(LoadConfig.SilentLoadingAndError, request.config)
+        assertTrue(request.config.isSilentLoadingEnabled)
+        assertTrue(request.config.isSilentErrorsEnabled)
+        assertTrue(request.config.replaceErrorsOnReload)
         assertEquals(LoadRequestSource.Offline, request.requestSource)
     }
 
@@ -76,8 +99,12 @@ class LoadRequestBuilderImplTest {
     }
 
     @Test
-    fun `GIVEN silent load request WHEN read configuration THEN silent loading config and default source are used`() {
-        assertEquals(LoadConfig.SilentLoading, LoadRequest.Silent.config)
+    fun `GIVEN silent load request WHEN read configuration THEN silent loading config replacing errors on reload is used`() {
+        // LoadRequest.Silent == builder().keepContentOnLoad().build(), i.e. silent loading with
+        // the default ReplaceErrorsOnReload flag attached.
+        assertTrue(LoadRequest.Silent.config.isSilentLoadingEnabled)
+        assertFalse(LoadRequest.Silent.config.isSilentErrorsEnabled)
+        assertTrue(LoadRequest.Silent.config.replaceErrorsOnReload)
         assertEquals(LoadRequestSource.Default, LoadRequest.Silent.requestSource)
     }
 }

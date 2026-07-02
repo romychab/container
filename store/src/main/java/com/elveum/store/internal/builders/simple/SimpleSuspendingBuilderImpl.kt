@@ -1,12 +1,14 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleKeyedSuspendingBuilder
 import com.elveum.store.builders.SimpleQuerySuspendingBuilder
 import com.elveum.store.builders.SimpleSuspendingBuilder
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.contracts.SimpleSuspendingContract
 import com.elveum.store.internal.builders.BaseBuilderImpl
 import com.elveum.store.internal.builders.SharedConfig
-import com.elveum.store.internal.stores.SimpleQueryStoreImpl
+import com.elveum.store.internal.builders.keyed.SimpleKeyedSuspendingBuilderImpl
+import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asSimpleStore
 import com.elveum.store.stores.simple.SimpleStore
 
@@ -17,6 +19,10 @@ internal class SimpleSuspendingBuilderImpl<T : Any>(
 
     init {
         sharedBuilder.setReference(this)
+    }
+
+    override fun <Key : Any> withKeys(): SimpleKeyedSuspendingBuilder<Key, T> {
+        return SimpleKeyedSuspendingBuilderImpl(config)
     }
 
     override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): SimpleQuerySuspendingBuilder<Q, T> {
@@ -36,12 +42,12 @@ internal class SimpleSuspendingBuilderImpl<T : Any>(
         onSaveToStorage: suspend (T) -> Unit,
         onLoadFromStorage: suspend () -> T?
     ): SimpleStore<T> {
-        return SimpleQueryStoreImpl(
+        return KeyedQueryStoreImpl<Unit, Unit, T>(
             initialQuery = Unit,
             config = config,
-            fetcher = { onFetch() },
-            saver = { _, data -> onSaveToStorage(data) },
-            loader = { onLoadFromStorage() },
+            fetcher = { _, _ -> onFetch() },
+            saver = { _, _, data -> onSaveToStorage(data) },
+            loader = { _, _ -> onLoadFromStorage() },
         ).asSimpleStore()
     }
 

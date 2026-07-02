@@ -21,13 +21,13 @@ class SubjectFactoryTest {
     fun setFactory_replacesDefaultFactory() {
         val customFactory = mockk<SubjectFactory>()
         val expectedSubject = mockk<LazyFlowSubject<String>>()
-        every { customFactory.createSubject<String>(any(), any(), any(), any(), any()) } returns expectedSubject
+        every { customFactory.createSubject<String>(any(), any(), any(), any(), any(), any(), any()) } returns expectedSubject
 
         SubjectFactory.setFactory(customFactory)
 
         val result = SubjectFactory.createSubject<String> { /* loader */ }
         assertSame(expectedSubject, result)
-        verify(exactly = 1) { customFactory.createSubject<String>(any(), any(), any(), any(), any()) }
+        verify(exactly = 1) { customFactory.createSubject<String>(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
@@ -40,14 +40,14 @@ class SubjectFactoryTest {
         // After reset, createSubject should not delegate to the custom factory
         val result = SubjectFactory.createSubject<String> { /* loader */ }
         assertNotNull(result)
-        verify(exactly = 0) { customFactory.createSubject<String>(any(), any(), any(), any(), any()) }
+        verify(exactly = 0) { customFactory.createSubject<String>(any(), any(), any(), any(), any(), any(), any()) }
     }
 
     @Test
     fun createSubject_delegatesToCurrentFactory() {
         val customFactory = mockk<SubjectFactory>()
         val expectedSubject = mockk<LazyFlowSubject<String>>()
-        every { customFactory.createSubject<String>(any(), any(), any(), any(), any()) } returns expectedSubject
+        every { customFactory.createSubject<String>(any(), any(), any(), any(), any(), any(), any()) } returns expectedSubject
         SubjectFactory.setFactory(customFactory)
 
         val result = SubjectFactory.createSubject<String> { /* loader */ }
@@ -59,7 +59,7 @@ class SubjectFactoryTest {
     fun createCache_delegatesToCurrentFactory() {
         val customFactory = mockk<SubjectFactory>()
         val expectedCache = mockk<LazyCache<String, Int>>()
-        every { customFactory.createCache<String, Int>(any(), any(), any(), any(), any()) } returns expectedCache
+        every { customFactory.createCache<String, Int>(any(), any(), any(), any(), any(), any(), any()) } returns expectedCache
         SubjectFactory.setFactory(customFactory)
 
         val result = SubjectFactory.createCache<String, Int> { /* loader */ }

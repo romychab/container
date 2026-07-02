@@ -33,13 +33,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.details.CatDetailsRoute
 import com.elveum.store.demo.feature.examples.store_keyed.master_details.model.Cat
-import com.elveum.store.demo.navigation.ExampleRoute
 import com.elveum.store.demo.navigation.LocalNavController
 import com.elveum.store.demo.ui.components.DemoAction
 import com.elveum.store.demo.ui.components.DemoActionState
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
 import com.elveum.store.load.StoreResult
+import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.isCompleted
 import kotlinx.collections.immutable.persistentListOf
@@ -54,7 +54,7 @@ fun MasterListScreen() {
         persistentListOf(
             DemoAction(
                 icon = Icons.Default.Refresh,
-                onClick = viewModel::refresh,
+                onClick = { state.catsResult.invalidate() },
                 state = if (state.catsResult.isBackgroundLoading()) DemoActionState.Loading else DemoActionState.Default
             )
         )
@@ -105,7 +105,7 @@ fun MasterListScreen() {
                 ) {
                     Text("Failed to load cats.")
                     Button(
-                        onClick = viewModel::tryAgain,
+                        onClick = { finalResult.invalidate() },
                         enabled = !finalResult.isBackgroundLoading(),
                     ) {
                         Text("Try Again")

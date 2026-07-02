@@ -1,6 +1,7 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
@@ -78,7 +79,7 @@ class LazyFlowSubjectTest {
 
     @Test
     fun reload_withoutLoader_doesNothing() {
-        every { loadTaskManager.getLastRealLoader() } returns null
+        mockLastLoadTask(valueLoader = null)
 
         subject.reload()
 
@@ -90,7 +91,7 @@ class LazyFlowSubjectTest {
 
     @Test
     fun reload_withoutLoader_returnsEmptyFlow() = scope.runFlowTest {
-        every { loadTaskManager.getLastRealLoader() } returns null
+        mockLastLoadTask(valueLoader = null)
 
         val state = subject.reload().startCollecting()
 
@@ -104,8 +105,7 @@ class LazyFlowSubjectTest {
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
         val expectedFlow = MutableStateFlow("123")
-        every { loadTaskManager.getLastRealLoader() } returns valueLoader
-        every { loadTaskManager.getLastRealMetadata() } returns EmptyMetadata
+        mockLastLoadTask(valueLoader = valueLoader, metadata = EmptyMetadata)
         every { flowSubject.flow() } returns expectedFlow
         every {
             loadTaskFactory.create(
@@ -129,8 +129,7 @@ class LazyFlowSubjectTest {
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
         val customMetadata = SourceTypeMetadata(RemoteSourceType)
-        every { loadTaskManager.getLastRealLoader() } returns valueLoader
-        every { loadTaskManager.getLastRealMetadata() } returns EmptyMetadata
+        mockLastLoadTask(valueLoader = valueLoader, metadata = EmptyMetadata)
         every { flowSubject.flow() } returns MutableStateFlow("123")
         every {
             loadTaskFactory.create(
@@ -156,8 +155,7 @@ class LazyFlowSubjectTest {
         val expectedMetadata = SourceTypeMetadata(RemoteSourceType)
         val loadTaskSlot = slot<LoadTask<String>>()
         every { loadTaskManager.interceptByLoader(any()) } returns false
-        every { loadTaskManager.getLastRealLoader() } returns expectedValueLoader
-        every { loadTaskManager.getLastRealMetadata() } returns expectedMetadata
+        mockLastLoadTask(valueLoader = expectedValueLoader, metadata = expectedMetadata)
 
         subject.updateWith(expectedContainer)
 
@@ -215,6 +213,8 @@ class LazyFlowSubjectTest {
         val flowSubject = mockk<FlowSubject<String>>()
         val customMetadata = SourceTypeMetadata(RemoteSourceType)
         every { flowSubject.flow() } returns MutableStateFlow("123")
+        every { loadTaskManager.getLastLoadTask() } returns loadTask
+        every { loadTask.lastLoadConfig } returns LoadConfig.Normal
         every {
             loadTaskFactory.create(
                 config = LoadConfig.Normal,
@@ -404,5 +404,15 @@ class LazyFlowSubjectTest {
         assertFalse(subject.hasActiveCollectors)
     }
 
-
+    private fun mockLastLoadTask(
+        lastLoadConfig: LoadConfig = LoadConfig.Normal,
+        valueLoader: ValueLoader<String>? = null,
+        metadata: ContainerMetadata = EmptyMetadata,
+    ) {
+        val lastLoadTask = mockk<LoadTask<String>>()
+        every { loadTaskManager.getLastLoadTask() } returns lastLoadTask
+        every { lastLoadTask.lastLoadConfig } returns lastLoadConfig
+        every { lastLoadTask.lastRealLoader } returns valueLoader
+        every { lastLoadTask.lastRealMetadata } returns metadata
+    }
 }

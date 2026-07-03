@@ -87,11 +87,15 @@ internal class PageRecordsState<Key, T>(
 
     fun intercept(container: Container<List<T>>): Container<List<T>> {
         return if (container.isSuccess()) {
+            // Enforce id-uniqueness on externally supplied values too: duplicate
+            // ids crash Compose LazyColumn/LazyRow (which use item id as key) and
+            // break the merger's invariants. See ListMerger for details.
+            val uniqueValue = container.value.distinctBy { config.itemId(it) }
             coroutineScope.launch {
                 mutex.withLock {
                     outputList.clear()
-                    outputList.addAll(container.value)
-                    outputListSnapshotFlow.update { container.value }
+                    outputList.addAll(uniqueValue)
+                    outputListSnapshotFlow.update { uniqueValue }
                 }
             }
             container.map { it } // report other instance the loader handled the update manually
@@ -189,7 +193,10 @@ internal class PageRecordsState<Key, T>(
                     ?.getOrNull()
                     ?: emptyList()
             }
-
+            // The same logical item can appear on more than one page (common
+            // with live backend pagination). Deduplicate by id so the merger
+            // only ever sees unique ids. See ListMerger for details.
+            .distinctBy { config.itemId(it) }
     }
 
     private fun Iterable<PageRecord<Key, T>>.withHighestPriority(

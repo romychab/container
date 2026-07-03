@@ -22,8 +22,8 @@ internal interface CoreLoaderDelegate<R : Any> {
  * Default [CoreLoaderDelegate] implementing the cache-then-remote loading algorithm
  * shared by all store types:
  *
- * - [LoadRequestSource.Default]: emit the cached value first (from [loader], falling back
- *   to the first value of [observer]), then fetch and emit the remote value, saving it if
+ * - [LoadRequestSource.Default]: emit the cached value first (from `loader`, falling back
+ *   to the first value of `observer`), then fetch and emit the remote value, saving it if
  *   it differs from the cached one.
  * - [LoadRequestSource.Fresh]: skip caches entirely and emit only the remote value.
  * - [LoadRequestSource.Offline]: emit only the cached value; never fetch. If there is no

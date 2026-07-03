@@ -74,7 +74,7 @@ public interface PagedQueryStore<Q : Any, T : Any> :
      *
      * See [BaseStore.optimisticUpdate] for more details.
      *
-     * See also [update] extension.
+     * See also: [updateIfSuccess][com.elveum.store.stores.base.updateIfSuccess] extension.
      */
     override suspend fun optimisticUpdate(updater: suspend OptimisticUpdateScope<List<T>>.(List<T>) -> Unit)
 

@@ -34,7 +34,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.2.0"
+implementation "com.elveum:container:3.2.1"
 ```
 
 ## Core Concepts

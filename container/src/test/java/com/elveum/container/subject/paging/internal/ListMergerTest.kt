@@ -485,6 +485,51 @@ class ListMergerTest {
         )
     }
 
+    @Test
+    fun duplicateIdsInNewItems_deduplicatedKeepingFirst() {
+        // nonFinalNewItems contains the same id twice; the output must not
+        // accumulate duplicates (first occurrence wins).
+        val base = mutableListOf<Item>()
+        val merger = createListMerger(base)
+
+        merger.mergeFrom(
+            nonFinalOldItems = emptyList(),
+            nonFinalNewItems = listOf(updated(1), item(2), updated(1)),
+        )
+
+        assertEquals(
+            listOf(updated(1), item(2)),
+            base,
+        )
+    }
+
+    @Test
+    fun duplicateIdsInTarget_doesNotCrashAndIsDeduplicated() {
+        // Reproduces the production IndexOutOfBoundsException: the target list
+        // ends up holding a duplicate id, then the same page reloads reporting
+        // that id only once. targetList has more positions matching newIds than
+        // there are anchors.
+        val base = mutableListOf<Item>()
+        val merger = createListMerger(base)
+
+        // Merge 1: duplicate id 1 -> without dedup the base would be [1, 2, 1]
+        merger.mergeFrom(
+            nonFinalOldItems = emptyList(),
+            nonFinalNewItems = listOf(item(1), item(2), item(1)),
+        )
+
+        // Merge 2: page reloads, id 1 now appears only once.
+        merger.mergeFrom(
+            nonFinalOldItems = listOf(item(1), item(2), item(1)),
+            nonFinalNewItems = listOf(updated(1), updated(2)),
+        )
+
+        assertEquals(
+            listOf(updated(1), updated(2)),
+            base,
+        )
+    }
+
     private fun createListMerger(target: MutableList<Item>) =
         ListMerger(target) { it.id }
 

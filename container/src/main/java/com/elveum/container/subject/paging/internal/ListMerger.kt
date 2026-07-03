@@ -11,7 +11,12 @@ internal class ListMerger<T>(
         nonFinalOldItems: List<T>,
         nonFinalNewItems: List<T>,
     ) {
-        val state = State(nonFinalOldItems, nonFinalNewItems)
+        // Items are identified by itemId(). Duplicate ids (within a page or from
+        // the same logical item appearing on more than one page) break the 1:1
+        // position/anchor correspondence in reorderNonFinalItems() and previously
+        // caused an IndexOutOfBoundsException. Deduplicate incoming new items by
+        // id (first occurrence wins) so the merge always operates on unique ids.
+        val state = State(nonFinalOldItems, nonFinalNewItems.distinctById())
 
         state.apply {
             // step 1 - remove items from targetList that exist in old but not in new
@@ -26,9 +31,10 @@ internal class ListMerger<T>(
             // when an anchor is encountered, flush all nonFinalNewItems up to that anchor
             val result = buildFinalList()
 
-            // step 4 - replace data in targetList by result list
+            // step 4 - replace data in targetList by result list, keeping ids
+            // unique so the target never accumulates duplicates across merges
             targetList.clear()
-            targetList += result
+            targetList += result.distinctById()
         }
     }
 
@@ -47,7 +53,12 @@ internal class ListMerger<T>(
             }
         }
         val anchors = nonFinalNewItems.filter { itemId(it) in existingIds }
-        for (i in nonFinalPositions.indices) {
+        // With unique ids the two counts match; guard against any residual
+        // asymmetry (e.g. a target list that already contained duplicates) so a
+        // stale duplicate can never cause an out-of-bounds access. Leftover
+        // duplicate positions are cleaned up by distinctById() in mergeFrom().
+        val count = minOf(nonFinalPositions.size, anchors.size)
+        for (i in 0 until count) {
             targetList[nonFinalPositions[i]] = anchors[i]
         }
     }
@@ -72,6 +83,8 @@ internal class ListMerger<T>(
         }
         return result
     }
+
+    private fun List<T>.distinctById(): List<T> = distinctBy { itemId(it) }
 
     private inner class State(
         val nonFinalOldItems: List<T>,

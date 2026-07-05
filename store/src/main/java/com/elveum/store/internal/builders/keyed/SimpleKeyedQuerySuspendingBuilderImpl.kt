@@ -30,7 +30,7 @@ internal class SimpleKeyedQuerySuspendingBuilderImpl<Key : Any, Q : Any, T : Any
             loader = onLoadFromStorage,
             saver = onSaveToStorage,
             config = config,
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
         )
     }

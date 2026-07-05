@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders.paged
 
 import com.elveum.store.builders.BasePagedBuilder
+import com.elveum.store.builders.PagedExternalQuerySuspendingBuilder
 import com.elveum.store.builders.PagedKeyedSuspendingBuilder
 import com.elveum.store.builders.PagedQuerySuspendingBuilder
 import com.elveum.store.builders.PagedSuspendingBuilder
@@ -10,6 +11,8 @@ import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asPagedStore
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class PagedSuspendingBuilderImpl<P : Any, T : Any>(
     private val config: SharedPageConfig<P, T>,
@@ -22,6 +25,31 @@ internal class PagedSuspendingBuilderImpl<P : Any, T : Any>(
 
     override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): PagedQuerySuspendingBuilder<Q, P, T> {
         return PagedQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
+    }
+
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: () -> Flow<Q>,
+    ): PagedExternalQuerySuspendingBuilder<Q, P, T> {
+        return PagedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: () -> StateFlow<Q>,
+    ): PagedExternalQuerySuspendingBuilder<Q, P, T> {
+        return PagedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { queryFlow().value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
     }
 
     override fun <Key : Any> withKeys(): PagedKeyedSuspendingBuilder<Key, P, T> {
@@ -42,7 +70,7 @@ internal class PagedSuspendingBuilderImpl<P : Any, T : Any>(
         onLoadFromStorage: suspend (P) -> PagedList<P, T>?
     ): PagedStore<T> {
         return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
             queryDebounceMillis = 0,
             config = config,
             fetcher = { _, _, pageKey -> onFetch(pageKey) },

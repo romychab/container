@@ -36,7 +36,7 @@ internal class SimpleQueryReactiveNoFetcherBuilderImpl<Q : Any, T : Any>(
 
     override fun build(onObserve: (Q) -> Flow<T>): SimpleQueryStore<Q, T> {
         return KeyedQueryStoreImpl<Unit, Q, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query -> onObserve(query).first() },

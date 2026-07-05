@@ -28,15 +28,17 @@ internal class PagedKeyedQueryStoreImpl<Key : Any, Q : Any, PageKey : Any, T : A
     private val loader: suspend (Key, Q, PageKey) -> PagedList<PageKey, T>? = { _, _, _ -> null },
     private val saver: suspend (Key, Q, PageKey, PagedList<PageKey, T>) -> Unit = { _, _, _, _ -> },
     private val config: SharedPageConfig<PageKey, T>,
-    private val initialQuery: Q,
+    private val initialQueryProvider: (Key) -> Q,
     private val queryDebounceMillis: Long = 0,
+    private val externalQueryProvider: ((Key) -> Flow<Q>)? = null,
 ) : PagedKeyedQueryStore<Key, Q, T> {
 
     private val coreStore = CoreStore<Key, Q, List<T>, PagedList<PageKey, T>>(
-        initialQuery = initialQuery,
+        initialQueryProvider = initialQueryProvider,
         queryDebounceMillis = queryDebounceMillis,
         config = config,
         observer = { _, _ -> flowOf(null) },
+        externalQueryProvider = externalQueryProvider,
         valueLoaderProvider = object : CoreValueLoaderProvider<Key, Q, List<T>, PagedList<PageKey, T>> {
             override fun provideValueLoader(
                 key: Key,
@@ -76,11 +78,12 @@ internal class PagedKeyedQueryStoreImpl<Key : Any, Q : Any, PageKey : Any, T : A
         loader: suspend (Key, Q, PageKey) -> PagedList<PageKey, T>? = { _, _, _ -> null },
         saver: suspend (Key, Q, PageKey, PagedList<PageKey, T>) -> Unit = { _, _, _, _ -> },
         config: SharedPageConfig<PageKey, T>,
-        initialQuery: Q,
+        initialQueryProvider: (Key) -> Q,
         queryDebounceMillis: Long = 0,
+        externalQueryProvider: ((Key) -> Flow<Q>)? = null,
     ) : this(
         fetcher = CorePageFetcher.Default(fetcher),
-        loader, saver, config, initialQuery, queryDebounceMillis,
+        loader, saver, config, initialQueryProvider, queryDebounceMillis, externalQueryProvider,
     )
 
     override fun observeQueryFlow(key: Key) = coreStore.observeQueryFlow(key)

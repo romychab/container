@@ -38,7 +38,7 @@ internal class PagedQueryBuilderImpl<Q : Any, P : Any, T : Any>(
 
     override fun build(onFetch: suspend (Q, P) -> PagedList<P, T>): PagedQueryStore<Q, T> {
         return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query, pageKey -> onFetch(query, pageKey) },
@@ -47,7 +47,7 @@ internal class PagedQueryBuilderImpl<Q : Any, P : Any, T : Any>(
 
     override fun buildCustom(loader: suspend PageEmitter<P, T>.(Q, P) -> Unit): PagedQueryStore<Q, T> {
         return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = CorePageFetcher.Custom { _, query, pageKey -> loader(query, pageKey) },

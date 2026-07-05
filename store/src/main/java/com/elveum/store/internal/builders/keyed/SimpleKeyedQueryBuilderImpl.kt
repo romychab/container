@@ -47,7 +47,7 @@ internal class SimpleKeyedQueryBuilderImpl<Key : Any, Q : Any, T : Any>(
         return KeyedQueryStoreImpl(
             fetcher = onFetch,
             config = config,
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
         )
     }
@@ -56,7 +56,7 @@ internal class SimpleKeyedQueryBuilderImpl<Key : Any, Q : Any, T : Any>(
         return KeyedQueryStoreImpl(
             fetcher = CoreFetcher.Custom { key, query -> loader(key, query) },
             config = config,
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
         )
     }

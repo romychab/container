@@ -6,8 +6,8 @@ import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.paged.PagedStore
 import kotlinx.coroutines.flow.Flow
 
-internal class PagedStoreImpl<P : Any, T : Any>(
-    private val origin: PagedKeyedQueryStoreImpl<Unit, Unit, P, T>,
+internal class PagedStoreImpl<Q : Any, P : Any, T : Any>(
+    private val origin: PagedKeyedQueryStoreImpl<Unit, Q, P, T>,
 ) : PagedStore<T> {
 
     override fun onItemRendered(index: Int) = origin.onItemRendered(Unit, index)
@@ -36,5 +36,5 @@ internal class PagedStoreImpl<P : Any, T : Any>(
     }
 }
 
-internal fun <P : Any, T : Any> PagedKeyedQueryStoreImpl<Unit, Unit, P, T>.asPagedStore() =
+internal fun <Q : Any, P : Any, T : Any> PagedKeyedQueryStoreImpl<Unit, Q, P, T>.asPagedStore() =
     PagedStoreImpl(this)

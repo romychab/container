@@ -50,7 +50,7 @@ internal class SimpleQueryReactiveBuilderImpl<Q : Any, T : Any>(
         onObserveStorage: (Q) -> Flow<T?>
     ): SimpleQueryStore<Q, T> {
         return KeyedQueryStoreImpl<Unit, Q, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query -> onFetch(query) },

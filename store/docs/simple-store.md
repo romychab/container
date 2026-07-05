@@ -316,6 +316,64 @@ Key points:
   takes a `LoadRequest` - the loading behaviour follows the request each
   observer subscribed with via `observe(...)` (or the builder default).
 
+### External query flow
+
+Instead of driving the query imperatively with `submitQuery`, you can pass an
+existing reactive query stream to `withQuery` as a lambda returning a `Flow`.
+The store then follows that flow, and the result is a plain `SimpleStore<T>`
+with no `submitQuery`/`queryFlow` of its own - the flow is the single source of
+truth for the query:
+
+```kotlin
+class GalleryRepository(
+    private val remoteSource: RemoteGalleryDataSource,
+    private val localSource: LocalGalleryDataSource,
+) {
+
+  private val searchQuery = MutableStateFlow<String>("")
+
+  private val store = StoreFactory.simpleStoreBuilder<List<GalleryImage>>()
+        .addSuspendingLocalStorage()
+        .withQuery(debounceMillis = 500) { searchQuery }
+        .build(
+            onFetch = remoteSource::fetchImages,       // suspend (Q) -> T
+            onSaveToStorage = localSource::saveImages,  // suspend (Q, T) -> Unit
+            onLoadFromStorage = localSource::loadImages, // suspend (Q) -> T?
+        )
+
+    fun getImages(): Flow<StoreResult<List<GalleryImage>>> = store.observe()
+}
+```
+
+There are two overloads:
+
+- `withQuery(debounceMillis) { stateFlow }` - for a `StateFlow`, the initial
+  query is taken from `StateFlow.value`, so the first load happens immediately.
+- `withQuery(initialQuery, debounceMillis) { flow }` - for a plain `Flow` that
+  may not emit synchronously, `initialQuery` seeds the immediate first load and
+  the flow drives every reload after.
+
+Both are available on the remote-only, suspending, reactive and
+`disableFetcher()` (local-only) simple builders. An emission equal to the
+current query does not trigger a redundant reload, and the flow is collected
+only while the store is active.
+
+`withQuery` is **order-independent** - it can be applied before or after
+`addSuspendingLocalStorage()`, `addReactiveLocalStorage()`, `disableFetcher()`
+and `withKeys()`, so all of these compile and behave identically:
+
+```kotlin
+StoreFactory.simpleStoreBuilder<T>().withQuery { flow }.addSuspendingLocalStorage().build(/* ... */)
+StoreFactory.simpleStoreBuilder<T>().addSuspendingLocalStorage().withQuery { flow }.build(/* ... */)
+```
+
+Note the two ways to combine an external query with `withKeys` differ in
+semantics (see [Keyed Store](keyed-store.md#external-query-flow)):
+
+- `withKeys().withQuery { key -> flowFor(key) }` - **per-key** query flows.
+- `withQuery { flow }.withKeys()` - the single flow is **shared by every key**
+  (one global query stream driving all keys).
+
 ## Updating Cached Data
 
 `optimisticUpdate` lets you show changes instantly while a long-running

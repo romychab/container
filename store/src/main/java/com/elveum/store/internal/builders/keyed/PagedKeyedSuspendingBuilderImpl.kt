@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders.keyed
 
 import com.elveum.store.builders.BasePagedBuilder
+import com.elveum.store.builders.PagedKeyedExternalQuerySuspendingBuilder
 import com.elveum.store.builders.PagedKeyedQuerySuspendingBuilder
 import com.elveum.store.builders.PagedKeyedSuspendingBuilder
 import com.elveum.store.contracts.PagedKeyedSuspendingContract
@@ -9,6 +10,8 @@ import com.elveum.store.internal.builders.paged.SharedPageConfig
 import com.elveum.store.internal.stores.PagedKeyedQueryStoreImpl
 import com.elveum.store.stores.keyed.PagedKeyedStore
 import com.elveum.store.stores.paged.PagedList
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class PagedKeyedSuspendingBuilderImpl<Key : Any, PageKey : Any, T : Any>(
     val config: SharedPageConfig<PageKey, T>,
@@ -26,6 +29,31 @@ internal class PagedKeyedSuspendingBuilderImpl<Key : Any, PageKey : Any, T : Any
         debounceMillis: Long
     ): PagedKeyedQuerySuspendingBuilder<Key, Q, PageKey, T> {
         return PagedKeyedQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
+    }
+
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: (Key) -> Flow<Q>,
+    ): PagedKeyedExternalQuerySuspendingBuilder<Key, Q, PageKey, T> {
+        return PagedKeyedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): PagedKeyedExternalQuerySuspendingBuilder<Key, Q, PageKey, T> {
+        return PagedKeyedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { key -> queryFlow(key).value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
     }
 
     override fun build(contract: PagedKeyedSuspendingContract<Key, PageKey, T>): PagedKeyedStore<Key, T> {
@@ -46,7 +74,7 @@ internal class PagedKeyedSuspendingBuilderImpl<Key : Any, PageKey : Any, T : Any
             loader = { key, _, pageKey -> onLoadFromStorage(key, pageKey) },
             saver = { key, _, pageKey, pagedList -> onSaveToStorage(key, pageKey, pagedList) },
             config = config,
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
         )
     }
 }

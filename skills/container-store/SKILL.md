@@ -22,13 +22,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.2.1` (transitively brings
+Maven coordinates: `com.elveum:store:3.3.0` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.2.1"
+store = "3.3.0"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -59,6 +59,19 @@ List that grows while scrolling → paged; fully loaded list → simple store
 of `List<T>`. `withQuery` is for runtime parameters that re-trigger
 fetching (search text, filters) - not a substitute for keyed stores.
 
+`withQuery` has **two forms** (full signatures in
+[references/api.md](references/api.md), "Queries (withQuery)"):
+
+- **Imperative** - `withQuery(initialQuery, debounceMillis = 0)`: the store owns
+  the query and exposes `queryFlow` + `submitQuery(...)` / `submitQueryAsync(...)`.
+  Returns a `*QueryStore` (e.g. `SimpleQueryStore`).
+- **External flow** - `withQuery(debounceMillis = 0) { stateFlow }` or
+  `withQuery(initialQuery, debounceMillis = 0) { flow }`: the caller's
+  `Flow`/`StateFlow` owns the query; the store follows it and stays **plain**
+  (`SimpleStore`, no `submitQuery`). Keyed lambdas receive the key:
+  `withQuery { key -> flowFor(key) }`. Order-independent with local-storage /
+  `disableFetcher()` / `withKeys()` transitions.
+
 ## Target Architecture
 
 ```
@@ -81,26 +94,29 @@ still appropriate.
 
 ## Quick Reference
 
-| Operation | Call |
-|-----------|------|
-| Observe | `store.observe()` / `store.observe(key)` → `Flow<StoreResult<T>>` |
-| Read latest result synchronously | `store.get()` / `store.get(key)` → `StoreResult<T>` |
-| Read latest value/error synchronously | `store.getOrNull()` / `store.failureOrNull()` (key variants for keyed) |
-| Local-only store (no remote fetcher) | `builder.disableFetcher().build(onObserve = { ... })` (simple & keyed) |
-| Pagination: total item count | `PagedList(items, nextKey, totalCount = n)`; read `result.totalPagedItemsCount` (`-1` if unknown; shortcut for `result.metadata.totalPagedItemsCount`) |
-| Await first completed result | `store.observe().firstGetOrThrow()` (suspend; value or throws) |
-| Reload from the UI (try-again / pull-to-refresh) — PREFERRED | `result.invalidate()` on the rendered `StoreResult`; reloads the origin store with no ViewModel/repository plumbing |
-| Pull-to-refresh (keep content visible) | Observe with `LoadRequest.Silent`, then `result.invalidate()`; progress shows via `result.isBackgroundLoading()` |
-| Try-again (reload showing `Loading`) | `result.invalidate()` on the failed result (default request re-shows `Loading`) |
-| Reload without a result at hand (old way, still valid) | `store.invalidateAsync()` / `store.invalidate()` (key variants for keyed) |
-| Replace cached result outright | `store.updateWith(StoreResult.Loaded(new))` / `store.updateWith(key, ...)` |
-| Read-modify-write loaded value | `store.updateIfSuccess { old -> new }` / `store.updateIfSuccess(key) { old -> new }` (no-op unless `Loaded`) |
-| Optimistic update (auto-revert on failure) | `store.optimisticUpdate { old -> emit(new); realUpdate() }` |
-| Submit query | `store.submitQueryAsync(query)` (no request argument) |
-| Keys currently active (observed / in cache window) | `keyedStore.activeKeys` → `StateFlow<Set<Key>>` |
-| Pagination: report visible item | `store.onItemRendered(index)` |
-| Pagination: next-page status | `result.nextPageState` (`Idle`/`Pending`/`Error(retry)`) |
-| React while store is observed | `.whenActive { ... }` (chain after `build`) |
+| Operation                                                    | Call                                                                                                                                                   |
+|--------------------------------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Observe                                                      | `store.observe()` / `store.observe(key)` → `Flow<StoreResult<T>>`                                                                                      |
+| Read latest result synchronously                             | `store.get()` / `store.get(key)` → `StoreResult<T>`                                                                                                    |
+| Read latest value/error synchronously                        | `store.getOrNull()` / `store.failureOrNull()` (key variants for keyed)                                                                                 |
+| Local-only store (no remote fetcher)                         | `builder.disableFetcher().build(onObserve = { ... })` (simple & keyed)                                                                                 |
+| Pagination: total item count                                 | `PagedList(items, nextKey, totalCount = n)`; read `result.totalPagedItemsCount` (`-1` if unknown; shortcut for `result.metadata.totalPagedItemsCount`) |
+| Await first completed result                                 | `store.observe().firstGetOrThrow()` (suspend; value or throws)                                                                                         |
+| Reload from the UI (try-again / pull-to-refresh) — PREFERRED | `result.invalidate()` on the rendered `StoreResult`; reloads the origin store with no ViewModel/repository plumbing                                    |
+| Pull-to-refresh (keep content visible)                       | Observe with `LoadRequest.Silent`, then `result.invalidate()`; progress shows via `result.isBackgroundLoading()`                                       |
+| Try-again (reload showing `Loading`)                         | `result.invalidate()` on the failed result (default request re-shows `Loading`)                                                                        |
+| Reload without a result at hand (old way, still valid)       | `store.invalidateAsync()` / `store.invalidate()` (key variants for keyed)                                                                              |
+| Replace cached result outright                               | `store.updateWith(StoreResult.Loaded(new))` / `store.updateWith(key, ...)`                                                                             |
+| Read-modify-write loaded value                               | `store.updateIfSuccess { old -> new }` / `store.updateIfSuccess(key) { old -> new }` (no-op unless `Loaded`)                                           |
+| Optimistic update (auto-revert on failure)                   | `store.optimisticUpdate { old -> emit(new); realUpdate() }`                                                                                            |
+| Query: store owns it (imperative)                            | `builder.withQuery(initialQuery)` → `store.submitQueryAsync(query)` / `store.queryFlow`                                                                |
+| Query: caller owns it (external state flow)                  | `builder.withQuery { stateFlow }` → plain store follows the flow (no `submitQuery`)                                                                    |
+| Query: caller owns it (external any flow)                    | `builder.withQuery(initialQuery) { anyFlow }` → plain store follows the flow (no `submitQuery`)                                                        |
+| Keys currently active (observed / in cache window)           | `keyedStore.activeKeys` → `StateFlow<Set<Key>>`                                                                                                        |
+| Pagination: report visible item                              | `store.onItemRendered(index)`                                                                                                                          |
+| Pagination: next-page status                                 | `result.nextPageState` (`Idle`/`Pending`/`Error(retry)`)                                                                                               |
+| React while store is observed (connect to other stores/events) | `.whenActive { ... }` chained after `build`; `this` is the store, block runs while observed & is cancelled on cache release (see patterns.md "Relations between stores") |
+| Attach/read custom result flags (metadata)                   | `PagedList(items, nextKey, metadata = MyMeta(...))` / `emit(v, metadata = MyMeta(...))`; read `result.metadata.get<MyMeta>()` (see api.md)             |
 
 Cache behavior (all stores): lazy first fetch, one shared in-memory
 cache, released after the last observer unsubscribes plus
@@ -135,6 +151,22 @@ cache, released after the last observer unsubscribes plus
 - Calling `optimisticUpdate`, `updateIfSuccess`, `submitQuery` or `submitQueryAsync` for a
   store/key with **no active observer** - these act on the in-memory cache, which only exists
   while the store (or key) is observed, so the call is silently a no-op. Observe first.
+- Faking a fetcher to model a store with **no remote source** (an in-memory
+  value, session state, an event-bus stream): `build { awaitCancellation() }`
+  (stays `Loading` forever) or `build { Optional.empty() }` (one throwaway value).
+  Instead keep the value in a `MutableStateFlow` / `MutableSharedFlow` the app owns
+  and observe it with `disableFetcher().build(onObserve = { flow })`; to update,
+  mutate the flow directly (no `updateWith` / fake fetch). See patterns.md
+  "Externally-driven stores".
+- Mishandling mutations (add/update/remove). A mutation always hits the backend;
+  what else depends on the local source. **With `addReactiveLocalStorage()`** (or a
+  `disableFetcher()` store observing a `Flow`): write to the backend and to the
+  local source (Room `@Insert`/`@Update`/`@Delete`) - the local `Flow` re-emits and
+  the store updates itself; do **not** also call `updateIfSuccess`/`updateWith`.
+  **Without a reactive source** (remote-only or `addSuspendingLocalStorage()`):
+  update every layer manually - backend, then suspending storage, then the store
+  cache via `updateIfSuccess { }` / `updateWith(...)` (or `optimisticUpdate { }`).
+  See patterns.md "Mutations (add / update / remove)".
 - Reaching for a `keyedStoreBuilder` - it was removed. Keyed stores are
   created by calling `.withKeys<Key>()` on a simple or paged builder
   (`simpleStoreBuilder<T>().withKeys<Key>()`).

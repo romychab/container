@@ -173,6 +173,159 @@ updates and queries.
 IMPORTANT: Usually there is NO need to set dispatcher via `setCoroutineContext(Dispatchers.IO)`, since
 most of modern IO operations (Room database, Retrofit) already operate on non-UI thread.
 
+### Mutations (add / update / remove)
+
+A mutation (create/update/delete) must **always hit the backend**. What else you
+must do depends on whether the store has a **reactive** local source attached
+(`addReactiveLocalStorage()`, or a `disableFetcher()` store observing a local
+`Flow`).
+
+**Case 1 — reactive local source attached.** The store's value is driven by the
+local `Flow` (`onObserveStorage`). Write to the backend, then write to the **local
+source** (a Room `@Insert`/`@Update`/`@Delete`); the local `Flow` re-emits and the
+store updates itself. Do **not** also call `updateIfSuccess` / `updateWith` here -
+the next local emission would overwrite it anyway.
+
+```kotlin
+class NotesRepository(
+    storeFactory: StoreFactory,
+    private val notesApi: NotesApi,
+    private val notesDao: NotesDao,          // exposes observeNotes(): Flow<List<NoteEntity>>
+) {
+    private val store = storeFactory.simpleStoreBuilder<List<Note>>()
+        .addReactiveLocalStorage()
+        .build(
+            onFetch = { notesApi.getNotes().map { it.toDomain() } },
+            onSaveToStorage = { notes -> notesDao.replaceAll(notes.map { it.toEntity() }) },
+            onObserveStorage = { notesDao.observeNotes().map { row -> row.map { it.toDomain() } } },
+        )
+
+    fun observeNotes(): Flow<StoreResult<List<Note>>> = store.observe()
+
+    suspend fun addNote(draft: NoteDraft) {
+        val created = notesApi.createNote(draft)   // 1) backend
+        notesDao.insert(created.toEntity())        // 2) local source -> Flow re-emits -> store updates
+    }                                              //    (no store call needed)
+
+    suspend fun deleteNote(id: Long) {
+        notesApi.deleteNote(id)                    // backend
+        notesDao.deleteById(id)                    // local source -> propagates to the store
+    }
+}
+```
+
+**Case 2 — no reactive local source** (remote-only, or `addSuspendingLocalStorage()`).
+Nothing propagates automatically, so update every layer **manually**: backend, then
+the suspending storage (if any), then the **store cache** via `updateIfSuccess { }`
+(read-modify-write; no-op unless currently `Loaded`) or `updateWith(...)`. The
+storage write keeps the next cold load consistent; the store-cache update reflects
+the change to current observers immediately.
+
+```kotlin
+class NotesRepository(
+    storeFactory: StoreFactory,
+    private val notesApi: NotesApi,
+    private val notesDao: NotesDao,          // suspend save/load only (no Flow)
+) {
+    private val store = storeFactory.simpleStoreBuilder<List<Note>>()
+        .addSuspendingLocalStorage()
+        .build(
+            onFetch = { notesApi.getNotes().map { it.toDomain() } },
+            onSaveToStorage = { notes -> notesDao.replaceAll(notes.map { it.toEntity() }) },
+            onLoadFromStorage = { notesDao.getAll()?.map { it.toDomain() } },
+        )
+
+    fun observeNotes(): Flow<StoreResult<List<Note>>> = store.observe()
+
+    suspend fun addNote(draft: NoteDraft) {
+        val created = notesApi.createNote(draft)             // 1) backend
+        notesDao.insert(created.toEntity())                  // 2) suspending storage (next cold load)
+        store.updateIfSuccess { it + created.toDomain() }    // 3) store cache (current observers)
+    }
+
+    suspend fun deleteNote(id: Long) {
+        notesApi.deleteNote(id)                              // backend
+        notesDao.deleteById(id)                              // storage
+        store.updateIfSuccess { list -> list.filterNot { it.id == id } }  // store cache
+    }
+}
+```
+
+For a **remote-only** store (no local storage at all) it is the same as Case 2
+minus the storage write: hit the backend, then `updateIfSuccess { }` /
+`updateWith(...)` the store cache.
+
+Notes:
+
+- `updateIfSuccess` / `updateWith` act on the **in-memory cache**, which exists
+  only while the store is observed. If the store may currently be unobserved, the
+  storage write (step 2) is what makes the change survive; on the next observe the
+  store reloads from storage. (With a reactive source, Case 1, the local write both
+  persists and propagates - one step.)
+- For a snappy UI that also rolls back on failure, wrap Case 2 in
+  `optimisticUpdate { old -> emit(newValue); backendCall() }` - emitted values
+  auto-revert if the block throws. (With a reactive source, prefer an optimistic
+  write to the local source if it supports it, or just accept the Flow round-trip.)
+- Keyed store: use the key-scoped variants (`updateIfSuccess(key) { }`,
+  `updateWith(key, ...)`, `optimisticUpdate(key) { }`).
+- Paged store has **no** reactive local storage, so it is always Case 2: update the
+  backend, then patch the paged cache with `updateIfSuccess { }` /
+  `optimisticUpdate { }`, or call `invalidate()` to reload from the first page.
+
+### Externally-driven stores (event bus / in-memory state) - no fabricated fetcher
+
+Some stores have **no remote source**: the value is produced inside the app and
+changes over time (an in-memory selection, session/auth state, an event-bus-like
+stream). Do **not** fake a fetcher to model this - e.g.
+`build { awaitCancellation() }` (never returns, so the store stays `Loading`
+forever) or `build { Optional.empty() }` (one throwaway value, then updates only
+via `updateWith`). Those hacks fight the library and break `Loading`/reload
+semantics.
+
+Instead, keep the value in a `MutableStateFlow` (or `MutableSharedFlow`) that the
+app owns, and let the store **observe** it via `disableFetcher()`. To change the
+value, mutate the flow directly - the store re-emits automatically:
+
+```kotlin
+import com.elveum.store.StoreFactory
+import com.elveum.store.load.StoreResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+
+class SelectedFilterRepository(
+    storeFactory: StoreFactory,
+) {
+    // app-owned source of truth (also can be a flow from Android Data Store, Room,
+    // shared preferences, etc.):
+    private val selectedFilter = MutableStateFlow(Filter.Default)
+
+    private val store = storeFactory.simpleStoreBuilder<Filter>()
+        .disableFetcher()                          // no remote fetch
+        .build(onObserve = { selectedFilter })     // () -> Flow<T>
+
+    fun observeFilter(): Flow<StoreResult<Filter>> = store.observe()
+
+    // "update the value" = mutate the external flow directly (no updateWith / fake fetch):
+    fun setFilter(filter: Filter) { selectedFilter.value = filter }
+}
+```
+
+Notes:
+
+- Use a `MutableStateFlow` when there is always a current value (the store becomes
+  `Loaded` immediately). Use a `MutableSharedFlow(replay = 1)` for a pure event
+  stream with no initial value (the store stays `Loading` until the first emit).
+- Keyed variant: `simpleStoreBuilder<T>().withKeys<Key>().disableFetcher().build { key -> flowFor(key) }`,
+  holding one `MutableStateFlow` per key.
+- This is **not** the same as `updateWith` / `updateIfSuccess`: those act on the
+  in-memory cache **only while observed** and are for reflecting a change that
+  already happened in a real data source. For an app-owned value that IS the
+  source, hold it in a flow and observe it - the flow survives cache release,
+  a value pushed with `updateWith` does not.
+- If the value must ALSO be fetched remotely once and then react to local pushes,
+  that is a real data source: use `addReactiveLocalStorage()` (remote fetch +
+  observe a local `Flow`) instead of `disableFetcher()`.
+
 ### Reactive default request (runtime-controlled loading policy)
 
 `setLoadRequest` has two overloads: a fixed `setLoadRequest(LoadRequest)` and a
@@ -212,6 +365,150 @@ class ArticlesRepository(
 ```
 
 Available on every builder (simple, keyed, paged, and their query variants).
+
+### Query stores (search / filter / sort)
+
+A *query* is any runtime parameter that re-triggers fetching (search text,
+filter, sort order). `withQuery` comes in two forms - pick by **who owns the
+query value**. Full signatures are in [api.md](api.md) ("Queries (withQuery)").
+
+**A. Store owns the query** - `withQuery(initialQuery, debounceMillis)`. The
+store keeps the current query and exposes `queryFlow` + `submitQueryAsync(...)`;
+the repository forwards those:
+
+```kotlin
+import com.elveum.store.StoreFactory
+import com.elveum.store.load.StoreResult
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
+
+class ImageSearchRepository(
+    storeFactory: StoreFactory,
+    private val imagesDataSource: ImagesDataSource,
+) {
+    private val store = storeFactory.simpleStoreBuilder<List<Image>>()
+        .withQuery(initialQuery = "", debounceMillis = 300)   // -> SimpleQueryStore<String, List<Image>>
+        .build { query -> imagesDataSource.search(query) }    // fetch lambda receives the query
+
+    fun observeImages(): Flow<StoreResult<List<Image>>> = store.observe()
+    fun currentQuery(): StateFlow<String> = store.queryFlow   // e.g. to prefill the search field
+    fun search(query: String) = store.submitQueryAsync(query) // fire-and-forget re-fetch
+}
+```
+
+**B. Caller owns the query** - `withQuery { flow }`. The query already lives in an
+external `StateFlow`. Pass that flow to the builder: the store follows it and stays
+a **plain** `SimpleStore` (no `submitQuery`), so the query is never mirrored in two places:
+
+```kotlin
+import com.elveum.store.StoreFactory
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.update
+
+class ImageSearchRepository(
+    private val storeFactory: StoreFactory,
+    private val imagesDataSource: ImagesDataSource,
+) {
+ 
+    private val _externalQueryFlow = MutableStateFlow("")
+    val externalQueryFlow: StateFlow<String> = _externalQueryFlow
+    
+    private val store = storeFactory.simpleStoreBuilder<List<Image>>()
+        // if external flow is StateFlow -> no need to manually set an initial query - it is derived from StateFlow.value
+        .withQuery(debounceMillis = 300) { externalQueryFlow } 
+        .build { q -> imagesDataSource.search(q) }
+    
+    fun submitQuery(query: String) = _externalQueryFlow.update { query }
+}
+```
+
+If a query is supplied by ViewModel, it is better to scope the store to the ViewModel lifecycle.
+But if it is not possible (e.g. the repository must be a singleton), then:
+
+- Create a function providing the store instance
+- Optional: use `whenActive` block to react on external events and update data in the store (if needed)
+- Ideally, return not a store, but observable `Flow`
+
+```kotlin
+class ImageSearchRepository(
+    private val storeFactory: StoreFactory,
+    private val imagesDataSource: ImagesDataSource,
+) {
+    
+    // any ViewModel can call this function and pass queryFlow
+    fun observeImages(queryFlow: StateFlow<String>): Flow<StoreResult<List<Image>>> =
+        storeFactory.simpleStoreBuilder<List<Image>>()
+            .withQuery(debounceMillis = 300) { queryFlow }
+            .build { query -> imagesDataSource.search(query) }
+            .whenActive { 
+                // OPTIONAL:
+                // subscribe to other dependencies that affects the store (if needed)
+                // 'this' within whenActive points to the Store itself
+            }
+            .observe()
+}
+```
+
+Notes:
+
+- The external-flow overload has two forms: `withQuery(debounceMillis) { stateFlow }`
+  (initial query = `stateFlow.value`) and `withQuery(initialQuery, debounceMillis) { flow }`
+  for a plain `Flow<Q>` that may not emit synchronously.
+- The flow is collected only while the store is observed; the first load uses the
+  initial query, each later emission re-fetches (paged: resets to the first page).
+- `withQuery` combines with local storage and `disableFetcher()` in **any order**,
+  and the `build(...)` lambdas receive the query (`build { q -> ... }`).
+- Keyed **per-key** query: `simpleStoreBuilder<T>().withKeys<Key>().withQuery { key -> flowFor(key) }`.
+  Reversed, `withQuery { flow }.withKeys<Key>()` **shares one flow across all keys**.
+
+### Custom result metadata (flags beyond the value)
+
+When a data source returns extra flags alongside the data (`hasNextPage`, an
+ETag, `lastUpdatedAt`, a "stale" marker), attach them as **custom
+`ContainerMetadata`** rather than widening the value type. The store propagates
+metadata to the emitted `StoreResult`, and the ViewModel/composable reads it back
+with `result.metadata.get<T>()`. See [api.md](api.md) ("Container metadata") for
+the full API and `ContainerMetadata.kt` for how to define a metadata type.
+
+```kotlin
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.get
+import com.elveum.store.StoreFactory
+import com.elveum.store.load.StoreResult
+import com.elveum.store.stores.paged.PagedList
+import kotlinx.coroutines.flow.Flow
+
+data class HasNextPageMetadata(val hasNextPage: Boolean) : ContainerMetadata
+
+class FeedRepository(
+    storeFactory: StoreFactory,
+    private val feedDataSource: FeedDataSource,
+) {
+    private val store = storeFactory.pagedStoreBuilder<Int, Post>(initialKey = 0, itemId = Post::id)
+        .build(
+            onFetch = { pageKey ->
+                val page = feedDataSource.fetchPage(pageKey)
+                PagedList(
+                    items = page.posts,
+                    nextKey = page.nextKey,
+                    metadata = HasNextPageMetadata(page.hasNext),   // attach the flag
+                )
+            }
+        )
+
+    fun getFeed(): Flow<StoreResult<List<Post>>> = store.observe()
+}
+
+// In the ViewModel / composable, read it back off the rendered result:
+val hasNext = (result as? StoreResult.Loaded)?.metadata?.get<HasNextPageMetadata>()?.hasNextPage ?: false
+```
+
+Prefer this over the `PagedList(items, nextKey, totalCount = n)` convenience
+constructor when the API gives you flags (like `hasNextPage`) rather than a total
+count - that convenience constructor merely attaches the built-in
+`TotalPagedItemsCountMetadata`; custom metadata works the same way. Combine
+multiple entries with `+` (`HasNextPageMetadata(true) + EtagMetadata(tag)`).
 
 ### Relations between stores (entity dependencies)
 

@@ -39,7 +39,7 @@ internal class PagedQuerySuspendingBuilderImpl<Q : Any, P : Any, T : Any>(
         onLoadFromStorage: suspend (Q, P) -> PagedList<P, T>?
     ): PagedQueryStore<Q, T> {
         return PagedKeyedQueryStoreImpl<Unit, Q, P, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query, pageKey -> onFetch(query, pageKey) },

@@ -9,6 +9,8 @@ import com.elveum.store.contracts.PagedSuspendingContract
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedQueryStore
 import com.elveum.store.stores.paged.PagedStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Base interface for paged store builders, extending [BaseBuilder] with pagination-specific
@@ -61,6 +63,38 @@ public interface PagedBuilder<PageKey : Any, T : Any> : BasePagedBuilder<PagedBu
      * @return a [PagedQueryBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): PagedQueryBuilder<Q, PageKey, T>
+
+    /**
+     * Transitions the builder to a variant whose query is driven by an external [Flow].
+     * The store performs an immediate first load using [initialQuery]; whenever [queryFlow]
+     * emits a new query the pagination is reset and reloaded from the first page. The resulting
+     * store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [PagedExternalQueryBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): PagedExternalQueryBuilder<Q, PageKey, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [PagedExternalQueryBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): PagedExternalQueryBuilder<Q, PageKey, T>
 
     /**
      * Transitions the builder to a variant that supports a suspending (one-shot)
@@ -187,6 +221,38 @@ public interface PagedSuspendingBuilder<PageKey : Any, T : Any> :
     public fun <Q : Any> withQuery(
         initialQuery: Q, debounceMillis: Long = 0,
     ): PagedQuerySuspendingBuilder<Q, PageKey, T>
+
+    /**
+     * Transitions the builder to a variant whose query is driven by an external [Flow], backed by
+     * suspending local storage. The store performs an immediate first load using [initialQuery];
+     * whenever [queryFlow] emits a new query the pagination is reset and reloaded from the first
+     * page. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [PagedExternalQuerySuspendingBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): PagedExternalQuerySuspendingBuilder<Q, PageKey, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [PagedExternalQuerySuspendingBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): PagedExternalQuerySuspendingBuilder<Q, PageKey, T>
 
     /**
      * Builds a [PagedStore] using the provided [PagedSuspendingContract] implementation.

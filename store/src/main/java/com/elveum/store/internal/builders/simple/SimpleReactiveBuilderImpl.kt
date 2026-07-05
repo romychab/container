@@ -1,5 +1,6 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleExternalQueryReactiveBuilder
 import com.elveum.store.builders.SimpleKeyedReactiveBuilder
 import com.elveum.store.builders.SimpleQueryReactiveBuilder
 import com.elveum.store.builders.SimpleReactiveBuilder
@@ -13,6 +14,7 @@ import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asSimpleStore
 import com.elveum.store.stores.simple.SimpleStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class SimpleReactiveBuilderImpl<T : Any>(
     private val config: SharedConfig,
@@ -31,6 +33,31 @@ internal class SimpleReactiveBuilderImpl<T : Any>(
         return SimpleQueryReactiveBuilderImpl(initialQuery, debounceMillis, config)
     }
 
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQueryReactiveBuilder<Q, T> {
+        return SimpleExternalQueryReactiveBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQueryReactiveBuilder<Q, T> {
+        return SimpleExternalQueryReactiveBuilderImpl(
+            initialQueryProvider = { queryFlow().value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
     override fun disableFetcher(): SimpleReactiveNoFetcherBuilder<T> {
         return SimpleReactiveNoFetcherBuilderImpl(config)
     }
@@ -41,7 +68,7 @@ internal class SimpleReactiveBuilderImpl<T : Any>(
         onObserveStorage: () -> Flow<T?>
     ): SimpleStore<T> {
         return KeyedQueryStoreImpl<Unit, Unit, T>(
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
             config = config,
             fetcher = { _, _ -> onFetch() },
             saver = { _, _, data -> onSaveToStorage(data) },

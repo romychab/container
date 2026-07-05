@@ -26,15 +26,17 @@ internal class KeyedQueryStoreImpl<Key : Any, Q : Any, T : Any>(
     private val saver: suspend (Key, Q, T) -> Unit = { _, _, _ -> },
     private val observer: (Key, Q) -> Flow<T?> = { _, _ -> flowOf(null) },
     private val config: SharedConfig,
-    private val initialQuery: Q,
+    private val initialQueryProvider: (Key) -> Q,
     private val queryDebounceMillis: Long = 0,
+    private val externalQueryProvider: ((Key) -> Flow<Q>)? = null,
 ) : KeyedQueryStore<Key, Q, T> {
 
     private val coreStore = CoreStore(
-        initialQuery = initialQuery,
+        initialQueryProvider = initialQueryProvider,
         queryDebounceMillis = queryDebounceMillis,
         config = config,
         observer = observer,
+        externalQueryProvider = externalQueryProvider,
         valueLoaderProvider = object : CoreValueLoaderProvider<Key, Q, T, T> {
             override fun provideValueLoader(
                 key: Key,
@@ -70,11 +72,12 @@ internal class KeyedQueryStoreImpl<Key : Any, Q : Any, T : Any>(
         saver: suspend (Key, Q, T) -> Unit = { _, _, _ -> },
         observer: (Key, Q) -> Flow<T?> = { _, _ -> flowOf(null) },
         config: SharedConfig,
-        initialQuery: Q,
+        initialQueryProvider: (Key) -> Q,
         queryDebounceMillis: Long = 0,
+        externalQueryProvider: ((Key) -> Flow<Q>)? = null,
     ) : this(
         fetcher = CoreFetcher.Default(fetcher),
-        loader, saver, observer, config, initialQuery, queryDebounceMillis,
+        loader, saver, observer, config, initialQueryProvider, queryDebounceMillis, externalQueryProvider,
     )
 
     override fun observeQueryFlow(key: Key) = coreStore.observeQueryFlow(key)

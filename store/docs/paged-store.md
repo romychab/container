@@ -236,6 +236,24 @@ parameter for search-as-you-type scenarios. `submitQuery` /
 `submitQueryAsync` take no `LoadRequest`; submitting a query keeps the
 previous results visible while the new query loads.
 
+### External query flow
+
+Instead of driving the query with `submitQuery`, pass a reactive query stream to
+`withQuery` as a lambda returning a `Flow`. The store follows that flow - a new
+query resets pagination and reloads from the first page - and the result is a
+plain `PagedStore<T>` with no query API:
+
+```kotlin
+private val store = StoreFactory
+    .pagedStoreBuilder<Int, Photo>(initialKey = 0, itemId = Photo::id)
+    .withQuery(debounceMillis = 300) { categoryFilter } // StateFlow<Set<PhotoCategory>>
+    .build { query, pageKey -> photoDataSource.fetchPage(query, pageKey) } // -> PagedStore<Photo>
+```
+
+For a `StateFlow` the initial query is derived from `.value`; for a plain `Flow`
+supply an `initialQuery` for the immediate first load
+(`withQuery(initialQuery) { flow }`).
+
 ## Local Storage
 
 Paged stores support the same local storage modes as other stores. The

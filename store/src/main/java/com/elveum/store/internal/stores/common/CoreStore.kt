@@ -52,11 +52,12 @@ import kotlin.collections.map
 
 @Suppress("TooManyFunctions")
 internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
-    private val initialQuery: Q,
+    private val initialQueryProvider: (Key) -> Q,
     private val queryDebounceMillis: Long,
     private val config: SharedConfig,
     private val observer: (Key, Q) -> Flow<T?>,
     private val valueLoaderProvider: CoreValueLoaderProvider<Key, Q, T, R>,
+    private val externalQueryProvider: ((Key) -> Flow<Q>)? = null,
 ) {
 
     private val gates = ConcurrentHashMap<Key, AtomicBoolean>()
@@ -124,23 +125,35 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
         processItems(
             flow = keysFlow,
             onAdded = { key ->
-                currentQueriesFlow.update { oldMap -> oldMap + (key to initialQuery) }
-                asyncRequests[key] = MutableStateFlow(initialQuery)
+                currentQueriesFlow.update { oldMap -> oldMap + (key to initialQueryProvider(key)) }
+                asyncRequests[key] = MutableStateFlow(initialQueryProvider(key))
             },
             onRemoved = { key ->
                 currentQueriesFlow.update { oldMap -> oldMap - key }
                 asyncRequests.remove(key)
             }
         ) { key ->
-            asyncRequests[key]
-                // drop the StateFlow's initial replayed value, otherwise the key would be
-                // reloaded immediately on activation - right after observe() already started
-                // the initial load (mirrors observeLocalChanges below).
-                ?.drop(1)
-                ?.debounce(queryDebounceMillis)
-                ?.collect {
-                    invalidateAsync(key)
+            coroutineScope {
+                externalQueryProvider?.let { provider ->
+                    launch {
+                        // Feed each external emission into the same async-query pipeline used by
+                        // submitQueryAsync. asyncRequests[key] is a StateFlow, so an emission equal
+                        // to the current query is de-duplicated and does not trigger a reload -
+                        // this prevents a double initial load when the flow's first value equals
+                        // the seed.
+                        provider(key).collect { query -> submitQueryAsync(key, query) }
+                    }
                 }
+                asyncRequests[key]
+                    // drop the StateFlow's initial replayed value, otherwise the key would be
+                    // reloaded immediately on activation - right after observe() already started
+                    // the initial load (mirrors observeLocalChanges below).
+                    ?.drop(1)
+                    ?.debounce(queryDebounceMillis)
+                    ?.collect {
+                        invalidateAsync(key)
+                    }
+            }
             awaitCancellation()
         }
     }
@@ -239,7 +252,7 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
 
 
     fun observeQueryFlow(key: Key): StateFlow<Q> {
-        return currentQueriesFlow.stateMap { it[key] ?: initialQuery }
+        return currentQueriesFlow.stateMap { it[key] ?: initialQueryProvider(key) }
     }
 
     private fun <R : Any> createDelegate(): CoreLoaderDelegate<R> {

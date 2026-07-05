@@ -1,5 +1,6 @@
 package com.elveum.store.internal.builders.simple
 
+import com.elveum.store.builders.SimpleExternalQuerySuspendingBuilder
 import com.elveum.store.builders.SimpleKeyedSuspendingBuilder
 import com.elveum.store.builders.SimpleQuerySuspendingBuilder
 import com.elveum.store.builders.SimpleSuspendingBuilder
@@ -11,6 +12,8 @@ import com.elveum.store.internal.builders.keyed.SimpleKeyedSuspendingBuilderImpl
 import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asSimpleStore
 import com.elveum.store.stores.simple.SimpleStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class SimpleSuspendingBuilderImpl<T : Any>(
     private val config: SharedConfig,
@@ -29,6 +32,31 @@ internal class SimpleSuspendingBuilderImpl<T : Any>(
         return SimpleQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
     }
 
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQuerySuspendingBuilder<Q, T> {
+        return SimpleExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQuerySuspendingBuilder<Q, T> {
+        return SimpleExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { queryFlow().value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
     override fun build(contract: SimpleSuspendingContract<T>): SimpleStore<T> {
         return build(
             onFetch = contract::fetch,
@@ -43,7 +71,7 @@ internal class SimpleSuspendingBuilderImpl<T : Any>(
         onLoadFromStorage: suspend () -> T?
     ): SimpleStore<T> {
         return KeyedQueryStoreImpl<Unit, Unit, T>(
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
             config = config,
             fetcher = { _, _ -> onFetch() },
             saver = { _, _, data -> onSaveToStorage(data) },

@@ -1,5 +1,6 @@
 package com.elveum.store.internal.builders.keyed
 
+import com.elveum.store.builders.SimpleKeyedExternalQuerySuspendingBuilder
 import com.elveum.store.builders.SimpleKeyedQuerySuspendingBuilder
 import com.elveum.store.builders.SimpleKeyedSuspendingBuilder
 import com.elveum.store.builders.base.BaseBuilder
@@ -8,6 +9,8 @@ import com.elveum.store.internal.builders.BaseBuilderImpl
 import com.elveum.store.internal.builders.SharedConfig
 import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.stores.keyed.KeyedStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class SimpleKeyedSuspendingBuilderImpl<Key : Any, T : Any>(
     private val config: SharedConfig,
@@ -23,6 +26,31 @@ internal class SimpleKeyedSuspendingBuilderImpl<Key : Any, T : Any>(
         debounceMillis: Long
     ): SimpleKeyedQuerySuspendingBuilder<Key, Q, T> {
         return SimpleKeyedQuerySuspendingBuilderImpl(initialQuery, debounceMillis, config)
+    }
+
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQuerySuspendingBuilder<Key, Q, T> {
+        return SimpleKeyedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQuerySuspendingBuilder<Key, Q, T> {
+        return SimpleKeyedExternalQuerySuspendingBuilderImpl(
+            initialQueryProvider = { key -> queryFlow(key).value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
     }
 
     override fun build(contract: SimpleKeyedSuspendingContract<Key, T>): KeyedStore<Key, T> {
@@ -43,7 +71,7 @@ internal class SimpleKeyedSuspendingBuilderImpl<Key : Any, T : Any>(
             fetcher = { key, _ -> onFetch(key) },
             saver = { key, _, value -> onSaveToStorage(key, value) },
             loader = { key, _ -> onLoadFromStorage(key) },
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
         )
     }
 }

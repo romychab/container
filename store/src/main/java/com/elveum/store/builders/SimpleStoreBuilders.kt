@@ -13,6 +13,7 @@ import com.elveum.store.contracts.SimpleSuspendingContract
 import com.elveum.store.stores.simple.SimpleQueryStore
 import com.elveum.store.stores.simple.SimpleStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlin.reflect.KClass
 
 /**
@@ -37,6 +38,37 @@ public interface SimpleBuilder<T : Any> : BaseBuilder<SimpleBuilder<T>> {
      * @return a [SimpleQueryBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryBuilder<Q, T>
+
+    /**
+     * Transitions the builder to a variant whose query is driven by an external [Flow].
+     * The store performs an immediate first load using [initialQuery], then reloads whenever the
+     * flow returned by [queryFlow] emits a new query. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [SimpleExternalQueryBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQueryBuilder<Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [SimpleExternalQueryBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQueryBuilder<Q, T>
 
     /**
      * Transitions the builder into a keyed variant: instead of a single value, the
@@ -182,6 +214,37 @@ public interface SimpleSuspendingBuilder<T : Any> : BaseBuilder<SimpleSuspending
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQuerySuspendingBuilder<Q, T>
 
     /**
+     * Transitions the builder to a variant whose query is driven by an external [Flow], backed by
+     * suspending local storage. The store performs an immediate first load using [initialQuery],
+     * then reloads whenever [queryFlow] emits a new query. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [SimpleExternalQuerySuspendingBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQuerySuspendingBuilder<Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [SimpleExternalQuerySuspendingBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQuerySuspendingBuilder<Q, T>
+
+    /**
      * Transitions the builder into a keyed variant with suspending local storage that
      * manages one value per key. See [SimpleKeyedSuspendingBuilder].
      *
@@ -231,6 +294,37 @@ public interface SimpleReactiveBuilder<T : Any> : BaseBuilder<SimpleReactiveBuil
      * @return a [SimpleQueryReactiveBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryReactiveBuilder<Q, T>
+
+    /**
+     * Transitions the builder to a variant whose query is driven by an external [Flow], backed by
+     * reactive local storage. The store performs an immediate first load using [initialQuery],
+     * then reloads whenever [queryFlow] emits a new query. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [SimpleExternalQueryReactiveBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQueryReactiveBuilder<Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [SimpleExternalQueryReactiveBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQueryReactiveBuilder<Q, T>
 
     /**
      * Configure a simple store without fetcher. In this case, the store manages only
@@ -379,6 +473,37 @@ public interface SimpleReactiveNoFetcherBuilder<T : Any> : BaseBuilder<SimpleRea
      * @return a [SimpleQueryReactiveNoFetcherBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleQueryReactiveNoFetcherBuilder<Q, T>
+
+    /**
+     * Transitions the builder to a fetcher-less variant whose query is driven by an external [Flow].
+     * The store performs an immediate first load using [initialQuery], then reloads whenever
+     * [queryFlow] emits a new query. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query used for the immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow].
+     * @return a [SimpleExternalQueryReactiveNoFetcherBuilder] driven by the given query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQueryReactiveNoFetcherBuilder<Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: the initial query is derived from
+     * [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow].
+     * @return a [SimpleExternalQueryReactiveNoFetcherBuilder] driven by the given query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQueryReactiveNoFetcherBuilder<Q, T>
 
     /**
      * Transitions the builder into a keyed, fetcher-less variant that manages one

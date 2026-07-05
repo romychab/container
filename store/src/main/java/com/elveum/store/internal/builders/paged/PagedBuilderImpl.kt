@@ -3,6 +3,7 @@ package com.elveum.store.internal.builders.paged
 import com.elveum.container.subject.paging.PageEmitter
 import com.elveum.store.builders.BasePagedBuilder
 import com.elveum.store.builders.PagedBuilder
+import com.elveum.store.builders.PagedExternalQueryBuilder
 import com.elveum.store.builders.PagedKeyedBuilder
 import com.elveum.store.builders.PagedQueryBuilder
 import com.elveum.store.builders.PagedSuspendingBuilder
@@ -13,6 +14,8 @@ import com.elveum.store.internal.stores.asPagedStore
 import com.elveum.store.internal.stores.common.CorePageFetcher
 import com.elveum.store.stores.paged.PagedList
 import com.elveum.store.stores.paged.PagedStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class PagedBuilderImpl<P : Any, T : Any>(
     initialKey: P,
@@ -37,6 +40,31 @@ internal class PagedBuilderImpl<P : Any, T : Any>(
         return PagedQueryBuilderImpl(initialQuery, debounceMillis, sharedBuilder.pageConfig)
     }
 
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: () -> Flow<Q>,
+    ): PagedExternalQueryBuilder<Q, P, T> {
+        return PagedExternalQueryBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = sharedBuilder.pageConfig,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: () -> StateFlow<Q>,
+    ): PagedExternalQueryBuilder<Q, P, T> {
+        return PagedExternalQueryBuilderImpl(
+            initialQueryProvider = { queryFlow().value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = sharedBuilder.pageConfig,
+        )
+    }
+
     override fun addSuspendingLocalStorage(): PagedSuspendingBuilder<P, T> {
         return PagedSuspendingBuilderImpl(sharedBuilder.pageConfig)
     }
@@ -47,7 +75,7 @@ internal class PagedBuilderImpl<P : Any, T : Any>(
 
     override fun build(onFetch: suspend (P) -> PagedList<P, T>): PagedStore<T> {
         return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
             config = sharedBuilder.pageConfig,
             fetcher = { _, _, pageKey -> onFetch(pageKey) },
         ).asPagedStore()
@@ -55,7 +83,7 @@ internal class PagedBuilderImpl<P : Any, T : Any>(
 
     override fun buildCustom(loader: suspend PageEmitter<P, T>.(P) -> Unit): PagedStore<T> {
         return PagedKeyedQueryStoreImpl<Unit, Unit, P, T>(
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
             config = sharedBuilder.pageConfig,
             fetcher = CorePageFetcher.Custom { _, _, pageKey  -> loader(pageKey) },
         ).asPagedStore()

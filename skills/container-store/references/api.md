@@ -26,7 +26,7 @@ import com.elveum.store.stores.base.BaseStore
 import com.elveum.store.stores.base.BaseSimpleStore
 import com.elveum.store.stores.base.BasePagedStore
 import com.elveum.store.stores.base.WithQuery
-import com.elveum.store.stores.base.WithStoreLifecycleOwner
+import com.elveum.store.stores.base.WithStoreLifecycleOwner // base of every store; provides whenActive { } (chain after build)
 
 // Results and load requests
 import com.elveum.store.load.StoreResult              // sealed: Loading / Loaded / Failed / Completed
@@ -104,6 +104,9 @@ import com.elveum.store.exceptions.NoCachedDataException // emitted by offlineMo
 import com.elveum.container.subject.paging.PageState  // Idle / Pending / Error(retry)
 import com.elveum.container.subject.paging.totalPagedItemsCount        // ContainerMetadata.totalPagedItemsCount: Int (-1 if unknown)
 import com.elveum.container.subject.paging.TotalPagedItemsCountMetadata // attach a total count to a page
+import com.elveum.container.ContainerMetadata         // marker interface for attachable metadata; subclass it for custom flags
+import com.elveum.container.get                        // metadata.get<MyMetadata>(): MyMetadata? - read one entry by type
+import com.elveum.container.EmptyMetadata              // the no-op metadata (PagedList / emit default)
 import com.elveum.container.SourceType                // metadata: where the value came from
 import com.elveum.container.LocalSourceType
 import com.elveum.container.RemoteSourceType
@@ -191,6 +194,54 @@ val sameUser: User? = userStore.getOptionalValueOrNull()          // get(key) fo
 if (userStore.isOptionalEmpty()) showEmptyState()                 // isOptionalEmpty(key) for keyed
 ```
 
+### Container metadata (custom flags on a result)
+
+Every `StoreResult` carries a `ContainerMetadata` bag, readable as
+`result.metadata`. The library ships typed entries (source type, background-load
+state, total paged items count, ...) and you can attach **your own**. Reach for
+this when the data source reports extra flags alongside the value — e.g.
+`hasNextPage`, an ETag, a server `lastUpdated`, or a "stale" marker — instead of
+widening the value type `T`.
+
+Define a metadata type (see `container/.../ContainerMetadata.kt` for the pattern —
+any `data class`/`data object` implementing the marker interface):
+
+```kotlin
+import com.elveum.container.ContainerMetadata
+import import com.elveum.container.get
+
+data class PagingFlagsMetadata(
+    val hasNextPage: Boolean,
+) : ContainerMetadata
+
+// Optional typed accessor, mirroring how the library exposes totalPagedItemsCount:
+val ContainerMetadata.hasNextPage: Boolean
+    get() = get<PagingFlagsMetadata>()?.hasNextPage ?: false
+```
+
+Attach it when producing the value:
+
+```kotlin
+// Paged store — via the PagedList metadata argument (defaults to EmptyMetadata):
+PagedList(items = page.items, nextKey = page.nextKey, metadata = PagingFlagsMetadata(page.hasNext))
+// Custom paged loader (buildCustom): emitPage(items, metadata = PagingFlagsMetadata(...))
+// Custom simple/keyed loader (buildCustom): emit(value, metadata = PagingFlagsMetadata(...))
+```
+
+Read it back from any result:
+
+```kotlin
+val flags = result.metadata.get<PagingFlagsMetadata>()   // PagingFlagsMetadata? (null if absent)
+if (result.metadata.hasNextPage) { /* ... */ }           // via the typed accessor
+```
+
+Combine several entries with `+` (a same-typed entry on the right replaces the
+one on the left): `PagingFlagsMetadata(true) + EtagMetadata(tag)`. Metadata is
+propagated from the loader/`PagedList` to the emitted `StoreResult`, so it is the
+clean channel for out-of-band flags. The built-in `totalPagedItemsCount` shortcut
+(and `defaultMetadata(...)`) are implemented exactly this way — `get<T>()` plus a
+default.
+
 ### LoadRequest
 
 A `LoadRequest` is supplied in only two places: `observe(request? = null)`
@@ -228,6 +279,113 @@ of always meaning `LoadRequest.Default`:
   DataStore/preferences: map the flag `Flow<Boolean>` into a `LoadRequest`
   (`if (offline) LoadRequest.builder().offlineMode().build() else LoadRequest.Default`).
   See patterns.md ("Reactive default request").
+- `whenActive(block: suspend Store.() -> Unit): Store` (chained after `build`) —
+  runs `block` **while the store is active** (from the first observer until the
+  cache is released) and cancels it when the store goes inactive. `this` inside
+  the block is the store itself, so the block can call `updateIfSuccess { }`,
+  `updateWith(...)`, `submitQueryAsync(...)`, etc. Use it to wire a store to
+  **external events / other stores** — e.g. subscribe to another store's update
+  events and patch this store's loaded value. Returns the same store, so the call
+  chains inline. See patterns.md ("Relations between stores"). Keyed variant
+  receives `KeyedStore<Key, T>` as `this` (use `updateIfSuccess(key) { }`).
+
+## Queries (withQuery)
+
+`withQuery` parameterizes a store by a runtime value (search text, filter, sort
+order) that re-triggers fetching whenever it changes. There are **two families**,
+chosen by whether the store or the caller owns the query value. Both accept an
+optional `debounceMillis` (delay after a query change before reloading; default
+`0`), and both make the `build(...)` fetch/storage lambdas receive the query `Q`
+(`build { query -> ... }`, keyed `build { key, query -> ... }`).
+
+### 1. Imperative query — the store owns the query
+
+The store holds the current query and exposes an API to change it. Returns a
+*query-aware* store (`SimpleQueryStore` / `KeyedQueryStore` / `PagedQueryStore` /
+`PagedKeyedQueryStore`).
+
+Signature (present on every non-external builder: simple, suspending, reactive,
+no-fetcher, keyed, paged):
+
+```kotlin
+fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): <QueryBuilder>
+// simpleStoreBuilder<T>()                    -> SimpleQueryBuilder<Q, T>       -> SimpleQueryStore<Q, T>
+// simpleStoreBuilder<T>().withKeys<Key>()    -> SimpleKeyedQueryBuilder<Key,Q,T> -> KeyedQueryStore<Key,Q,T>
+// pagedStoreBuilder(...)                     -> PagedQueryBuilder<Q,PageKey,T> -> PagedQueryStore<Q, T>
+```
+
+- `initialQuery` — query used for the first load (keyed: the seed for every key).
+
+Query API on the resulting store:
+
+```kotlin
+store.queryFlow                     // StateFlow<Q> — current query
+store.submitQueryAsync(newQuery)    // fire-and-forget re-fetch
+store.submitQuery(newQuery)         // suspend variant; suspends until applied
+// keyed store — each key holds its OWN query:
+keyedStore.observeQueryFlow(key)    // StateFlow<Q> for that key
+keyedStore.submitQueryAsync(key, newQuery)
+```
+
+`submitQuery` / `submitQueryAsync` act on the in-memory cache and are a **no-op
+when the store/key has no active observer** (observe first).
+
+### 2. External query flow — the caller owns the query
+
+The query comes from a `Flow`/`StateFlow` you already have (e.g. a ViewModel's
+`searchText: StateFlow<String>`). The store simply follows it. Returns a **plain**
+store (`SimpleStore` / `KeyedStore` / `PagedStore` / `PagedKeyedStore`) with **no**
+`queryFlow` / `submitQuery` — the external flow is the single source of truth.
+
+Two overloads on every builder that supports `withQuery`:
+
+```kotlin
+// primary — explicit initial query; accepts any cold/hot Flow<Q>:
+fun <Q : Any> withQuery(
+    initialQuery: Q,
+    debounceMillis: Long = 0,
+    queryFlow: () -> Flow<Q>,
+): <ExternalQueryBuilder>
+
+// convenience — StateFlow<Q>; initial query is taken from queryFlow().value:
+fun <Q : Any> withQuery(
+    debounceMillis: Long = 0,
+    queryFlow: () -> StateFlow<Q>,
+): <ExternalQueryBuilder>
+
+// keyed builders — the lambda receives the Key, so each key follows its own flow:
+fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0, queryFlow: (Key) -> Flow<Q>): ...
+fun <Q : Any> withQuery(debounceMillis: Long = 0, queryFlow: (Key) -> StateFlow<Q>): ...
+```
+
+Behaviour:
+
+- First load uses `initialQuery` (or `stateFlow.value`); each later emission
+  re-fetches (paged: resets to the first page).
+- The flow is collected **only while the store/key is active** (has an observer,
+  or within the cache-timeout window); emissions while inactive do nothing.
+- `build(...)` still returns the plain (non-query) store; contracts are the same
+  `...QueryContract` types as the imperative form.
+
+### Order independence
+
+`withQuery` may be chained **before or after** `addSuspendingLocalStorage()` /
+`addReactiveLocalStorage()` / `disableFetcher()` / `withKeys()` — both orders
+build the same store:
+
+```kotlin
+simpleStoreBuilder<T>().addSuspendingLocalStorage().withQuery { flow }   // OK
+simpleStoreBuilder<T>().withQuery { flow }.addSuspendingLocalStorage()   // same store
+```
+
+With keys, the ORDER picks the semantic:
+
+```kotlin
+// ONE flow shared across all keys (every active key reloads on each emission):
+simpleStoreBuilder<T>().withQuery { sharedFlow }.withKeys<Key>()
+// PER-KEY flow (each key follows its own stream):
+simpleStoreBuilder<T>().withKeys<Key>().withQuery { key -> flowFor(key) }
+```
 
 ## Typical Operations
 
@@ -244,7 +402,10 @@ val value: T? = store.getOrNull()                    // = store.get().getOrNull(
 val error: Exception? = store.failureOrNull()        // failureOrNull(key) for keyed
 
 // Local-only store (no remote fetcher): observe a local reactive Flow only.
-// Supported by simple & keyed stores; combines with withQuery.
+// Supported by simple & keyed stores; combines with withQuery. Also the right
+// way to model an app-owned / event-bus value: observe a MutableStateFlow and
+// mutate it to update (do NOT fake a fetcher like build { awaitCancellation() }
+// or build { Optional.empty() } — see patterns.md "Externally-driven stores").
 StoreFactory.simpleStoreBuilder<Settings>()
     .disableFetcher()
     .build(onObserve = dataStore::observeSettings)   // () -> Flow<Settings>
@@ -286,7 +447,11 @@ suspend fun refresh() = store.invalidate()  // suspend until done
 val active: StateFlow<Set<Key>> = keyedStore.activeKeys
 
 // Read-modify-write the loaded value AFTER the real data source changed
-// (updateIfSuccess = the old update { } extension, renamed; runs only if Loaded):
+// (updateIfSuccess = the old update { } extension, renamed; runs only if Loaded).
+// NOTE: only needed WITHOUT a reactive local source. With addReactiveLocalStorage()
+// (or a disableFetcher() store observing a Flow), write to the local source instead
+// and let its Flow propagate - do NOT also call updateIfSuccess/updateWith. See
+// patterns.md "Mutations (add / update / remove)".
 suspend fun renameProfile(newName: String) {
     dataSource.renameProfile(newName)
     store.updateIfSuccess { it.copy(name = newName) }
@@ -317,13 +482,30 @@ store.updateIfSuccess(productId) { it.copy(isRead = true) }
 store.updateWith(StoreResult.Loaded(value))
 store.updateWith(productId, StoreResult.Loaded(value))   // keyed store
 
-// Query stores (submitQuery/submitQueryAsync take NO request):
+// Query stores - see the "Queries (withQuery)" section above for the full
+// signatures and the two families (imperative vs external flow). Quick calls:
+
+// Imperative form (store owns the query):
 store.queryFlow                          // StateFlow<Q> - current query
 store.submitQueryAsync(newQuery)         // re-fetch
-suspend fun search(q: Q) = store.submitQuery(q)  // suspends
-
-// Keyed query store (withKeys() + withQuery()): each key holds its own query:
-keyedQueryStore.observeQueryFlow(key)    // StateFlow<Q> for that key
+keyedQueryStore.observeQueryFlow(key)    // StateFlow<Q> for that key (per-key query)
 keyedQueryStore.submitQueryAsync(key, newQuery)
-suspend fun search(key: Key, q: Q) = keyedQueryStore.submitQuery(key, q)
+
+// External flow form (caller owns the query; result is a PLAIN store, no submitQuery):
+val store = StoreFactory.simpleStoreBuilder<List<Image>>()
+    .withQuery(debounceMillis = 500) { searchQuery }   // StateFlow<Q>: initial query = searchQuery.value
+    .build { query -> api.fetch(query) }               // -> SimpleStore<List<Image>>
+
+// whenActive { } - run a coroutine while the store is observed (cancelled on cache
+// release); chain it after build(). Use it to connect the store to external events
+// or other stores. `this` is the store, so update helpers are callable directly:
+val catsStore = StoreFactory.simpleStoreBuilder<List<Cat>>()
+    .build(onFetch = catsDataSource::fetchCats)
+    .whenActive {                              // this: SimpleStore<List<Cat>>
+        catEvents.observeCatEvents().collect { event ->
+            updateIfSuccess { cats ->          // no-op unless currently Loaded
+                cats.map { if (it.id == event.cat.id) event.cat else it }
+            }
+        }
+    }
 ```

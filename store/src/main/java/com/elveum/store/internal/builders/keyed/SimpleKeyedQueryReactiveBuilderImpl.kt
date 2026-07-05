@@ -36,7 +36,7 @@ internal class SimpleKeyedQueryReactiveBuilderImpl<Key : Any, Q : Any, T : Any>(
             saver = onSaveToStorage,
             observer = onObserveStorage,
             config = config,
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
         )
     }

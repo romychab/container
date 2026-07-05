@@ -40,7 +40,7 @@ internal class SimpleQuerySuspendingBuilderImpl<Q : Any, T : Any>(
         onLoadFromStorage: suspend (Q) -> T?
     ): SimpleQueryStore<Q, T> {
         return KeyedQueryStoreImpl<Unit, Q, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query -> onFetch(query) },

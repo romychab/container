@@ -8,6 +8,8 @@ import com.elveum.store.contracts.PagedKeyedSuspendingContract
 import com.elveum.store.stores.keyed.PagedKeyedQueryStore
 import com.elveum.store.stores.keyed.PagedKeyedStore
 import com.elveum.store.stores.paged.PagedList
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Builder for creating a keyed [PagedKeyedStore] without local storage (remote-only),
@@ -38,6 +40,38 @@ public interface PagedKeyedBuilder<Key : Any, PageKey : Any, T : Any> :
         initialQuery: Q,
         debounceMillis: Long = 0,
     ): PagedKeyedQueryBuilder<Key, Q, PageKey, T>
+
+    /**
+     * Transitions the builder to a variant whose per-key query is driven by an external [Flow].
+     * Each key performs an immediate first load using [initialQuery]; whenever the flow returned by
+     * [queryFlow] for a key emits a new query, that key's pagination is reset and reloaded from the
+     * first page. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [PagedKeyedExternalQueryBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): PagedKeyedExternalQueryBuilder<Key, Q, PageKey, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [PagedKeyedExternalQueryBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): PagedKeyedExternalQueryBuilder<Key, Q, PageKey, T>
 
     /**
      * Transitions the builder to a variant that supports a suspending (one-shot)
@@ -156,6 +190,38 @@ public interface PagedKeyedSuspendingBuilder<Key : Any, PageKey : Any, T : Any> 
     public fun <Q : Any> withQuery(
         initialQuery: Q, debounceMillis: Long = 0,
     ): PagedKeyedQuerySuspendingBuilder<Key, Q, PageKey, T>
+
+    /**
+     * Transitions the builder to a variant whose per-key query is driven by an external [Flow],
+     * backed by suspending local storage. Each key performs an immediate first load using
+     * [initialQuery]; whenever [queryFlow] for a key emits a new query, that key's pagination is
+     * reset and reloaded from the first page. The resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [PagedKeyedExternalQuerySuspendingBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): PagedKeyedExternalQuerySuspendingBuilder<Key, Q, PageKey, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [PagedKeyedExternalQuerySuspendingBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): PagedKeyedExternalQuerySuspendingBuilder<Key, Q, PageKey, T>
 
     /**
      * Builds a [PagedKeyedStore] using the provided [PagedKeyedSuspendingContract]

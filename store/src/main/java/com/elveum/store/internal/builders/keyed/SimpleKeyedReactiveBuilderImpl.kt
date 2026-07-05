@@ -1,5 +1,6 @@
 package com.elveum.store.internal.builders.keyed
 
+import com.elveum.store.builders.SimpleKeyedExternalQueryReactiveBuilder
 import com.elveum.store.builders.SimpleKeyedQueryReactiveBuilder
 import com.elveum.store.builders.SimpleKeyedReactiveBuilder
 import com.elveum.store.builders.SimpleKeyedReactiveNoFetcherBuilder
@@ -10,6 +11,7 @@ import com.elveum.store.internal.builders.SharedConfig
 import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.stores.keyed.KeyedStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class SimpleKeyedReactiveBuilderImpl<Key : Any, T : Any>(
     val config: SharedConfig,
@@ -31,6 +33,31 @@ internal class SimpleKeyedReactiveBuilderImpl<Key : Any, T : Any>(
         return SimpleKeyedQueryReactiveBuilderImpl(initialQuery, debounceMillis, config)
     }
 
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQueryReactiveBuilder<Key, Q, T> {
+        return SimpleKeyedExternalQueryReactiveBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQueryReactiveBuilder<Key, Q, T> {
+        return SimpleKeyedExternalQueryReactiveBuilderImpl(
+            initialQueryProvider = { key -> queryFlow(key).value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = config,
+        )
+    }
+
     override fun build(contract: SimpleKeyedReactiveContract<Key, T>): KeyedStore<Key, T> {
         return build(
             onFetch = contract::fetch,
@@ -49,7 +76,7 @@ internal class SimpleKeyedReactiveBuilderImpl<Key : Any, T : Any>(
             fetcher = { key, _ -> onFetch(key) },
             saver = { key, _, value -> onSaveToStorage(key, value) },
             observer = { key, _ -> onObserveStorage(key) },
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
         )
     }
 }

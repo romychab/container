@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.2.1"
+implementation "com.elveum:store:3.3.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -281,6 +281,32 @@ fun setQuery(query: String) = store.submitQueryAsync(query)
 
 val currentQuery: StateFlow<String> get() = store.queryFlow
 ```
+
+### External query flow
+
+When the query already lives elsewhere as a reactive stream (a search
+`StateFlow`, a combination of filters), pass it to `withQuery` as a lambda
+returning a `Flow` instead of calling `submitQuery` yourself. The
+store follows that flow and is a plain store (`SimpleStore` / `KeyedStore` /
+`PagedStore`) with **no** `submitQuery`/`queryFlow` surface:
+
+```kotlin
+private val searchQuery = MutableStateFlow<String>("")
+private val store = StoreFactory.simpleStoreBuilder<List<GalleryImage>>()
+    .withQuery(debounceMillis = 500) { searchQuery } // searchQuery: StateFlow<String>
+    .build { query -> remoteSource.fetchImages(query) } // -> SimpleStore<List<GalleryImage>>
+
+fun getImages(): Flow<StoreResult<List<GalleryImage>>> = store.observe()
+fun setSearchQuery(query: String) = searchQuery.update { query }
+```
+
+A `StateFlow` needs no initial query (it is derived from `.value`). For a plain
+`Flow`, supply an `initialQuery` for the immediate first load:
+`withQuery(initialQuery = "") { queryFlow }`. Keyed stores receive the key, so
+each key can follow its own query flow:
+`withQuery { key -> queryFlowFor(key) }`. For paged stores a new query resets
+pagination and reloads from the first page. This overload is available on every
+builder that supports `withQuery`.
 
 ## Updating Cached Data
 

@@ -6,8 +6,8 @@ import com.elveum.store.stores.base.OptimisticUpdateScope
 import com.elveum.store.stores.simple.SimpleStore
 import kotlinx.coroutines.flow.Flow
 
-internal class SimpleStoreImpl<T : Any>(
-    private val origin: KeyedQueryStoreImpl<Unit, Unit, T>,
+internal class SimpleStoreImpl<Q : Any, T : Any>(
+    private val origin: KeyedQueryStoreImpl<Unit, Q, T>,
 ) : SimpleStore<T> {
     override fun observe(request: LoadRequest?): Flow<StoreResult<T>> {
         return origin.observe(Unit, request)
@@ -39,5 +39,5 @@ internal class SimpleStoreImpl<T : Any>(
     }
 }
 
-internal fun <T : Any> KeyedQueryStoreImpl<Unit, Unit, T>.asSimpleStore() =
+internal fun <Q : Any, T : Any> KeyedQueryStoreImpl<Unit, Q, T>.asSimpleStore() =
     SimpleStoreImpl(this)

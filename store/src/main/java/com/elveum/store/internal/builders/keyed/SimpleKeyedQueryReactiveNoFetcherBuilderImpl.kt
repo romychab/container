@@ -27,7 +27,7 @@ internal class SimpleKeyedQueryReactiveNoFetcherBuilderImpl<Key : Any, Q : Any, 
             fetcher = { key, query -> onObserve(key, query).first() },
             saver = { _, _, _ -> },
             observer = { key, query -> onObserve(key, query) },
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
         )

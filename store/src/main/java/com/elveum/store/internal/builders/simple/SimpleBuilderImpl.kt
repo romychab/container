@@ -2,6 +2,7 @@ package com.elveum.store.internal.builders.simple
 
 import com.elveum.container.Emitter
 import com.elveum.store.builders.SimpleBuilder
+import com.elveum.store.builders.SimpleExternalQueryBuilder
 import com.elveum.store.builders.SimpleKeyedBuilder
 import com.elveum.store.builders.SimpleQueryBuilder
 import com.elveum.store.builders.SimpleReactiveBuilder
@@ -15,6 +16,8 @@ import com.elveum.store.internal.stores.KeyedQueryStoreImpl
 import com.elveum.store.internal.stores.asSimpleStore
 import com.elveum.store.internal.stores.common.CoreFetcher
 import com.elveum.store.stores.simple.SimpleStore
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 internal class SimpleBuilderImpl<T : Any>(
     val sharedBuilder: BaseBuilderImpl<SimpleBuilder<T>> = BaseBuilderImpl(),
@@ -26,6 +29,31 @@ internal class SimpleBuilderImpl<T : Any>(
 
     override fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long): SimpleQueryBuilder<Q, T> {
         return SimpleQueryBuilderImpl(initialQuery, debounceMillis, sharedBuilder.config)
+    }
+
+    override fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long,
+        queryFlow: () -> Flow<Q>,
+    ): SimpleExternalQueryBuilder<Q, T> {
+        return SimpleExternalQueryBuilderImpl(
+            initialQueryProvider = { initialQuery },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = sharedBuilder.config,
+        )
+    }
+
+    override fun <Q : Any> withQuery(
+        debounceMillis: Long,
+        queryFlow: () -> StateFlow<Q>,
+    ): SimpleExternalQueryBuilder<Q, T> {
+        return SimpleExternalQueryBuilderImpl(
+            initialQueryProvider = { queryFlow().value },
+            queryDebounceMillis = debounceMillis,
+            queryFlow = queryFlow,
+            config = sharedBuilder.config,
+        )
     }
 
     override fun <Key : Any> withKeys(): SimpleKeyedBuilder<Key, T> {
@@ -48,7 +76,7 @@ internal class SimpleBuilderImpl<T : Any>(
         return KeyedQueryStoreImpl<Unit, Unit, T>(
             fetcher = { _, _ -> onFetch() },
             config = sharedBuilder.config,
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
         ).asSimpleStore()
     }
 
@@ -56,7 +84,7 @@ internal class SimpleBuilderImpl<T : Any>(
         return KeyedQueryStoreImpl<Unit, Unit, T>(
             fetcher = CoreFetcher.Custom { _, _ -> loader() },
             config = sharedBuilder.config,
-            initialQuery = Unit,
+            initialQueryProvider = { Unit },
         ).asSimpleStore()
     }
 

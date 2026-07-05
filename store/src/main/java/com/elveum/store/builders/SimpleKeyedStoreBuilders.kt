@@ -13,6 +13,7 @@ import com.elveum.store.contracts.SimpleKeyedSuspendingContract
 import com.elveum.store.stores.keyed.KeyedQueryStore
 import com.elveum.store.stores.keyed.KeyedStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Builder for creating a keyed [KeyedStore] without local storage (remote-only).
@@ -38,6 +39,38 @@ public interface SimpleKeyedBuilder<Key : Any, T : Any> : BaseBuilder<SimpleKeye
      * @return a [SimpleKeyedQueryBuilder] configured with the given query parameters.
      */
     public fun <Q : Any> withQuery(initialQuery: Q, debounceMillis: Long = 0): SimpleKeyedQueryBuilder<Key, Q, T>
+
+    /**
+     * Transitions the builder to a variant whose per-key query is driven by an external [Flow].
+     * Each key performs an immediate first load using [initialQuery], then reloads whenever the
+     * flow returned by [queryFlow] for that key emits a new query. The resulting store exposes no
+     * query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [SimpleKeyedExternalQueryBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQueryBuilder<Key, Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [SimpleKeyedExternalQueryBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQueryBuilder<Key, Q, T>
 
     /**
      * Configure a keyed store without a fetcher. In this case, each key manages only
@@ -176,6 +209,38 @@ public interface SimpleKeyedReactiveBuilder<Key : Any, T : Any> :
     ): SimpleKeyedQueryReactiveBuilder<Key, Q, T>
 
     /**
+     * Transitions the builder to a variant whose per-key query is driven by an external [Flow],
+     * backed by reactive local storage. Each key performs an immediate first load using
+     * [initialQuery], then reloads whenever [queryFlow] for that key emits a new query. The
+     * resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [SimpleKeyedExternalQueryReactiveBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQueryReactiveBuilder<Key, Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [SimpleKeyedExternalQueryReactiveBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQueryReactiveBuilder<Key, Q, T>
+
+    /**
      * Configure a keyed store without a fetcher; each key manages only local data via a
      * reactive flow.
      *
@@ -232,6 +297,38 @@ public interface SimpleKeyedReactiveNoFetcherBuilder<Key : Any, T : Any> :
     ): SimpleKeyedQueryReactiveNoFetcherBuilder<Key, Q, T>
 
     /**
+     * Transitions the builder to a fetcher-less variant whose per-key query is driven by an
+     * external [Flow]. Each key performs an immediate first observe using [initialQuery], then
+     * re-observes whenever [queryFlow] for that key emits a new query. The resulting store exposes
+     * no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first observe.
+     * @param debounceMillis debounce applied to flow emissions before re-observing; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [SimpleKeyedExternalQueryReactiveNoFetcherBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQueryReactiveNoFetcherBuilder<Key, Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before re-observing; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [SimpleKeyedExternalQueryReactiveNoFetcherBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQueryReactiveNoFetcherBuilder<Key, Q, T>
+
+    /**
      * Builds a [KeyedStore] using only a lambda for observing local data per key (no remote fetches).
      *
      * @param onObserve function that returns a [Flow] emitting a key's locally stored values.
@@ -270,6 +367,38 @@ public interface SimpleKeyedSuspendingBuilder<Key : Any, T : Any> :
         initialQuery: Q,
         debounceMillis: Long = 0,
     ): SimpleKeyedQuerySuspendingBuilder<Key, Q, T>
+
+    /**
+     * Transitions the builder to a variant whose per-key query is driven by an external [Flow],
+     * backed by suspending local storage. Each key performs an immediate first load using
+     * [initialQuery], then reloads whenever [queryFlow] for that key emits a new query. The
+     * resulting store exposes no query API.
+     *
+     * @param Q the type representing the query.
+     * @param initialQuery the query each key uses for its immediate first load.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [Flow] for a given key.
+     * @return a [SimpleKeyedExternalQuerySuspendingBuilder] driven by the given per-key query flow.
+     */
+    public fun <Q : Any> withQuery(
+        initialQuery: Q,
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> Flow<Q>,
+    ): SimpleKeyedExternalQuerySuspendingBuilder<Key, Q, T>
+
+    /**
+     * Convenience overload for a [StateFlow] query source: each key's initial query is derived from
+     * that key's [StateFlow.value], so no explicit initial query is required.
+     *
+     * @param Q the type representing the query.
+     * @param debounceMillis debounce applied to flow emissions before reloading; defaults to `0`.
+     * @param queryFlow lambda returning the external query [StateFlow] for a given key.
+     * @return a [SimpleKeyedExternalQuerySuspendingBuilder] driven by the given per-key query state flow.
+     */
+    public fun <Q : Any> withQuery(
+        debounceMillis: Long = 0,
+        queryFlow: (Key) -> StateFlow<Q>,
+    ): SimpleKeyedExternalQuerySuspendingBuilder<Key, Q, T>
 
     /**
      * Builds a [KeyedStore] using individual lambdas for remote fetch and suspending local storage.

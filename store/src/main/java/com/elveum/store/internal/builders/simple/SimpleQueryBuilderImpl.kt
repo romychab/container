@@ -50,7 +50,7 @@ internal class SimpleQueryBuilderImpl<Q : Any, T : Any>(
 
     override fun build(onFetch: suspend (Q) -> T): SimpleQueryStore<Q, T> {
         return KeyedQueryStoreImpl<Unit, Q, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = { _, query -> onFetch(query) },
@@ -59,7 +59,7 @@ internal class SimpleQueryBuilderImpl<Q : Any, T : Any>(
 
     override fun buildCustom(loader: suspend Emitter<T>.(Q) -> Unit): SimpleQueryStore<Q, T> {
         return KeyedQueryStoreImpl<Unit, Q, T>(
-            initialQuery = initialQuery,
+            initialQueryProvider = { initialQuery },
             queryDebounceMillis = queryDebounceMillis,
             config = config,
             fetcher = CoreFetcher.Custom { _, query -> loader(query) },

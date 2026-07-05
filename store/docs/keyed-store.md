@@ -263,6 +263,37 @@ Submitting a new query for a key reloads only that key. Like
 `SimpleKeyedQueryReactiveContract`,
 `SimpleKeyedQueryReactiveNoFetcherContract`.
 
+### External query flow
+
+Instead of calling `submitQuery(key, …)`, you can let each key follow an
+external query `Flow`. The `withQuery` lambda receives the key, so every key can
+have its own query stream (for example, a per-key filter `StateFlow`). The
+result is a plain `KeyedStore<Key, T>` with no query API:
+
+```kotlin
+private val store = StoreFactory.simpleStoreBuilder<ProductReviews>()
+    .withKeys<ProductId>()
+    .withQuery(initialQuery = ReviewQuery(sort = Sort.Newest)) { productId ->
+        sortPreferences.reviewQueryFor(productId) // Flow<ReviewQuery>
+    }
+    .build { productId, query -> api.fetchReviews(productId, query) } // -> KeyedStore<ProductId, ProductReviews>
+```
+
+For a `StateFlow` source, drop `initialQuery` - each key's initial query is
+derived from that key's `StateFlow.value`:
+`withQuery { key -> queryStateFlowFor(key) }`. Only the key whose flow emits is
+reloaded; other keys keep their current query and cached value. This overload is
+available on the remote-only, suspending, reactive and `disableFetcher()` keyed
+builders. See [Simple Store](simple-store.md#external-query-flow) for the
+overload semantics.
+
+The keyed lambda above (`withKeys()` first) gives each key its **own** query
+flow. If instead you call the non-keyed `withQuery { flow }` and then
+`withKeys()`, that single flow is **shared by every key** - a global query
+stream driving all keys at once. Both orderings are supported, and `withQuery`
+can be applied before or after `addSuspendingLocalStorage()` /
+`addReactiveLocalStorage()` / `disableFetcher()`.
+
 ## Paged Keyed Stores
 
 Calling `.withKeys<Key>()` on a [paged builder](paged-store.md) produces a

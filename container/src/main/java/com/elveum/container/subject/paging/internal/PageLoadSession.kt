@@ -39,6 +39,7 @@ internal class PageLoadSession<Key, T>(
         val record = state.prepareRecord(pageIndex, pageKey)
         val context = PageContext(
             state = state,
+            loadConfig = originEmitter.loadConfig,
             initialRecord = record,
             isRetry = isRetry,
             onScheduleNextKey = { nextIndex, nextKey ->

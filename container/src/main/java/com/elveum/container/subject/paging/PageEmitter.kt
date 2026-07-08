@@ -3,6 +3,7 @@ package com.elveum.container.subject.paging
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.FlowComposer
+import com.elveum.container.LoadConfig
 
 /**
  * An instance of this emitter is available within the page loader function
@@ -15,6 +16,13 @@ public interface PageEmitter<Key, T> : FlowComposer {
      * or custom values, etc.
      */
     public val metadata: ContainerMetadata
+
+    /**
+     * The requested load configuration (e.g. silent loading or not).
+     *
+     * @see LoadConfig
+     */
+    public val loadConfig: LoadConfig
 
     /**
      * Emit data loaded for the current page key.

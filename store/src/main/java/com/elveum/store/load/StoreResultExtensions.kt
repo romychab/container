@@ -112,3 +112,14 @@ public fun <T> StoreResult<T>.isBackgroundLoading(): Boolean =
  * or foreground).
  */
 public fun <T> StoreResult<T>.hasAnyLoading(): Boolean = isForegroundLoading() || isBackgroundLoading()
+
+/**
+ * Exclude all metadata from the [StoreResult]. Useful for comparing results and testing.
+ */
+public fun <T> StoreResult<T>.raw(): StoreResult<T> {
+    return when (this) {
+        is StoreResult.Failed -> StoreResult.Failed(exception)
+        is StoreResult.Loaded -> StoreResult.Loaded(value)
+        StoreResult.Loading -> StoreResult.Loading
+    }
+}

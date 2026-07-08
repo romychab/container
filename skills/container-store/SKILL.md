@@ -22,13 +22,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.3.0` (transitively brings
+Maven coordinates: `com.elveum:store:3.3.1` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.3.0"
+store = "3.3.1"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```

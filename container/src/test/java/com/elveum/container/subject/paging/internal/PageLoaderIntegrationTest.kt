@@ -45,6 +45,7 @@ class PageLoaderIntegrationTest {
         executeInBackground { pageLoader.statefulInvoke() }
 
         coVerifySequence {
+            emitter.loadConfig
             emitter.emitPendingState()
         }
     }

@@ -63,6 +63,20 @@ public sealed class StoreResult<out T> {
      * loads using this property.
      */
     public val backgroundLoadState: BackgroundLoadState get() = metadata.backgroundLoadState
+
+    /**
+     * Create a new [StoreResult] instance from the existing one, but with
+     * additional [metadata] values.
+     */
+    public operator fun plus(metadata: ContainerMetadata): StoreResult<T> {
+        val combinedMetadata = this.metadata + metadata
+        return when (this) {
+            is Failed -> Failed(exception, combinedMetadata)
+            is Loaded -> Loaded(value, combinedMetadata)
+            Loading -> Loading
+        }
+    }
+
 }
 
 /**

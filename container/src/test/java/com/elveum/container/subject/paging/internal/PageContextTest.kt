@@ -2,6 +2,7 @@ package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.Container
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.subject.paging.TotalPagedItemsCountMetadata
@@ -264,7 +265,7 @@ class PageContextTest {
         isCompleted: Boolean = false,
     ): PageContext<Int, String> {
         val record = ImmutablePageRecord(pageIndex, pageKey, priority, container, isCompleted)
-        return PageContext(state, isRetry, onScheduleNextKey, record)
+        return PageContext(state, LoadConfig.Normal, isRetry, onScheduleNextKey, record)
     }
 
 }

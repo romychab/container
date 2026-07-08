@@ -46,9 +46,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
-import kotlin.collections.firstOrNull
-import kotlin.collections.forEach
-import kotlin.collections.map
 
 @Suppress("TooManyFunctions")
 internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
@@ -230,6 +227,24 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
             .distinctUntilChanged()
     }
 
+    fun updateWith(key: Key, storeResult: StoreResult<T>) {
+        getKeyRecords(key).forEach {
+            cache.updateWith(it, storeResult.toContainer())
+        }
+    }
+
+    fun observeQueryFlow(key: Key): StateFlow<Q> {
+        return currentQueriesFlow.stateMap { it[key] ?: initialQueryProvider(key) }
+    }
+
+    fun whenActive(block: suspend () -> Unit) {
+        cache.whenActive { block() }
+    }
+
+    fun onItemRendered(key: Key, index: Int) {
+        get(key).onItemRendered(index)
+    }
+
     private fun updateQuery(key: Key, query: Q) {
         val queries = currentQueriesFlow.value
         if (!queries.contains(key)) return
@@ -248,11 +263,6 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
             onAdded = { key -> gates[key] = AtomicBoolean() },
             onRemoved = { key -> gates.remove(key) }
         )
-    }
-
-
-    fun observeQueryFlow(key: Key): StateFlow<Q> {
-        return currentQueriesFlow.stateMap { it[key] ?: initialQueryProvider(key) }
     }
 
     private fun <R : Any> createDelegate(): CoreLoaderDelegate<R> {
@@ -290,24 +300,10 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
         )
     }
 
-    fun updateWith(key: Key, storeResult: StoreResult<T>) {
-        getKeyRecords(key).forEach {
-            cache.updateWith(it, storeResult.toContainer())
-        }
-    }
-
     private fun updateIfSuccess(key: Key, updater: (T) -> T) {
         getKeyRecords(key).forEach {
             cache.updateIfSuccess(it, updater = updater)
         }
-    }
-
-    fun whenActive(block: suspend () -> Unit) {
-        cache.whenActive { block() }
-    }
-
-    fun onItemRendered(key: Key, index: Int) {
-        get(key).onItemRendered(index)
     }
 
     private data class KeyedQuery<Key, Q>(

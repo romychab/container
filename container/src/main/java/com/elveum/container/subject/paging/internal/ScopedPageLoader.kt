@@ -6,6 +6,7 @@ import com.elveum.container.StatefulEmitter
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.combine
@@ -27,12 +28,12 @@ internal class ScopedPageLoader<Key, T>(
     fun loadPage(context: PageContext<Key, T>) {
         coroutineScope.launch {
             if (!context.isRetry) awaitFetchDistanceSatisfied(context)
+            val emitter = PageEmitterImpl(
+                context = context,
+                originEmitter = originEmitter,
+            )
             try {
                 context.onLoadStarted(context.isRetry)
-                val emitter = PageEmitterImpl(
-                    context = context,
-                    originEmitter = originEmitter,
-                )
                 config.block(emitter, context.pageKey)
                 if (!emitter.isPageEmitted) {
                     sessionCompleteDeferred.completeExceptionally(
@@ -40,16 +41,9 @@ internal class ScopedPageLoader<Key, T>(
                     )
                     return@launch
                 }
-                context.onLoadCompleted()
-                if (context.isAllPagesCompleted()) {
-                    sessionCompleteDeferred.complete(Unit)
-                }
+                completeLoad(context)
             } catch (e: Exception) {
-                ensureActive()
-                if (context.pageIndex == 0) {
-                    sessionCompleteDeferred.completeExceptionally(e)
-                }
-                context.onLoadFailed(e)
+                handleLoadError(context, emitter.isPageEmitted, e)
             }
         }
     }
@@ -61,6 +55,31 @@ internal class ScopedPageLoader<Key, T>(
             } else {
                 oldIndex
             }
+        }
+    }
+
+    private suspend fun handleLoadError(
+        context: PageContext<Key, T>,
+        isPageEmitted: Boolean,
+        e: Exception,
+    ) {
+        currentCoroutineContext().ensureActive()
+        val isSilentErrors = originEmitter.loadConfig.isSilentErrorsEnabled
+        if (isSilentErrors && isPageEmitted) {
+            // page data already exists, errors can be suppressed by silent flag
+            completeLoad(context)
+        } else {
+            if (context.pageIndex == 0) {
+                sessionCompleteDeferred.completeExceptionally(e)
+            }
+            context.onLoadFailed(e)
+        }
+    }
+
+    private suspend fun completeLoad(context: PageContext<Key, T>) {
+        context.onLoadCompleted()
+        if (context.isAllPagesCompleted()) {
+            sessionCompleteDeferred.complete(Unit)
         }
     }
 
@@ -89,7 +108,8 @@ internal class ScopedPageLoader<Key, T>(
         ) { indexOfLastItemOfPage, lastRenderedIndex -> indexOfLastItemOfPage to lastRenderedIndex }
 
         finalFlow.first { (indexOfLastItemOfPage, lastRenderedIndex) ->
-            lastRenderedIndex > indexOfLastItemOfPage - config.finalFetchDistance
+            val result = lastRenderedIndex > indexOfLastItemOfPage - config.finalFetchDistance
+            result
         }
     }
 

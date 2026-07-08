@@ -18,7 +18,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 internal class StatefulEmitterImpl<T>(
     private val emitter: FlowEmitter<T>,
     private val executeParams: ExecuteParams<T>,
-    private val loadConfig: LoadConfig,
+    override val loadConfig: LoadConfig,
     private val flowCollector: FlowCollector<Container<T>>,
     private val flowSubject: FlowSubject<T>?,
 ) : StatefulEmitter<T>, Emitter<T> by emitter {

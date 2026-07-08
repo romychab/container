@@ -1,14 +1,19 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.BackgroundLoadMetadata
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.ContainerMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
 import com.elveum.container.successContainer
+import com.elveum.container.update
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 internal class PageContext<Key, T>(
     private val state: PageRecordsState<Key, T>,
+    private val loadConfig: LoadConfig,
     val isRetry: Boolean,
     private val onScheduleNextKey: suspend (Int, Key) -> Unit,
     initialRecord: ImmutablePageRecord<Key, T>,
@@ -34,6 +39,15 @@ internal class PageContext<Key, T>(
 
     suspend fun onLoadCompleted() {
         state.markAsCompleted(pageIndex, pageKey)
+        if (loadConfig.isSilentLoadingEnabled) {
+            state.updateRecord(
+                pageIndex = pageIndex,
+                pageKey = pageKey,
+                container = { old ->
+                    old.update { backgroundLoadState = BackgroundLoadState.Idle }
+                }
+            )
+        }
     }
 
     suspend fun onLoadFailed(e: Exception) {
@@ -45,10 +59,22 @@ internal class PageContext<Key, T>(
     }
 
     suspend fun onPageDataLoaded(items: List<T>, metadata: ContainerMetadata) {
+        val container = if (loadConfig.isSilentLoadingEnabled) {
+            val bgLoadState = if (pageIndex == 0) {
+                // report background loading only for the first page
+                BackgroundLoadState.Loading
+            } else {
+                BackgroundLoadState.Idle
+            }
+            val bgLoadMetadata = BackgroundLoadMetadata(bgLoadState)
+            successContainer(items, metadata + bgLoadMetadata)
+        } else {
+            successContainer(items, metadata)
+        }
         state.updateRecord(
             pageIndex = pageIndex,
             pageKey = pageKey,
-            container = { successContainer(items, metadata) },
+            container = { container },
         )
     }
 

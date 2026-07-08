@@ -2,6 +2,7 @@ package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageEmitter
 import kotlinx.coroutines.flow.Flow
@@ -21,6 +22,7 @@ internal class PageEmitterImpl<Key, T>(
         private set
 
     override val metadata: ContainerMetadata get() = originEmitter.metadata
+    override val loadConfig: LoadConfig get() = originEmitter.loadConfig
 
     override suspend fun emitPage(list: List<T>, metadata: ContainerMetadata) {
         isPageEmitted = true

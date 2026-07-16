@@ -41,6 +41,7 @@ import com.elveum.container.subject.paging.PageState
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.nextPageState
+import com.elveum.store.load.onItemRendered
 
 @Composable
 fun PaginationArgsScreen() = DemoScaffold(
@@ -82,7 +83,7 @@ fun PaginationArgsScreen() = DemoScaffold(
                         key = { _, photo -> photo.id },
                     ) { index, photo ->
                         LaunchedEffect(index) {
-                            viewModel.onItemRendered(index)
+                            finalResult.onItemRendered(index)
                         }
                         PhotoCard(photo = photo)
                     }

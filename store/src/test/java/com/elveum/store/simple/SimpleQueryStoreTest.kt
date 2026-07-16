@@ -39,7 +39,7 @@ class SimpleQueryStoreTest : AbstractSimpleStoreTest() {
     }
 
     @Test
-    fun `GIVEN submitted query with default request WHEN re-fetch is in progress THEN old content is kept`() = runFlowTest {
+    fun `GIVEN submitted query with silent request WHEN re-fetch is in progress THEN old content is kept`() = runFlowTest {
         val store = storeBuilder()
             .withQuery(initialQuery = "q1")
             .build { query ->
@@ -54,6 +54,28 @@ class SimpleQueryStoreTest : AbstractSimpleStoreTest() {
         advanceTimeBy(10) // almost done second load
         assertResult(StoreResult.Loaded("value-q1"), collector.lastItem)
         assertTrue(collector.lastItem.isBackgroundLoading())
+        advanceTimeBy(1) // now loaded
+        assertResult(StoreResult.Loaded("value-q2"), collector.lastItem)
+    }
+
+    @Test
+    fun `GIVEN submitted query with only silent load WHEN re-fetch is in progress THEN old content is not kept`() = runFlowTest {
+        val store = storeBuilder()
+            .withQuery(initialQuery = "q1")
+            .build { query ->
+                delay(10)
+                "value-$query"
+            }
+        val loadRequest = LoadRequest.builder()
+            .keepContentOnLoad()
+            .build()
+        val collector = store.observe(loadRequest).startCollecting()
+        advanceTimeBy(11) // first load
+
+        store.submitQueryAsync("q2") // observer keeps content while the new query loads
+
+        advanceTimeBy(10) // almost done second load
+        assertResult(StoreResult.Loading, collector.lastItem)
         advanceTimeBy(1) // now loaded
         assertResult(StoreResult.Loaded("value-q2"), collector.lastItem)
     }

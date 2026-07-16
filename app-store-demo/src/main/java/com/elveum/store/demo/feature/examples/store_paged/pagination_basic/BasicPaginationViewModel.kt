@@ -17,7 +17,4 @@ class BasicPaginationViewModel @Inject constructor(
         .getPhotos()
         .stateIn(StoreResult.Loading)
 
-    fun onItemRendered(index: Int) {
-        repository.onItemRendered(index)
-    }
 }

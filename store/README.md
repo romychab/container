@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.3.1"
+implementation "com.elveum:store:3.3.2"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -412,7 +412,12 @@ reload, and every observer keeps receiving data according to the request
 **it** subscribed with via `observe(...)` (or the builder default).
 
 The `LoadRequest.builder()` also supports `freshMode()` (skip caches, force
-a remote fetch) and `offlineMode()` (use only cached data). See
+a remote fetch) and `offlineMode()` (use only cached data). Keep-content
+behaviour is configured per reload trigger: `keepContentOnLoad` /
+`keepContentOnLoadAndError` apply to invalidation, while `keepContentOnQuery`
+/ `keepContentOnQueryAndError` apply to query changes - so a single request can
+reload silently on `invalidate()` yet show a `Loading` state when the query
+changes. `LoadRequest.Silent` keeps content on both. See
 [Load Requests](docs/load-requests.md).
 
 ## Consuming Stores in ViewModels

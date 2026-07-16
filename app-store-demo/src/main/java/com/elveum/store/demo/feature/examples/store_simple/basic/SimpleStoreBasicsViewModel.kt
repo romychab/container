@@ -31,10 +31,6 @@ class SimpleStoreBasicsViewModel @Inject constructor(
         errorFlagRepository.toggleErrorFlag()
     }
 
-    fun reload() {
-        userProfileRepository.reload()
-    }
-
     fun updateAge(age: Int) {
         currentUserProfile?.copy(age = age)?.let(::updateProfile)
     }

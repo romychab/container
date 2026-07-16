@@ -41,10 +41,6 @@ class CatDetailsRepository @Inject constructor(
         return catEvents
     }
 
-    fun invalidate(catId: Long) {
-        store.invalidateAsync(catId)
-    }
-
     private suspend fun optimisticUpdate(id: Long, name: String) {
         store.optimisticUpdate(id) { old ->
             val entity = old.copy(cat = old.cat.copy(name = name))

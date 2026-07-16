@@ -17,10 +17,6 @@ class UserProfileRepository @Inject constructor(
         return store.observe()
     }
 
-    fun reload() {
-        store.invalidateAsync()
-    }
-
     suspend fun update(newProfile: UserProfile) {
         store.optimisticUpdate {
             emit(newProfile)

@@ -1,6 +1,7 @@
 package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.BackgroundLoadMetadata
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
@@ -164,6 +165,7 @@ internal class PageRecordsState<Key, T>(
             val outputList = outputListSnapshot()
 
             val bgLoadMetadata = containers.firstOrNull()?.metadata?.get<BackgroundLoadMetadata>()
+                ?: BackgroundLoadMetadata(BackgroundLoadState.Idle)
             val finalMetadata = if (config.emitMetadata) {
                 OnItemRenderedCallbackMetadata(onItemRenderedRef) +
                         NextPageStateMetadata(pageState) +

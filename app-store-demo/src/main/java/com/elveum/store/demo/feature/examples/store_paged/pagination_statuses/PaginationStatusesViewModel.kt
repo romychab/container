@@ -1,8 +1,8 @@
 package com.elveum.store.demo.feature.examples.store_paged.pagination_statuses
 
+import com.elveum.container.reducer.stateIn
 import com.elveum.store.demo.errors.ErrorFlagRepository
 import com.elveum.store.demo.ui.AbstractViewModel
-import com.elveum.container.reducer.stateIn
 import com.elveum.store.load.StoreResult
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.StateFlow
@@ -22,10 +22,6 @@ class PaginationStatusesViewModel @Inject constructor(
 
     fun toggleErrorFlag() {
         errorFlagRepository.toggleErrorFlag()
-    }
-
-    fun onItemRendered(index: Int) {
-        bookRepository.onItemRendered(index)
     }
 
 }

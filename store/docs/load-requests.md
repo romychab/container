@@ -9,6 +9,20 @@ Mutating and query calls - `invalidate` / `invalidateAsync` and
 trigger a reload, and every observer keeps receiving data according to the
 request it subscribed with.
 
+A single request can, however, react **differently** depending on *what*
+triggered the reload. It carries two independent keep-content policies:
+
+- one for reloads triggered by **invalidation** (`invalidate` /
+  `invalidateAsync` / `result.invalidate()`), configured with
+  `keepContentOnLoad` / `keepContentOnLoadAndError`;
+- one for reloads triggered by a **query change** (`submitQuery` /
+  `submitQueryAsync`, or a reactive query flow), configured with
+  `keepContentOnQuery` / `keepContentOnQueryAndError`.
+
+This makes it possible, for example, to reload silently in the background on
+`invalidate()` while showing a fresh `Loading` state whenever the query
+changes - see [Keeping Content](#keeping-content).
+
 ## Table of Contents
 
 - [Predefined Requests](#predefined-requests)
@@ -23,7 +37,7 @@ request it subscribed with.
 | Request               | Behaviour                                                                                                                                                                       |
 |-----------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | `LoadRequest.Default` | Fetch only on demand, when the value is not in the in-memory cache. While loading, observers see `StoreResult.Loading`. Two identical concurrent requests fetch data only once. |
-| `LoadRequest.Silent`  | The same, but existing content stays visible while new content is being loaded (equivalent to `builder().keepContentOnLoad().build()`).                                         |
+| `LoadRequest.Silent`  | The same, but existing content stays visible while new content is being loaded - both on invalidation and on query changes (equivalent to `builder().keepContentOnLoad().keepContentOnQuery().build()`). |
 
 `LoadRequest.Silent` is the natural choice for pull-to-refresh - configure
 it as the observer's request so that a reload keeps the existing content
@@ -98,36 +112,71 @@ The source mode determines where data is loaded from
 ### Keeping Content
 
 The keep-content options control what observers see while a new value is
-being loaded:
+being loaded. They come in two families, one per reload trigger:
 
-- **`keepContentOnLoad()`** - the previously loaded content stays in all
-  observed flows while the new content is loading. If the load fails, the
-  failure replaces the content.
-- **`keepContentOnLoadAndError()`** - the previous content also survives a
-  failed load; the UI keeps showing the old data instead of an error
-  screen.
+| Trigger                                                    | Keep loaded content | Keep content even on failure |
+|------------------------------------------------------------|---------------------|------------------------------|
+| Invalidation (`invalidate` / `invalidateAsync` / `result.invalidate()`) | `keepContentOnLoad()`  | `keepContentOnLoadAndError()`  |
+| Query change (`submitQuery` / `submitQueryAsync` / query flow)          | `keepContentOnQuery()` | `keepContentOnQueryAndError()` |
 
-Without either option, observers see `StoreResult.Loading` for the
-duration of the load.
+- **`keepContentOnLoad()` / `keepContentOnQuery()`** - the previously loaded
+  content stays in all observed flows while the new content is loading. If the
+  load fails, the failure replaces the content.
+- **`keepContentOnLoadAndError()` / `keepContentOnQueryAndError()`** - the
+  previous content also survives a failed load; the UI keeps showing the old
+  data instead of an error screen.
 
-Both keep-content options accept an optional
-`replaceErrorsOnReload: Boolean = true` parameter that controls what happens
-when the **current** state is an *error* and a reload starts:
-
-- **`replaceErrorsOnReload = true`** (default) - a current error is replaced
-  by a loading state on reload, i.e. content is kept silently only while it is
-  actually loaded; a stale error is not.
-- **`replaceErrorsOnReload = false`** - a current error is also kept silently
-  during the reload (the previous error stays visible with a background-load
-  indicator instead of switching to `StoreResult.Loading`).
+Each trigger is configured independently. Without a matching option for a
+given trigger, observers see `StoreResult.Loading` for the duration of that
+load. So `keepContentOnLoad()` alone keeps content silently on invalidation
+but still shows `Loading` when the query changes, and vice versa. Call one
+option from each family to cover both triggers (that is what
+`LoadRequest.Silent` does):
 
 ```kotlin
-// keep loaded content silently, but show a loading state when reloading after an error
-val request = LoadRequest.builder().keepContentOnLoad().build()
+// silent background reload on invalidate(), but a fresh Loading state on query change
+val request = LoadRequest.builder()
+    .keepContentOnLoad()
+    .build()
 
-// keep even a previous error visible while reloading
-val request = LoadRequest.builder().keepContentOnLoad(replaceErrorsOnReload = false).build()
+// keep content on both triggers (same as LoadRequest.Silent)
+val request = LoadRequest.builder()
+    .keepContentOnLoad()
+    .keepContentOnQuery()
+    .build()
+
+// keep content only while the query changes; show Loading on an explicit invalidate()
+val request = LoadRequest.builder()
+    .keepContentOnQuery()
+    .build()
 ```
+
+Each option accepts an optional `Boolean` flag (`replaceErrorsOnReload` for
+the load family, `replaceErrorsOnQuery` for the query family, both defaulting
+to `true`) that controls what happens when the **current** state is an *error*
+and that reload starts:
+
+- **`true`** (default) - a current error is replaced by a loading state on
+  reload, i.e. content is kept silently only while it is actually loaded; a
+  stale error is not.
+- **`false`** - a current error is also kept silently during the reload (the
+  previous error stays visible with a background-load indicator instead of
+  switching to `StoreResult.Loading`).
+
+```kotlin
+// keep even a previous error visible while reloading after an invalidate()
+val request = LoadRequest.builder().keepContentOnLoad(replaceErrorsOnReload = false).build()
+
+// keep a previous error visible while the query changes
+val request = LoadRequest.builder().keepContentOnQuery(replaceErrorsOnQuery = false).build()
+```
+
+> **Note.** The keep-content and source-mode options are order-independent and
+> each family may be set at most once - the builder's fluent type guides you so
+> that, for example, `keepContentOnLoad()` cannot be followed by another
+> `keepContentOnLoad*()` call. `keepContentOnQuery*()` only affects stores that
+> actually have a query (`SimpleQueryStore`, `KeyedQueryStore`,
+> `PagedQueryStore`); on stores without a query it is simply inert.
 
 ## Observing Background Loads
 

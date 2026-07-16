@@ -69,7 +69,7 @@ fun CombinedSimpleStoreScreen() {
         DemoAction(
             icon = Icons.Default.Refresh,
             state = if (isRefreshInProgress) DemoActionState.Loading else DemoActionState.Default,
-            onClick = { state.images.invalidate(LoadConfig.SilentLoading) },
+            onClick = { state.images.invalidate() },
         )
     )
 

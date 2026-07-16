@@ -52,6 +52,7 @@ import com.elveum.store.load.filterLoaded             // Flow<StoreResult<T>>.fi
 import com.elveum.store.load.toStoreResult            // Container<T>.toStoreResult(): StoreResult<T> (interop)
 import com.elveum.store.load.toContainer              // StoreResult<T>.toContainer(): Container<T> (interop)
 import com.elveum.store.load.withMetadataFrom         // StoreResult<T>.withMetadataFrom(origin): merge metadata
+import com.elveum.store.load.raw                       // StoreResult<T>.raw(): strip ALL metadata (for testing/equality)
 import com.elveum.store.load.isLoaded                 // smart-cast contract
 import com.elveum.store.load.isFailed                 // smart-cast contract
 import com.elveum.store.load.isCompleted
@@ -235,6 +236,17 @@ val flags = result.metadata.get<PagingFlagsMetadata>()   // PagingFlagsMetadata?
 if (result.metadata.hasNextPage) { /* ... */ }           // via the typed accessor
 ```
 
+**Stripping metadata for tests** — because metadata rides along on every
+`StoreResult`, two results with the same value/exception but different metadata
+are **not** equal. When asserting in tests, call `result.raw()` to drop all
+metadata and compare only the value/exception:
+
+```kotlin
+assertEquals(StoreResult.Loaded(expectedUser), store.get().raw())
+```
+
+`raw()` returns `Loading` unchanged, and `Loaded`/`Failed` with `EmptyMetadata`.
+
 Combine several entries with `+` (a same-typed entry on the right replaces the
 one on the left): `PagingFlagsMetadata(true) + EtagMetadata(tag)`. Metadata is
 propagated from the loader/`PagedList` to the emitted `StoreResult`, so it is the
@@ -257,8 +269,8 @@ of always meaning `LoadRequest.Default`:
 | Request | Effect |
 |---------|--------|
 | `LoadRequest.Default` | Fetch only if not cached; observers see `Loading` during the load |
-| `LoadRequest.Silent` | Keep currently shown content while reloading (pull-to-refresh); progress visible via `isBackgroundLoading()` |
-| `LoadRequest.builder()` | Custom: `freshMode()` (skip caches), `offlineMode()` (cache only; emits `NoCachedDataException` if empty), `keepContentOnLoad(replaceErrorsOnReload = true)`, `keepContentOnLoadAndError(replaceErrorsOnReload = true)`, then `build()`. `replaceErrorsOnReload = false` keeps even a current error visible while reloading | 
+| `LoadRequest.Silent` | Keep currently shown content while reloading, both on invalidate **and** on query change (pull-to-refresh); progress visible via `isBackgroundLoading()`. `= builder().keepContentOnLoad().keepContentOnQuery().build()` |
+| `LoadRequest.builder()` | Custom: `freshMode()` (skip caches), `offlineMode()` (cache only; emits `NoCachedDataException` if empty), then `build()`. Keep-content is set **per reload trigger**: `keepContentOnLoad` / `keepContentOnLoadAndError` for invalidation (`invalidate`/`result.invalidate()`), `keepContentOnQuery` / `keepContentOnQueryAndError` for query changes (`submitQuery`/query flow). Each defaults to showing `Loading` if its option is not set, so `keepContentOnLoad()` alone reloads silently but still shows `Loading` on a query change. Each option takes `replaceErrorsOnReload`/`replaceErrorsOnQuery = true`; pass `false` to also keep a current error visible while reloading. Each family may be set at most once (enforced by the fluent builder type) | 
 
 ### Store behaviour (all types)
 

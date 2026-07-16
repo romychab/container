@@ -15,6 +15,11 @@ public interface LoadRequest {
     public val config: LoadConfig
 
     /**
+     * How the load state is propagated to collectors when the load is triggered by a query.
+     */
+    public val queryConfig: LoadConfig
+
+    /**
      * Which source should be used when loading data.
      */
     public val requestSource: LoadRequestSource
@@ -33,7 +38,10 @@ public interface LoadRequest {
          * data. The background load state can be read using [StoreResult.backgroundLoadState]
          * property, or via extension: [StoreResult.isBackgroundLoading].
          */
-        public val Silent: LoadRequest = builder().keepContentOnLoad().build()
+        public val Silent: LoadRequest = builder()
+            .keepContentOnLoad()
+            .keepContentOnQuery()
+            .build()
 
         /**
          * Create a custom [LoadRequest] instance. See [LoadRequestBuilder]

@@ -20,9 +20,9 @@ class GalleryRepository @Inject constructor(
         .map {isKeepContentOnError ->
             LoadRequest.builder().run {
                 if (isKeepContentOnError) {
-                    keepContentOnLoadAndError()
+                    keepContentOnLoadAndError().keepContentOnQueryAndError()
                 } else {
-                    keepContentOnLoad()
+                    keepContentOnLoad().keepContentOnQuery()
                 }
             }.build()
         }

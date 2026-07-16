@@ -24,8 +24,4 @@ class PaginationArgsViewModel @Inject constructor(
         repository.toggleCategory(category)
     }
 
-    fun onItemRendered(index: Int) {
-        repository.onItemRendered(index)
-    }
-
 }

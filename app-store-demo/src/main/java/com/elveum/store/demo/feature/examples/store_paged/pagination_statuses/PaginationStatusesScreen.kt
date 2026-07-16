@@ -38,6 +38,7 @@ import com.elveum.store.load.StoreResult
 import com.elveum.store.load.invalidate
 import com.elveum.store.load.isBackgroundLoading
 import com.elveum.store.load.nextPageState
+import com.elveum.store.load.onItemRendered
 
 @Composable
 fun PaginationStatusesScreen() {
@@ -116,7 +117,7 @@ fun PaginationStatusesScreen() {
                             key = { _, book -> book.id },
                         ) { index, book ->
                             LaunchedEffect(index) {
-                                viewModel.onItemRendered(index)
+                                finalResult.onItemRendered(index)
                             }
                             BookCard(book = book)
                         }

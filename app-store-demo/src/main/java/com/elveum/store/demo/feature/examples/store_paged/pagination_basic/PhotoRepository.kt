@@ -16,10 +16,6 @@ class PhotoRepository @Inject constructor(
 
     fun getPhotos(): Flow<StoreResult<List<Photo>>> = store.observe()
 
-    fun onItemRendered(index: Int) {
-        store.onItemRendered(index)
-    }
-
     data class Photo(
         val id: Int,
         val title: String,

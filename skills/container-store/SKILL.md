@@ -1,6 +1,8 @@
 ---
 name: container-store
 description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, KeyedQueryStore, PagedStore, PagedKeyedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md.
+metadata:
+  version: 3.3.2
 ---
 
 # Container Store Library
@@ -22,13 +24,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.3.1` (transitively brings
+Maven coordinates: `com.elveum:store:3.3.2` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.3.1"
+store = "3.3.2"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -105,6 +107,7 @@ still appropriate.
 | Reload from the UI (try-again / pull-to-refresh) — PREFERRED | `result.invalidate()` on the rendered `StoreResult`; reloads the origin store with no ViewModel/repository plumbing                                    |
 | Pull-to-refresh (keep content visible)                       | Observe with `LoadRequest.Silent`, then `result.invalidate()`; progress shows via `result.isBackgroundLoading()`                                       |
 | Try-again (reload showing `Loading`)                         | `result.invalidate()` on the failed result (default request re-shows `Loading`)                                                                        |
+| Keep content per reload trigger (invalidate vs query change) | `LoadRequest.builder().keepContentOnLoad()` (invalidate) and/or `.keepContentOnQuery()` (query change), then `.build()`; each unset trigger shows `Loading`. `LoadRequest.Silent` = both (see api.md) |
 | Reload without a result at hand (old way, still valid)       | `store.invalidateAsync()` / `store.invalidate()` (key variants for keyed)                                                                              |
 | Replace cached result outright                               | `store.updateWith(StoreResult.Loaded(new))` / `store.updateWith(key, ...)`                                                                             |
 | Read-modify-write loaded value                               | `store.updateIfSuccess { old -> new }` / `store.updateIfSuccess(key) { old -> new }` (no-op unless `Loaded`)                                           |
@@ -117,6 +120,7 @@ still appropriate.
 | Pagination: next-page status                                 | `result.nextPageState` (`Idle`/`Pending`/`Error(retry)`)                                                                                               |
 | React while store is observed (connect to other stores/events) | `.whenActive { ... }` chained after `build`; `this` is the store, block runs while observed & is cancelled on cache release (see patterns.md "Relations between stores") |
 | Attach/read custom result flags (metadata)                   | `PagedList(items, nextKey, metadata = MyMeta(...))` / `emit(v, metadata = MyMeta(...))`; read `result.metadata.get<MyMeta>()` (see api.md)             |
+| Strip metadata for tests / equality (`assertEquals`)         | `result.raw()` → same `Loading`/`Loaded`/`Failed` with all metadata dropped, so results compare by value/exception only                               |
 
 Cache behavior (all stores): lazy first fetch, one shared in-memory
 cache, released after the last observer unsubscribes plus

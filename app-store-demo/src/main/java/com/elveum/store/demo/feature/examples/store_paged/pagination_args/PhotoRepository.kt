@@ -32,10 +32,6 @@ class PhotoRepository @Inject constructor(
         store.submitQueryAsync(newFilter)
     }
 
-    fun onItemRendered(index: Int) {
-        store.onItemRendered(index)
-    }
-
     data class Photo(
         val id: Int,
         val title: String,

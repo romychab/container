@@ -29,13 +29,13 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.elveum.container.subject.paging.PageState
 import com.elveum.store.demo.feature.examples.store_paged.pagination_basic.PhotoRepository.Photo
 import com.elveum.store.demo.ui.components.DemoScaffold
 import com.elveum.store.demo.ui.theme.Dimens
-import com.elveum.container.subject.paging.PageState
-import com.elveum.container.subject.paging.onItemRendered
 import com.elveum.store.load.StoreResult
 import com.elveum.store.load.nextPageState
+import com.elveum.store.load.onItemRendered
 
 @Composable
 fun BasicPaginationScreen() = DemoScaffold(
@@ -74,7 +74,7 @@ fun BasicPaginationScreen() = DemoScaffold(
                     key = { _, photo -> photo.id },
                 ) { index, photo ->
                     LaunchedEffect(index) {
-                        viewModel.onItemRendered(index)
+                        finalResult.onItemRendered(index)
                     }
                     PhotoCard(photo = photo)
                 }

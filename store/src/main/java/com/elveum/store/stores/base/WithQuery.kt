@@ -1,5 +1,7 @@
 package com.elveum.store.stores.base
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -21,7 +23,7 @@ public interface WithQuery<Q> {
      * currently observed, the submitted query is not retained and this call has no effect;
      * start observing the store before submitting a query.
      */
-    public suspend fun submitQuery(query: Q)
+    public suspend fun submitQuery(query: Q, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * The same as [submitQuery], but without waiting for results.
@@ -29,6 +31,6 @@ public interface WithQuery<Q> {
      * **Requires an active observer** - see [submitQuery]. When the store has no active
      * observer this call is a no-op.
      */
-    public fun submitQueryAsync(query: Q)
+    public fun submitQueryAsync(query: Q, metadata: ContainerMetadata = EmptyMetadata)
 
 }

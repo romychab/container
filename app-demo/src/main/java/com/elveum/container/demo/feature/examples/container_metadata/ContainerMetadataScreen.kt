@@ -57,7 +57,7 @@ fun ContainerMetadataScreen() = DemoScaffold(
         // yet (for example, new values will arrive from the remote data source soon):
         backgroundLoadState = BackgroundLoadState.Loading
         // set optional reload function:
-        reloadFunction = {
+        reloadFunction = { _, _ ->
             /* execute reload here (it is recommended to store reload lambda somewhere
                and reuse the same instance) */
         }

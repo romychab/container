@@ -44,6 +44,27 @@ public interface ContainerMetadata {
      * collectors.
      */
     public interface Hidden
+
+    /**
+     * Marker interface for metadata types that are relevant only to the load request
+     * they were attached to.
+     *
+     * Such metadata is attached to the container emitted by that specific load request
+     * and stays attached for as long as this container remains in the in-memory cache
+     * (for example, it is re-emitted to a new collector that subscribes while the cached
+     * value is still alive). However, it is not carried over to any **new** load: all
+     * subsequent reloads - whether triggered explicitly, by a query change, by dependency
+     * updates, or after the in-memory cache has expired - produce containers that do not
+     * contain the metadata implementing this interface.
+     *
+     * In other words: a one-shot metadata value is delivered together with the result of
+     * a single load request and is dropped once that result is replaced by another load.
+     *
+     * The behavior can be disabled per instance by overriding [isOneShot] to return `false`.
+     */
+    public interface OneShot {
+        public val isOneShot: Boolean get() = true
+    }
 }
 
 /**
@@ -89,8 +110,8 @@ public val ContainerMetadata.loadTrigger: LoadTrigger
 public val ContainerMetadata.isReloadDependencies: Boolean
     get() = get<IsReloadDependenciesMetadata>()?.isReloadDependencies ?: false
 
-public fun ContainerMetadata.reload(config: LoadConfig?) {
-    reloadFunction.invoke(config)
+public fun ContainerMetadata.reload(config: LoadConfig?, metadata: ContainerMetadata = EmptyMetadata) {
+    reloadFunction.invoke(config, metadata)
 }
 
 public data class BackgroundLoadMetadata(

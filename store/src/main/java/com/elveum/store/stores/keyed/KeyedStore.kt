@@ -1,5 +1,7 @@
 package com.elveum.store.stores.keyed
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import com.elveum.store.stores.base.OptimisticUpdateScope
@@ -48,16 +50,18 @@ public interface KeyedStore<Key : Any, T : Any> : WithStoreLifecycleOwner<KeyedS
      * [invalidateAsync] for a fire-and-forget variant.
      *
      * @param key the key whose cached value should be reloaded.
+     * @param metadata custom metadata values merged into the emitted result.
      */
-    public suspend fun invalidate(key: Key)
+    public suspend fun invalidate(key: Key, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * The same as [invalidate], but returns immediately without waiting for the
      * reload to complete.
      *
      * @param key the key whose cached value should be reloaded.
+     * @param metadata custom metadata values merged into the emitted result.
      */
-    public fun invalidateAsync(key: Key)
+    public fun invalidateAsync(key: Key, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * Set a new store result manually to the in-memory cache.

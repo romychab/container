@@ -21,38 +21,38 @@ class ContainerMapperScopeTest {
 
     @Test
     fun reloadFunction_returnsValueFromMetadata() {
-        val reloadFunction: (LoadConfig?) -> Unit = {}
+        val reloadFunction: (LoadConfig?, ContainerMetadata) -> Unit = { _, _ -> }
         val scope = createScope(ReloadFunctionMetadata(reloadFunction))
         assertEquals(reloadFunction, scope.reloadFunction)
     }
 
     @Test
     fun reload_withoutArgs_callsReloadFunctionWithNullArg() {
-        val reloadFunction = mockk<(LoadConfig?) -> Unit>(relaxed = true)
+        val reloadFunction = mockk<(LoadConfig?, ContainerMetadata) -> Unit>(relaxed = true)
         val scope = createScope(ReloadFunctionMetadata(reloadFunction))
 
         scope.reload()
 
         verify(exactly = 1) {
-            reloadFunction(null)
+            reloadFunction(null, EmptyMetadata)
         }
     }
 
     @Test
     fun reload_withArg_callsReloadFunctionWithSpecifiedArg() {
-        val reloadFunction = mockk<(LoadConfig?) -> Unit>(relaxed = true)
+        val reloadFunction = mockk<(LoadConfig?, ContainerMetadata) -> Unit>(relaxed = true)
         val scope = createScope(ReloadFunctionMetadata(reloadFunction))
 
         scope.reload(LoadConfig.SilentLoadingAndError)
 
         verify(exactly = 1) {
-            reloadFunction(LoadConfig.SilentLoadingAndError)
+            reloadFunction(LoadConfig.SilentLoadingAndError, EmptyMetadata)
         }
     }
 
     @Test
     fun successContainer_withDefaultMetadata_usesArgs() {
-        val reloadFunction: (LoadConfig?) -> Unit = {}
+        val reloadFunction: (LoadConfig?, ContainerMetadata) -> Unit = { _, _ -> }
         val scope = createScope(
             LoadTriggerMetadata(LoadTrigger.CacheExpired) + SourceTypeMetadata(LocalSourceType)
         )
@@ -85,7 +85,7 @@ class ContainerMapperScopeTest {
 
     @Test
     fun errorContainer_withDefaultMetadata_usesArgs() {
-        val reloadFunction: (LoadConfig?) -> Unit = {}
+        val reloadFunction: (LoadConfig?, ContainerMetadata) -> Unit = { _, _ -> }
         val exception = IllegalArgumentException("test")
         val scope = createScope(
             LoadTriggerMetadata(LoadTrigger.CacheExpired) + SourceTypeMetadata(LocalSourceType)

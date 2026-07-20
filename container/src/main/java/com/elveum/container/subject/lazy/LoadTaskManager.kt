@@ -55,7 +55,7 @@ internal class LoadTaskManager<T>(
         outputFlow.value = Container.Pending
         inputFlow.value.cancel("Load task cancelled since the last collector has been stopped.")
         inputFlow.update { oldLoadTask ->
-            val updatedMetadata = oldLoadTask.metadata + LoadTriggerMetadata(LoadTrigger.CacheExpired)
+            val updatedMetadata = oldLoadTask.lastFilteredRealMetadata + LoadTriggerMetadata(LoadTrigger.CacheExpired)
             oldLoadTask.restoreLoadTask(updatedMetadata)
         }
     }

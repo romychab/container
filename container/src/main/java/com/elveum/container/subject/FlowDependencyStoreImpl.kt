@@ -4,6 +4,7 @@ package com.elveum.container.subject
 
 import com.elveum.container.Container
 import com.elveum.container.Container.Completed
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
@@ -69,7 +70,7 @@ internal class FlowDependencyStoreImpl<T>(
             val reloadFunctions = flowDependencyRecords.values
                 .map { it.lastReloadFunction }
                 .distinct()
-            reloadFunctions.forEach { it.invoke(loadConfig) }
+            reloadFunctions.forEach { it.invoke(loadConfig, EmptyMetadata) }
         }
     }
 
@@ -154,7 +155,7 @@ internal class FlowDependencyStoreImpl<T>(
 
     private class FlowDependencyRecord<R> {
         val containerFlow = MutableStateFlow<Container<R>>(pendingContainer())
-        @Volatile var lastReloadFunction: ReloadFunction = {}
+        @Volatile var lastReloadFunction: ReloadFunction = { _, _ -> }
         var job: Job? = null
 
         suspend fun await(): R {

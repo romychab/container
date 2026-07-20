@@ -1,5 +1,7 @@
 package com.elveum.store.stores.base
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 
@@ -29,13 +31,13 @@ public interface BaseStore<T : Any> {
      * This is a suspending call that returns once the reload has completed. Use
      * [invalidateAsync] for a fire-and-forget variant.
      */
-    public suspend fun invalidate()
+    public suspend fun invalidate(metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * The same as [invalidate], but returns immediately without waiting for the
      * reload to complete.
      */
-    public fun invalidateAsync()
+    public fun invalidateAsync(metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * Set a new store result manually into the in-memory cache. The value is emitted

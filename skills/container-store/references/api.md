@@ -236,6 +236,46 @@ val flags = result.metadata.get<PagingFlagsMetadata>()   // PagingFlagsMetadata?
 if (result.metadata.hasNextPage) { /* ... */ }           // via the typed accessor
 ```
 
+**Attaching metadata to a reload / query request.** Besides producing it in the
+loader, you can attach metadata to the request that *triggers* a reload. Every
+invalidation and query function takes an optional `metadata: ContainerMetadata =
+EmptyMetadata`, which is merged into the result emitted by that load — useful for
+tagging *why* a reload happened (e.g. a `RefreshReason`, a "triggered by push"
+flag) so observers can react:
+
+```kotlin
+store.invalidate(RefreshReasonMetadata.PullToRefresh)       // suspend
+store.invalidateAsync(RefreshReasonMetadata.PushReceived)   // fire-and-forget
+keyedStore.invalidate(key, meta); keyedStore.invalidateAsync(key, meta)
+keyedStore.invalidateAllAsync(meta)                          // all active keys
+store.submitQuery(newQuery, meta); store.submitQueryAsync(newQuery, meta)
+keyedQueryStore.submitQuery(key, newQuery, meta)             // and ...Async
+result.invalidate(metadata = meta)                           // reference-free, from a rendered result
+// Container level: result.reload(config, metadata) / subject.reload(config, metadata)
+```
+
+The attached metadata is read back the same way — `result.metadata.get<RefreshReasonMetadata>()`.
+The reference-free `StoreResult.invalidate(config? = null, metadata? = EmptyMetadata)`
+accepts the same metadata argument, so a reload triggered straight from a rendered
+result can be tagged without a store reference.
+
+**One-shot metadata** — implement the `ContainerMetadata.OneShot` marker for
+metadata that is relevant only to the single load request it was attached to. It
+rides along on the emitted result and stays attached while that value lives in the
+in-memory cache (including re-emission to a new observer that subscribes before the
+cache expires), but it is **not** carried into any *new* load: the next reload,
+query change, dependency update, or post-cache-expiry reload produces results
+without it. Ideal for transient signals ("this refresh came from a push") that
+must not stick to later, unrelated loads. Override `isOneShot` to `false` to opt a
+specific instance out.
+
+```kotlin
+data object PushRefreshMetadata : ContainerMetadata, ContainerMetadata.OneShot
+
+store.invalidateAsync(PushRefreshMetadata)
+// -> emitted result has PushRefreshMetadata; the NEXT invalidate() has it dropped
+```
+
 **Stripping metadata for tests** — because metadata rides along on every
 `StoreResult`, two results with the same value/exception but different metadata
 are **not** equal. When asserting in tests, call `result.raw()` to drop all
@@ -454,6 +494,9 @@ result.invalidate()                      // reloads the origin store (fire-and-f
 // setLoadRequest(LoadRequest.Silent) - so old content stays visible:
 store.invalidateAsync()                  // fire-and-forget reload
 suspend fun refresh() = store.invalidate()  // suspend until done
+// invalidate/invalidateAsync/submitQuery(Async) all take an optional
+// metadata: ContainerMetadata to tag the reload - see "Container metadata" above
+// (OneShot metadata drops itself on the next load).
 
 // Keys currently active (have an observer, or within the cache-timeout window):
 val active: StateFlow<Set<Key>> = keyedStore.activeKeys

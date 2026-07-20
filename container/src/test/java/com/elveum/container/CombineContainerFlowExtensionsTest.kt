@@ -241,11 +241,11 @@ class CombineContainerFlowExtensionsTest {
             it.joinToString("-")
         }
         val collectedItems = resultFlow.startCollecting()
-        (collectedItems.lastItem as Container.Success).reloadFunction(LoadConfig.SilentLoading)
+        (collectedItems.lastItem as Container.Success).reloadFunction(LoadConfig.SilentLoading, EmptyMetadata)
 
         verify(exactly = 1) {
-            reloadA(LoadConfig.SilentLoading)
-            reloadB(LoadConfig.SilentLoading)
+            reloadA(LoadConfig.SilentLoading, EmptyMetadata)
+            reloadB(LoadConfig.SilentLoading, EmptyMetadata)
         }
     }
 

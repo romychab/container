@@ -510,6 +510,18 @@ count - that convenience constructor merely attaches the built-in
 `TotalPagedItemsCountMetadata`; custom metadata works the same way. Combine
 multiple entries with `+` (`HasNextPageMetadata(true) + EtagMetadata(tag)`).
 
+Metadata can also be attached to the request that *triggers* a reload, not just
+produced in the loader: `invalidate`, `invalidateAsync`, `invalidateAllAsync`,
+`submitQuery` and `submitQueryAsync` all take an optional
+`metadata: ContainerMetadata` that is merged into the emitted result — useful for
+tagging *why* a reload happened (e.g. `store.invalidateAsync(RefreshReason.Push)`).
+Mark such a type with `ContainerMetadata.OneShot` when it should apply only to
+that one load: it rides along on the emitted result (and stays while the value is
+cached) but is dropped from the next reload/query/dependency/post-expiry load.
+The reference-free `StoreResult.invalidate(config?, metadata?)` accepts the same
+metadata argument, so you can tag a reload straight from the rendered result. See
+[api.md](api.md) ("Container metadata") for the full API.
+
 ### Relations between stores (entity dependencies)
 
 When data managed by one store depends on another store (e.g. editing an

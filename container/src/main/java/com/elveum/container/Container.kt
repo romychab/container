@@ -31,13 +31,9 @@ public sealed class Container<out T> {
      * Reload data encapsulated by container.
      *
      * @param config defines how the loading state will be propagated to subsequent containers.
+     * @param metadata custom metadata values to be attached to reload request.
      */
-    public abstract fun reload(config: LoadConfig?)
-
-    /**
-     * Reload data encapsulated by container.
-     */
-    public abstract fun reload()
+    public abstract fun reload(config: LoadConfig? = null, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * - Returns the result of onSuccess() function if this instance is [Container.Success].
@@ -114,8 +110,7 @@ public sealed class Container<out T> {
         override val sourceType: SourceType = UnknownSourceType
         override fun filterMetadata(predicate: (ContainerMetadata) -> Boolean): Pending = Pending
         override fun raw(): Pending = Pending
-        override fun reload(config: LoadConfig?): Unit = Unit
-        override fun reload(): Unit = Unit
+        override fun reload(config: LoadConfig?, metadata: ContainerMetadata): Unit = Unit
     }
 
     /**

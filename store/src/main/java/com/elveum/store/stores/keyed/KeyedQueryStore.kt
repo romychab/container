@@ -1,5 +1,7 @@
 package com.elveum.store.stores.keyed
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import kotlinx.coroutines.flow.StateFlow
 
 /**
@@ -35,8 +37,9 @@ public interface KeyedQueryStore<Key : Any, Q : Any, T : Any> : KeyedStore<Key, 
      *
      * @param key the key whose query should be updated.
      * @param query the new query value.
+     * @param metadata custom metadata values merged into the emitted result.
      */
-    public suspend fun submitQuery(key: Key, query: Q)
+    public suspend fun submitQuery(key: Key, query: Q, metadata: ContainerMetadata = EmptyMetadata)
 
     /**
      * The same as [submitQuery], but returns immediately without waiting for the
@@ -44,6 +47,7 @@ public interface KeyedQueryStore<Key : Any, Q : Any, T : Any> : KeyedStore<Key, 
      *
      * @param key the key whose query should be updated.
      * @param query the new query value.
+     * @param metadata custom metadata values merged into the emitted result.
      */
-    public fun submitQueryAsync(key: Key, query: Q)
+    public fun submitQueryAsync(key: Key, query: Q, metadata: ContainerMetadata = EmptyMetadata)
 }

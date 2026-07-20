@@ -87,9 +87,17 @@ public val <T> StoreResult<T>.nextPageState: PageState get() = metadata.nextPage
 
 /**
  * Invalidate an origin store which has been emitted this [StoreResult] instance.
+ *
+ * @param T the type of the loaded value.
+ * @param config defines how the loading state will be propagated to subsequent results.
+ * @param metadata custom metadata values to be attached to the reload request and merged
+ *   into the emitted result.
  */
-public fun <T> StoreResult<T>.invalidate(config: LoadConfig? = null) {
-    metadata.reload(config)
+public fun <T> StoreResult<T>.invalidate(
+    config: LoadConfig? = null,
+    metadata: ContainerMetadata = EmptyMetadata,
+) {
+    this.metadata.reload(config, metadata)
 }
 
 /**

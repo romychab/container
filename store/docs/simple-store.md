@@ -104,6 +104,11 @@ suspend fun refresh() = store.invalidate()
 fun reload() = store.invalidateAsync()
 ```
 
+Both accept an optional `metadata: ContainerMetadata` argument that is merged
+into the emitted result - see
+[Attaching custom metadata to a reload or query](store-results.md#attaching-custom-metadata-to-a-reload-or-query)
+(including the `ContainerMetadata.OneShot` marker for one-shot signals).
+
 Neither takes a [LoadRequest](load-requests.md) - a reload just re-runs the
 load, and every observer keeps receiving data according to the request it
 subscribed with via `observe(...)` (or the builder default). The most
@@ -315,6 +320,8 @@ Key points:
   finishes; `submitQueryAsync` is the fire-and-forget version. Neither
   takes a `LoadRequest` - the loading behaviour follows the request each
   observer subscribed with via `observe(...)` (or the builder default).
+  Both accept an optional `metadata: ContainerMetadata` merged into the
+  emitted result (see [Metadata](store-results.md#attaching-custom-metadata-to-a-reload-or-query)).
 
 ### External query flow
 
@@ -483,9 +490,9 @@ master-detail synchronization example.
 |------------------------------------------------------------------|------------------------------------------------------------------------------------------------|
 | `observe(request = null)`                                        | Observe the cached value as `Flow<StoreResult<T>>`; `null` uses the configured default request |
 | `get()`                                                          | Read the latest `StoreResult<T>` synchronously                                                 |
-| `invalidate()` / `invalidateAsync()`                             | Force a reload (no request argument)                                                           |
+| `invalidate(metadata?)` / `invalidateAsync(metadata?)`           | Force a reload (no request argument); optional `metadata` is merged into the emitted result    |
 | `optimisticUpdate { }`                                           | Update the cache ahead of the real update, with auto-revert (needs an active observer)         |
 | `updateIfSuccess { old -> new }`                                 | Read-modify-write the cached value; no-op unless the current value is `Loaded`                 |
 | `updateWith(storeResult)`                                        | Replace the cached result with any `StoreResult`                                               |
 | `whenActive { }`                                                 | Run a block while the store has observers                                                      |
-| `queryFlow`, `submitQuery(query)`, `submitQueryAsync(query)`     | Query support (`SimpleQueryStore` only)                                                        |
+| `queryFlow`, `submitQuery(query, metadata?)`, `submitQueryAsync(query, metadata?)` | Query support (`SimpleQueryStore` only); optional `metadata` is merged into the emitted result |

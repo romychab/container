@@ -17,6 +17,7 @@ import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.stateMap
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.subject.lazy.lastFilteredRealMetadata
 import com.elveum.container.subject.lazy.ScopedLazyFlowSubjectImpl
 import com.elveum.container.update
 import kotlinx.coroutines.CoroutineScope
@@ -112,7 +113,7 @@ internal class LazyFlowSubjectImpl<T>(
             doNewLoad(
                 config = config,
                 valueLoader = lastLoader,
-                metadata = lastLoadTask.lastRealMetadata +
+                metadata = lastLoadTask.lastFilteredRealMetadata +
                         LoadTriggerMetadata(LoadTrigger.Reload) +
                         IsReloadDependenciesMetadata(true) +
                         metadata,

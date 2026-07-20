@@ -2,7 +2,7 @@
 name: container-store
 description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, KeyedQueryStore, PagedStore, PagedKeyedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md.
 metadata:
-  version: 3.3.2
+  version: 3.4.0
 ---
 
 # Container Store Library
@@ -24,13 +24,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.3.2` (transitively brings
+Maven coordinates: `com.elveum:store:3.4.0` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.3.2"
+store = "3.4.0"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -120,6 +120,7 @@ still appropriate.
 | Pagination: next-page status                                 | `result.nextPageState` (`Idle`/`Pending`/`Error(retry)`)                                                                                               |
 | React while store is observed (connect to other stores/events) | `.whenActive { ... }` chained after `build`; `this` is the store, block runs while observed & is cancelled on cache release (see patterns.md "Relations between stores") |
 | Attach/read custom result flags (metadata)                   | `PagedList(items, nextKey, metadata = MyMeta(...))` / `emit(v, metadata = MyMeta(...))`; read `result.metadata.get<MyMeta>()` (see api.md)             |
+| Tag a reload/query with metadata (why it happened)           | `invalidate/invalidateAsync/invalidateAllAsync/submitQuery(Async)` all take an optional `metadata: ContainerMetadata`, merged into the emitted result; mark it `ContainerMetadata.OneShot` to drop it on the next load (see api.md) |
 | Strip metadata for tests / equality (`assertEquals`)         | `result.raw()` → same `Loading`/`Loaded`/`Failed` with all metadata dropped, so results compare by value/exception only                               |
 
 Cache behavior (all stores): lazy first fetch, one shared in-memory

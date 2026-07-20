@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.3.2"
+implementation "com.elveum:store:3.4.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -410,6 +410,13 @@ may have several observers, each subscribed with its own request (fresh,
 offline, keep-content, ...). `invalidate`/`invalidateAsync` simply trigger a
 reload, and every observer keeps receiving data according to the request
 **it** subscribed with via `observe(...)` (or the builder default).
+
+`invalidate`, `invalidateAsync`, `invalidateAllAsync`, `submitQuery` and
+`submitQueryAsync` do accept an optional `metadata: ContainerMetadata` that is
+merged into the emitted result - handy for tagging *why* a reload happened. Mark
+the metadata type with `ContainerMetadata.OneShot` to apply it only to that one
+load (it is dropped from subsequent reloads). See
+[Store Results](docs/store-results.md#attaching-custom-metadata-to-a-reload-or-query).
 
 The `LoadRequest.builder()` also supports `freshMode()` (skip caches, force
 a remote fetch) and `offlineMode()` (use only cached data). Keep-content

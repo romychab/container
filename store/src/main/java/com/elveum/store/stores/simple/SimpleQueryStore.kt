@@ -1,5 +1,6 @@
 package com.elveum.store.stores.simple
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import com.elveum.store.stores.base.BaseSimpleStore
@@ -27,12 +28,12 @@ public interface SimpleQueryStore<Q : Any, T : Any> :
      * Submit a query and wait for finishing. The submitted query can be
      * discarded by a new query.
      */
-    override suspend fun submitQuery(query: Q)
+    override suspend fun submitQuery(query: Q, metadata: ContainerMetadata)
 
     /**
      * The same as [submitQuery], but without waiting for results.
      */
-    override fun submitQueryAsync(query: Q)
+    override fun submitQueryAsync(query: Q, metadata: ContainerMetadata)
 
     /**
      * Observe data managed by the store. Optionally, you can specify an additional
@@ -50,12 +51,12 @@ public interface SimpleQueryStore<Q : Any, T : Any> :
      * store's configured default). Every observer keeps receiving data according to the
      * request it subscribed with. Use [invalidateAsync] for a fire-and-forget variant.
      */
-    override suspend fun invalidate()
+    override suspend fun invalidate(metadata: ContainerMetadata)
 
     /**
      * The same as [invalidate], but without waiting for invalidation results.
      */
-    override fun invalidateAsync()
+    override fun invalidateAsync(metadata: ContainerMetadata)
 
     /**
      * Update the in-memory cached data. It will be emitted to observers immediately.

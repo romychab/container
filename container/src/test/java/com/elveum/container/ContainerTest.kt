@@ -32,8 +32,8 @@ class ContainerTest {
         assertSame(expectedValue, container.value)
         assertSame(expectedSource, container.sourceType)
         assertEquals(BackgroundLoadState.Idle, container.backgroundLoadState)
-        container.reload(LoadConfig.SilentLoading)
-        verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading) }
+        container.reload(LoadConfig.SilentLoading, EmptyMetadata)
+        verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading, EmptyMetadata) }
     }
 
     @Test
@@ -54,7 +54,7 @@ class ContainerTest {
         assertSame(expectedSource, container.sourceType)
         assertEquals(BackgroundLoadState.Idle, container.backgroundLoadState)
         container.reload(LoadConfig.SilentLoading)
-        verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading) }
+        verify(exactly = 1) { expectedReloadFunction(LoadConfig.SilentLoading, EmptyMetadata) }
     }
 
     @Test

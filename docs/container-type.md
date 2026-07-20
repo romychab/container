@@ -440,6 +440,11 @@ val source = success.metadata.sourceType  // metadata extension
 val source = success.metadata.get<SourceTypeMetadata>()?.sourceType  // explicit
 ```
 
+`Container.reload(config? = null, metadata: ContainerMetadata = EmptyMetadata)`
+re-triggers the load and merges the optional `metadata` into the resulting
+container - a convenient way to tag *why* a reload happened.
+
 For detailed metadata information, including `SourceType` values,
-`LoadTrigger`, and how to attach custom metadata, see
-[Subjects](subjects.md).
+`LoadTrigger`, how to attach custom metadata, and the `ContainerMetadata.OneShot`
+marker (metadata that applies only to the load it was attached to and is not
+carried into subsequent reloads), see [Subjects](subjects.md).

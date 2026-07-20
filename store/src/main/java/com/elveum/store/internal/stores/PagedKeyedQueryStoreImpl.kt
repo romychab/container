@@ -2,6 +2,7 @@
 
 package com.elveum.store.internal.stores
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.store.internal.builders.paged.SharedPageConfig
 import com.elveum.store.internal.stores.common.CorePageFetcher
 import com.elveum.store.internal.stores.common.CoreStore
@@ -60,15 +61,17 @@ internal class PagedKeyedQueryStoreImpl<Key : Any, Q : Any, PageKey : Any, T : A
 
     override fun observeQueryFlow(key: Key) = coreStore.observeQueryFlow(key)
 
-    override suspend fun submitQuery(key: Key, query: Q) = coreStore.submitQuery(key, query)
+    override suspend fun submitQuery(key: Key, query: Q, metadata: ContainerMetadata) =
+        coreStore.submitQuery(key, query, metadata)
 
-    override fun submitQueryAsync(key: Key, query: Q) = coreStore.submitQueryAsync(key, query)
+    override fun submitQueryAsync(key: Key, query: Q, metadata: ContainerMetadata) =
+        coreStore.submitQueryAsync(key, query, metadata)
 
     override fun get(key: Key): StoreResult<List<T>> = coreStore.get(key)
 
-    override suspend fun invalidate(key: Key) = coreStore.invalidate(key)
+    override suspend fun invalidate(key: Key, metadata: ContainerMetadata) = coreStore.invalidate(key, metadata)
 
-    override fun invalidateAsync(key: Key) = coreStore.invalidateAsync(key)
+    override fun invalidateAsync(key: Key, metadata: ContainerMetadata) = coreStore.invalidateAsync(key, metadata)
 
     override fun updateWith(key: Key, storeResult: StoreResult<List<T>>) =
         coreStore.updateWith(key, storeResult)

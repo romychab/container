@@ -2,6 +2,8 @@
 
 package com.elveum.store.internal.stores.common
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.ReloadFunctionMetadata
 import com.elveum.container.cache.LazyCache
@@ -60,7 +62,7 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
 
     private val gates = ConcurrentHashMap<Key, AtomicBoolean>()
     private val currentQueriesFlow = MutableStateFlow(mapOf<Key, Q>())
-    private val asyncRequests = ConcurrentHashMap<Key, MutableStateFlow<Q>>()
+    private val asyncRequests = ConcurrentHashMap<Key, MutableStateFlow<QueryRequest<Q>>>()
 
     private val cache = SubjectFactory
         .createCacheFromFactory<KeyRecord<Key>, T>(
@@ -88,12 +90,12 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
     val activeKeys: StateFlow<Set<Key>> = cache.spyOnArgs()
         .stateMap { keys -> keys.map { it.key }.toSet() }
 
-    suspend fun submitQuery(key: Key, query: Q) {
+    suspend fun submitQuery(key: Key, query: Q, metadata: ContainerMetadata) {
         updateQuery(key, query)
         delay(queryDebounceMillis)
         val queriesAfterDelay = currentQueriesFlow.value
         if (queriesAfterDelay[key] == query) {
-            invalidate(key, isByQuery = true)
+            invalidate(key, metadata, isByQuery = true)
         }
     }
 
@@ -111,9 +113,9 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
         return container.toStoreResult()
     }
 
-    fun submitQueryAsync(key: Key, query: Q) {
+    fun submitQueryAsync(key: Key, query: Q, metadata: ContainerMetadata) {
         updateQuery(key, query)
-        asyncRequests[key]?.value = query
+        asyncRequests[key]?.value = QueryRequest(query, metadata)
     }
 
     suspend fun observeAsyncQueryRequests() {
@@ -124,7 +126,9 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
             flow = keysFlow,
             onAdded = { key ->
                 currentQueriesFlow.update { oldMap -> oldMap + (key to initialQueryProvider(key)) }
-                asyncRequests[key] = MutableStateFlow(initialQueryProvider(key))
+                asyncRequests[key] = MutableStateFlow(
+                    value = QueryRequest(initialQueryProvider(key), EmptyMetadata)
+                )
             },
             onRemoved = { key ->
                 currentQueriesFlow.update { oldMap -> oldMap - key }
@@ -139,7 +143,7 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
                         // to the current query is de-duplicated and does not trigger a reload -
                         // this prevents a double initial load when the flow's first value equals
                         // the seed.
-                        provider(key).collect { query -> submitQueryAsync(key, query) }
+                        provider(key).collect { query -> submitQueryAsync(key, query, EmptyMetadata) }
                     }
                 }
                 asyncRequests[key]
@@ -149,30 +153,38 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
                     ?.drop(1)
                     ?.debounce(queryDebounceMillis)
                     ?.collect {
-                        invalidateAsync(key, isByQuery = true)
+                        invalidateAsync(key, isByQuery = true, metadata = it.metadata)
                     }
             }
             awaitCancellation()
         }
     }
 
-    suspend fun invalidate(key: Key, isByQuery: Boolean = false) {
+    suspend fun invalidate(
+        key: Key,
+        metadata: ContainerMetadata,
+        isByQuery: Boolean = false,
+    ) {
         coroutineScope {
             getKeyRecords(key).forEach {
                 launch {
                     val config = if (isByQuery) it.loadRequest.queryConfig else it.loadRequest.config
                     cache
-                        .reload(it, config, it.loadRequest.metadata)
+                        .reload(it, config, it.loadRequest.metadata + metadata)
                         .collect()
                 }
             }
         }
     }
 
-    fun invalidateAsync(key: Key, isByQuery: Boolean = false) {
+    fun invalidateAsync(
+        key: Key,
+        metadata: ContainerMetadata,
+        isByQuery: Boolean = false,
+    ) {
         getKeyRecords(key).forEach {
             val config = if (isByQuery) it.loadRequest.queryConfig else it.loadRequest.config
-            cache.reloadAsync(it, config, it.loadRequest.metadata)
+            cache.reloadAsync(it, config, it.loadRequest.metadata + metadata)
         }
     }
 
@@ -200,7 +212,9 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
         request: LoadRequest?
     ): Flow<StoreResult<T>> {
         val loadRequestFlow = request?.let(::flowOf) ?: config.loadRequestFlow
-        val reloadFunctionRef: ReloadFunction = { invalidateAsync(key, isByQuery = false) }
+        val reloadFunctionRef: ReloadFunction = { _, metadata ->
+            invalidateAsync(key, isByQuery = false, metadata = metadata)
+        }
         return loadRequestFlow
             .flatMapLatest { loadRequest ->
                 val record = KeyRecord(key, loadRequest)
@@ -318,5 +332,10 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
     private data class PreparedResult<T>(
         val result: StoreResult<T> = StoreResult.Loading,
         val loadRequest: LoadRequest? = null,
+    )
+
+    private data class QueryRequest<Q>(
+        val query: Q,
+        val metadata: ContainerMetadata,
     )
 }

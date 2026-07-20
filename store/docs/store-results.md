@@ -106,6 +106,45 @@ if (result.isLoaded() && result.sourceType == LocalSourceType) {
 }
 ```
 
+### Attaching custom metadata to a reload or query
+
+Besides the entries the library ships, you can define your own
+`ContainerMetadata` and attach it to the request that triggers a reload.
+`invalidate`, `invalidateAsync`, `invalidateAllAsync`, `submitQuery` and
+`submitQueryAsync` all accept an optional `metadata: ContainerMetadata =
+EmptyMetadata` argument, which is merged into the result emitted by that load -
+handy for tagging *why* a reload happened so observers can react:
+
+```kotlin
+data class RefreshReasonMetadata(val reason: Reason) : ContainerMetadata
+
+store.invalidateAsync(RefreshReasonMetadata(Reason.PushReceived))
+store.submitQuery(newQuery, RefreshReasonMetadata(Reason.UserSearch))
+
+// read it back from the emitted result:
+val reason = result.metadata.get<RefreshReasonMetadata>()?.reason
+```
+
+Implement the `ContainerMetadata.OneShot` marker for metadata that is relevant
+only to the single load it was attached to. Such a value is delivered with that
+load's result and stays attached while the value lives in the in-memory cache
+(including re-emission to a new observer that subscribes before the cache
+expires), but it is **not** carried into any *new* load - the next invalidation,
+query change, dependency update, or post-cache-expiry reload produces results
+without it. Override `isOneShot` to `false` to opt an instance out.
+
+```kotlin
+data object PushRefreshMetadata : ContainerMetadata, ContainerMetadata.OneShot
+
+store.invalidateAsync(PushRefreshMetadata)  // emitted result carries it...
+store.invalidateAsync()                      // ...the next reload does not
+```
+
+The reference-free reload from a rendered result — `StoreResult.invalidate` (see
+[below](#acting-on-the-origin-store-through-a-result)) — accepts the same optional
+`metadata` argument, so you can tag a reload straight from the UI without holding
+a store reference.
+
 ### Acting on the origin store through a result
 
 The same metadata lets you act on the store that emitted a result without
@@ -114,7 +153,7 @@ holding a reference to the store itself - handy when all the UI has is the
 
 | Function                       | Effect                                                                                                |
 |--------------------------------|-------------------------------------------------------------------------------------------------------|
-| `invalidate(config? = null)`   | Reload the origin store. With `config = null` (the default) each observer keeps the load config it is already using; pass a `LoadConfig` to override it for this reload |
+| `invalidate(config? = null, metadata? = EmptyMetadata)` | Reload the origin store. With `config = null` (the default) each observer keeps the load config it is already using; pass a `LoadConfig` to override it for this reload. Optional `metadata` is merged into the emitted result (see [Attaching custom metadata](#attaching-custom-metadata-to-a-reload-or-query)) |
 | `onItemRendered(index)`        | Paged stores only: report that the item at `index` was rendered, which may trigger the next-page load |
 
 Because the result can reload itself, pull-to-refresh and "try again" usually

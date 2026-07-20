@@ -16,8 +16,8 @@ public data class ContainerValue<out T>(
     val backgroundLoadState: BackgroundLoadState get() = metadata.backgroundLoadState
     val reloadFunction: ReloadFunction get() = metadata.reloadFunction
 
-    public fun reload(config: LoadConfig) {
-        reloadFunction.invoke(config)
+    public fun reload(config: LoadConfig, metadata: ContainerMetadata = EmptyMetadata) {
+        reloadFunction.invoke(config, metadata)
     }
 
 }

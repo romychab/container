@@ -104,9 +104,10 @@ fun refreshProductAsync(id: Long) {
 how the data is loaded (fresh/offline mode, keeping content while
 reloading); the argument is nullable and, when `null` (the default), the
 store's configured default request is used. `invalidate` and
-`invalidateAsync` no longer take a request: invalidation just triggers a
-reload, and every observer keeps receiving data according to the request
-it subscribed with via `observe(...)` (or the builder default).
+`invalidateAsync` accept an optional `metadata: ContainerMetadata` merged
+into the emitted result; `invalidateAllAsync(metadata?)` applies it to
+every active key. See [Attaching custom metadata to a reload or query](store-results.md#attaching-custom-metadata-to-a-reload-or-query)
+(including the `ContainerMetadata.OneShot` marker).
 
 For UI-driven reloads (pull-to-refresh, "try again") you often don't need
 these per-key functions at all: the emitted `StoreResult` can reload the key
@@ -258,7 +259,10 @@ fun setSortAsync(productId: ProductId, query: ReviewQuery) {
 
 Submitting a new query for a key reloads only that key. Like
 `invalidate`, `submitQuery`/`submitQueryAsync` do not accept a
-`LoadRequest`. Contract-based overloads are available too:
+`LoadRequest`, but both accept an optional `metadata: ContainerMetadata`
+merged into the emitted result (see
+[Metadata](store-results.md#attaching-custom-metadata-to-a-reload-or-query)).
+Contract-based overloads are available too:
 `SimpleKeyedQueryContract`, `SimpleKeyedQuerySuspendingContract`,
 `SimpleKeyedQueryReactiveContract`,
 `SimpleKeyedQueryReactiveNoFetcherContract`.
@@ -496,12 +500,13 @@ Keyed stores are created with `simpleStoreBuilder<T>().withKeys<Key>()`
 | `observe(key, request? = null)`                 | Fetch and observe the value for `key` (request is optional)       |
 | `get(key)` / `getOrNull(key)`                   | Read the latest result (or unwrapped value) for `key`             |
 | `failureOrNull(key)`                            | Read the latest failure for `key`, or `null`                      |
-| `invalidate(key)` / `invalidateAsync(key)`      | Force a reload of one key (no request argument)                   |
+| `invalidate(key, metadata?)` / `invalidateAsync(key, metadata?)` | Force a reload of one key; optional `metadata` merged into the emitted result |
+| `invalidateAllAsync(metadata?)`                 | Reload every active key; optional `metadata` merged into each emitted result |
 | `optimisticUpdate(key) { }`                     | Update one key's cache ahead of the real update, with auto-revert |
 | `updateIfSuccess(key) { old -> new }`           | Read-modify-write one key; no-op unless its value is `Loaded`     |
 | `updateWith(key, storeResult)`                  | Replace the cached result for `key` with any `StoreResult`        |
 | `activeKeys`                                     | `StateFlow<Set<Key>>` of currently active keys                    |
 | `whenActive { }`                                | Run a block while the store has observers (any key)               |
 | `observeQueryFlow(key)`                         | Keyed-query: observe the current query for `key`                  |
-| `submitQuery(key, query)` / `submitQueryAsync(key, query)` | Keyed-query: change the query for one key (no request) |
+| `submitQuery(key, query, metadata?)` / `submitQueryAsync(key, query, metadata?)` | Keyed-query: change the query for one key (no request); optional `metadata` merged into the emitted result |
 | `onItemRendered(key, index)`                    | Paged-keyed: request the next page for `key` as items are shown   |

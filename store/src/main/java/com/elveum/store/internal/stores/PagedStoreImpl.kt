@@ -1,5 +1,6 @@
 package com.elveum.store.internal.stores
 
+import com.elveum.container.ContainerMetadata
 import com.elveum.store.load.LoadRequest
 import com.elveum.store.load.StoreResult
 import com.elveum.store.stores.base.OptimisticUpdateScope
@@ -16,9 +17,9 @@ internal class PagedStoreImpl<Q : Any, P : Any, T : Any>(
         return origin.observe(Unit, request)
     }
 
-    override suspend fun invalidate() = origin.invalidate(Unit)
+    override suspend fun invalidate(metadata: ContainerMetadata) = origin.invalidate(Unit, metadata)
 
-    override fun invalidateAsync() = origin.invalidateAsync(Unit)
+    override fun invalidateAsync(metadata: ContainerMetadata) = origin.invalidateAsync(Unit, metadata)
 
     override suspend fun optimisticUpdate(updater: suspend OptimisticUpdateScope<List<T>>.(List<T>) -> Unit) {
         origin.optimisticUpdate(Unit, updater)

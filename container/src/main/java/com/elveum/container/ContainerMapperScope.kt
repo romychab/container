@@ -36,15 +36,22 @@ public interface ContainerMapperScope {
     /**
      * Reload data encapsulated by container.
      */
+    public fun reload(config: LoadConfig?, metadata: ContainerMetadata) {
+        reloadFunction.invoke(config, metadata)
+    }
+
+    /**
+     * Reload data encapsulated by container.
+     */
     public fun reload(config: LoadConfig?) {
-        reloadFunction.invoke(config)
+        reloadFunction.invoke(config, EmptyMetadata)
     }
 
     /**
      * Reload data encapsulated by container.
      */
     public fun reload() {
-        reloadFunction.invoke(null)
+        reloadFunction.invoke(null, EmptyMetadata)
     }
 
     /**

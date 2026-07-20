@@ -122,6 +122,18 @@ new load runs in the background):
 subject.reloadAsync(LoadConfig.SilentLoading)
 ```
 
+`reload` / `reloadAsync` also accept an optional `metadata: ContainerMetadata`
+that is merged into the container emitted by this reload - a convenient channel
+for tagging *why* the reload happened. The same argument is available on
+`Container.reload(config, metadata)` and `LazyCache.reload(arg, config, metadata)`:
+
+```kotlin
+subject.reloadAsync(metadata = RefreshReasonMetadata(Reason.PushReceived))
+```
+
+Attach a metadata type that implements [`ContainerMetadata.OneShot`](#custom-metadata)
+when it should apply only to this single reload and not stick to later loads.
+
 ### Pushing Values Directly
 
 Place a value into the subject without running the loader:
@@ -475,6 +487,27 @@ the loader function):
 ```kotlin
 data class TimestampMetadata(val timestamp: Long) : ContainerMetadata, ContainerMetadata.Hidden
 ```
+
+Implement `ContainerMetadata.OneShot` for metadata that is relevant only to the
+single load request it was attached to (for example, a value passed to
+`reloadAsync(metadata = …)`). A one-shot value is emitted with that load's
+container and stays attached while the value lives in the in-memory cache
+(including re-emission to a new collector that subscribes before the cache
+expires), but it is **not** carried into any *new* load - the next reload, query
+change, dependency update, or post-cache-expiry reload produces containers
+without it. This keeps transient signals (e.g. "this refresh came from a push")
+from sticking to later, unrelated loads.
+
+```kotlin
+data object PushRefreshMetadata : ContainerMetadata, ContainerMetadata.OneShot
+
+subject.reloadAsync(metadata = PushRefreshMetadata)  // emitted container carries it...
+subject.reloadAsync()                                // ...the next reload does not
+```
+
+The behaviour can be disabled per instance by overriding `isOneShot` to return
+`false`, in which case the metadata behaves like an ordinary one and survives
+subsequent reloads.
 
 ## Flow Dependencies in Loader Functions
 

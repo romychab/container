@@ -187,6 +187,12 @@ usually unnecessary:
 Button(onClick = result::invalidate) { Text("Try again") }
 ```
 
+`invalidate` / `invalidateAsync` (and `submitQuery` / `submitQueryAsync` on a
+`PagedQueryStore`), as well as the reference-free `result.invalidate(...)`, accept
+an optional `metadata: ContainerMetadata` merged into the emitted result — see
+[Attaching custom metadata to a reload or query](store-results.md#attaching-custom-metadata-to-a-reload-or-query)
+(including the `ContainerMetadata.OneShot` marker).
+
 Whether the reload shows the `Loading` state or keeps the current items
 visible is decided by the observer's request, not by the invalidation call.
 To keep items on screen during a pull-to-refresh, configure
@@ -412,10 +418,10 @@ when (val result = state) {
 | `observe(request = null)`                                        | Observe the merged list as `Flow<StoreResult<List<T>>>`; `null` uses the configured default request |
 | `get()`                                                          | Read the latest merged-list `StoreResult` synchronously                                             |
 | `onItemRendered(index)`                                          | Report a rendered item; may trigger the next-page load                                              |
-| `invalidate()` / `invalidateAsync()`                             | Reset pagination and reload; observers keep the request they subscribed with                        |
+| `invalidate(metadata?)` / `invalidateAsync(metadata?)`           | Reset pagination and reload; observers keep the request they subscribed with; optional `metadata` merged into the emitted result |
 | `optimisticUpdate { }`                                           | Update the merged list in the cache                                                                 |
 | `updateWith(storeResult)`                                        | Replace the cached result with any `StoreResult`                                                    |
 | `whenActive { }`                                                 | Run a block while the store has observers                                                           |
-| `queryFlow`, `submitQuery`, `submitQueryAsync`                   | Query support (`PagedQueryStore` only)                                                              |
+| `queryFlow`, `submitQuery(query, metadata?)`, `submitQueryAsync(query, metadata?)` | Query support (`PagedQueryStore` only); optional `metadata` merged into the emitted result |
 | `result.nextPageState`                                           | `Idle` / `Pending` / `Error` state of the next-page load                                            |
 | `result.totalPagedItemsCount`                                    | Total item count reported via `PagedList(totalCount = …)` (`-1` if unknown); shortcut for `result.metadata.totalPagedItemsCount` |

@@ -211,10 +211,10 @@ private fun Array<Container<*>>.mergeReloadFunctions(): ReloadFunction {
         )
     }
     if (reloadFunctions.all { it == EmptyReloadFunction }) return EmptyReloadFunction
-    return { backgroundLoad ->
+    return { backgroundLoad, metadata ->
         filterIsInstance<Container.Completed<*>>()
             .forEach { container ->
-                container.reload(backgroundLoad)
+                container.reload(backgroundLoad, metadata)
             }
     }
 }

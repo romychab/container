@@ -62,7 +62,7 @@ internal interface LoadTask<T> {
             return if (lastRealLoader == null) {
                 this
             } else {
-                Load(lastRealLoader, lastRealMetadata + metadata, config = lastLoadConfig)
+                Load(lastRealLoader, lastFilteredRealMetadata + metadata, config = lastLoadConfig)
             }
         }
     }
@@ -128,7 +128,7 @@ internal interface LoadTask<T> {
 
         override fun restoreLoadTask(metadata: ContainerMetadata): LoadTask<T> {
             return LoadTask.Load(
-                metadata = this.metadata + metadata,
+                metadata = this.lastFilteredRealMetadata + metadata,
                 loader = loader,
                 config = config,
             )
@@ -144,3 +144,12 @@ internal interface LoadTask<T> {
     }
 
 }
+
+
+/**
+ * The [LoadTask.lastRealMetadata] without any one-shot metadata values (see
+ * [ContainerMetadata.OneShot]). Used to build the metadata for a subsequent load so that
+ * one-shot values are not carried over to it.
+ */
+internal val <T> LoadTask<T>.lastFilteredRealMetadata: ContainerMetadata
+    get() = lastRealMetadata.filter { it !is ContainerMetadata.OneShot || !it.isOneShot }

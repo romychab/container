@@ -33,7 +33,7 @@ class ContainerMetadataTest {
     @Test
     fun plus_combinedMetadataPlusSingleMetadata_includesAllEntries() {
         val combined = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
-        val extra = ReloadFunctionMetadata { }
+        val extra = ReloadFunctionMetadata { _, _ -> }
 
         val result = combined + extra
 
@@ -45,7 +45,7 @@ class ContainerMetadataTest {
     @Test
     fun plus_singleMetadataPlusCombinedMetadata_includesAllEntries() {
         val single = BackgroundLoadMetadata(BackgroundLoadState.Loading)
-        val combined = SourceTypeMetadata(LocalSourceType) + ReloadFunctionMetadata { }
+        val combined = SourceTypeMetadata(LocalSourceType) + ReloadFunctionMetadata { _, _ -> }
 
         val result = single + combined
 
@@ -57,7 +57,7 @@ class ContainerMetadataTest {
     @Test
     fun plus_twoCombinedMetadata_includesAllEntries() {
         val first = BackgroundLoadMetadata(BackgroundLoadState.Loading) + SourceTypeMetadata(LocalSourceType)
-        val second = ReloadFunctionMetadata { } + CustomMetadata("uuid-1")
+        val second = ReloadFunctionMetadata { _, _ -> } + CustomMetadata("uuid-1")
 
         val result = first + second
 
@@ -227,7 +227,7 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withReloadFunction_containsReloadFunctionMetadata() {
-        val fn: ReloadFunction = { }
+        val fn: ReloadFunction = { _, _ -> }
 
         val result = defaultMetadata(reloadFunction = fn)
 
@@ -236,7 +236,7 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withAllArgs_containsAllMetadata() {
-        val fn: ReloadFunction = { }
+        val fn: ReloadFunction = { _, _ -> }
 
         val result = defaultMetadata(
             sourceType = RemoteSourceType,
@@ -268,7 +268,7 @@ class ContainerMetadataTest {
 
     @Test
     fun defaultMetadata_withOnlyReloadFunction_doesNotContainOtherMetadata() {
-        val result = defaultMetadata(reloadFunction = {})
+        val result = defaultMetadata(reloadFunction = { _, _ -> })
 
         assertNull(result.get<BackgroundLoadMetadata>())
         assertNull(result.get<SourceTypeMetadata>())
@@ -328,7 +328,7 @@ class ContainerMetadataTest {
 
     @Test
     fun reloadFunction_withReloadFunctionMetadata_returnsStoredFunction() {
-        val fn: ReloadFunction = { }
+        val fn: ReloadFunction = { _, _ -> }
         val metadata = ReloadFunctionMetadata(fn)
 
         assertSame(fn, metadata.reloadFunction)
@@ -336,7 +336,7 @@ class ContainerMetadataTest {
 
     @Test
     fun reloadFunction_combinedMetadataWithReloadFunction_returnsStoredFunction() {
-        val fn: ReloadFunction = { }
+        val fn: ReloadFunction = { _, _ -> }
         val metadata = SourceTypeMetadata(LocalSourceType) + ReloadFunctionMetadata(fn)
 
         assertSame(fn, metadata.reloadFunction)
@@ -344,13 +344,13 @@ class ContainerMetadataTest {
 
     @Test
     fun reloadFunction_whenReloadCalled_isExecuted() {
-        val fn: ReloadFunction = mockk<(LoadConfig?) -> Unit>(relaxed = true)
+        val fn: ReloadFunction = mockk<(LoadConfig?, ContainerMetadata) -> Unit>(relaxed = true)
         val metadata = ReloadFunctionMetadata(fn)
 
-        metadata.reload(LoadConfig.SilentLoadingAndError)
+        metadata.reload(LoadConfig.SilentLoadingAndError, EmptyMetadata)
 
         verify(exactly = 1) {
-            fn.invoke(LoadConfig.SilentLoadingAndError)
+            fn.invoke(LoadConfig.SilentLoadingAndError, EmptyMetadata)
         }
     }
 

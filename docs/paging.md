@@ -32,6 +32,7 @@ Key features:
 - Retry support for failed page loads
 - Metadata for rendering loading/error indicators per page
 - Support for flow dependencies via `dependsOnFlow` / `dependsOnContainerFlow`
+- Support for `LoaderDecorator`, applied to every page load
 
 ## Basic Usage
 
@@ -246,8 +247,17 @@ fun setFilter(filter: String) {
 }
 ```
 
+By default the restart resets the list to `Pending`. Pass a
+`FlowComposer.Config` as an additional key to keep the current page visible
+while the first page of the new filter is loading:
+
+```kotlin
+val config = FlowComposer.Config(LoadConfig.SilentLoading)
+val filter: String = dependsOnFlow("filter", config) { selectedFilter }
+```
+
 See [Flow Dependencies](subjects.md#flow-dependencies-in-loader-functions)
-for details on key stability and caching.
+for details on key stability, caching and reload configuration.
 
 ## Updating Items in a Paged List
 

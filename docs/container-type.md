@@ -9,7 +9,7 @@ Kotlin Flows.
 - [Container States](#container-states)
 - [Creating Containers](#creating-containers)
 - [Extracting Values](#extracting-values)
-- [Pattern Matching with when / fold](#pattern-matching-with-when-fold)
+- [Pattern Matching with when and fold](#pattern-matching-with-when-and-fold)
 - [Pattern Matching with isXXX extensions](#pattern-matching-with-isxxx-extensions)
 - [Transformations](#transformations)
   - [map](#map)
@@ -118,7 +118,7 @@ println(cv.sourceType)               // shorthand for metadata.sourceType
 println(cv.backgroundLoadState)
 ```
 
-## Pattern Matching with when / fold
+## Pattern Matching with when and fold
 
 You can use Kotlin's `when` expression to pattern-match on all three states:
 

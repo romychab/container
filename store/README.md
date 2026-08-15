@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.4.0"
+implementation "com.elveum:store:3.5.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -99,8 +99,46 @@ val store = factory.simpleStoreBuilder<UserProfile>()
     .setInMemoryCacheTimeout(60.seconds) // default is 5 seconds
     .setCoroutineContext(Dispatchers.IO) // context for fetch/storage calls
     .setLoadRequest(LoadRequest.Silent)  // default request used by observe/invalidate/invalidateAsync
+    .setLoaderDecorator(sessionDecorator) // optional wrapper around every fetch
     .build(onFetch = { api.fetchUserProfile() })
 ```
+
+`setLoaderDecorator` accepts a `LoaderDecorator` from the Container library. It
+wraps every load performed by the store (for paged stores - every page load),
+which is a convenient place for logic that would otherwise be repeated in each
+`onFetch`:
+
+```kotlin
+val sessionDecorator = LoaderDecorator { originLoader ->
+    // the decorator receives a FlowComposer, so it can depend on flows too:
+    val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
+    if (token.isBlank()) throw NoSessionException()
+    originLoader()   // required: this runs the store's own fetch
+}
+```
+
+Whenever the token flow emits a new value, every *active* store using this
+decorator reloads (stores with no observer do nothing until they are observed
+again). See [LoaderDecorator](../docs/subjects.md#loaderdecorator) for the full
+contract.
+
+To apply the same defaults to every store of an app, inject
+`SimpleStoreFactory` instead of the `StoreFactory` companion object. Any option
+left as `null` keeps the builder's own default:
+
+```kotlin
+@Provides
+@Singleton
+fun provideStoreFactory(): StoreFactory = SimpleStoreFactory(
+    loaderDecorator = sessionDecorator,
+    cacheTimeout = 60.seconds,
+    coroutineContext = Dispatchers.IO,
+)
+```
+
+`SimpleStoreFactory` also accepts `coroutineScopeFactory`, `loadRequestFlow`
+and `fetchDistance` (the latter is applied to paged builders only). Individual
+builders can still override any of these defaults.
 
 ### StoreResult
 

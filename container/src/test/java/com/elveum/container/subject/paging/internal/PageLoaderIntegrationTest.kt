@@ -8,6 +8,7 @@ import com.elveum.container.subject.paging.PageState
 import com.elveum.container.subject.paging.nextPageState
 import com.elveum.container.subject.paging.onItemRendered
 import com.elveum.container.subject.paging.pageLoader
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.uandcode.flowtest.JobStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
@@ -172,6 +173,28 @@ class PageLoaderIntegrationTest {
         executeInBackground { pageLoader.statefulInvoke() }
 
         assertEquals(setOf(0), triggeredIndexes)
+    }
+
+    @Test
+    fun pageLoader_withLoaderDecorator_wrapsEveryPageLoad() = runFlowTest {
+        var decorateCount = 0
+        // number of decorator calls observed at the beginning of each page load
+        val observedDecorateCounts = mutableListOf<Int>()
+        val decorator = LoaderDecorator { originLoader ->
+            decorateCount++
+            originLoader()
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            observedDecorateCounts.add(decorateCount)
+            emitPage(listOf("a$index", "b$index"))
+            if (index == 0) emitNextKey(1)
+        }
+
+        executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        pageLoader.onItemRendered(1)
+        runCurrent()
+
+        assertEquals(listOf(1, 2), observedDecorateCounts)
     }
 
     @Test
@@ -679,7 +702,7 @@ class PageLoaderIntegrationTest {
             }
         }
 
-        val jobState = executeInBackground { with(pageLoader) { emitter.statefulInvoke() } }
+        val jobState = executeInBackground { with(pageLoader) { emitter.statefulInvoke(LoaderDecorator) } }
         pageLoader.onItemRendered(0)
 
         assertEquals(JobStatus.Completed(Unit), jobState.status)
@@ -987,7 +1010,7 @@ class PageLoaderIntegrationTest {
 
 
     private suspend fun PageLoader<Int, String>.statefulInvoke() {
-        emitter.statefulInvoke()
+        emitter.statefulInvoke(LoaderDecorator)
     }
 
     private fun createPageLoader(

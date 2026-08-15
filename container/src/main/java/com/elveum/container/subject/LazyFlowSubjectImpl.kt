@@ -8,6 +8,7 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyReloadFunction
 import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.LoadConfig
+import com.elveum.container.LoadConfigOneShotMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.ReloadFunction
@@ -17,8 +18,8 @@ import com.elveum.container.internalDistinctUntilChanged
 import com.elveum.container.stateMap
 import com.elveum.container.subject.lazy.LoadTask
 import com.elveum.container.subject.lazy.LoadTaskManager
-import com.elveum.container.subject.lazy.lastFilteredRealMetadata
 import com.elveum.container.subject.lazy.ScopedLazyFlowSubjectImpl
+import com.elveum.container.subject.lazy.lastFilteredRealMetadata
 import com.elveum.container.update
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
@@ -169,14 +170,11 @@ internal class LazyFlowSubjectImpl<T>(
         if (scope != null) return
         scope = coroutineScopeFactory.createScope()
             .also { scope ->
-                flowDependencyStore.initialize(scope) { reloadDependencies ->
-                    // Dependency-triggered reloads must keep the currently displayed value
-                    // visible (silent refresh) instead of resetting to Pending, regardless of
-                    // the subject's configured default LoadConfig.
-                    reloadAsync(
-                        config = LoadConfig.SilentLoading,
-                        metadata = IsReloadDependenciesMetadata(reloadDependencies),
-                    )
+                flowDependencyStore.initialize(scope) { config ->
+                    val loadConfigMetadata = config.loadConfig
+                        ?.let(::LoadConfigOneShotMetadata)
+                    val metadata = IsReloadDependenciesMetadata(config.reloadDependencies) + loadConfigMetadata
+                    reloadAsync(metadata = metadata)
                 }
                 loadTaskManager.startProcessingLoads(
                     scope = scope,

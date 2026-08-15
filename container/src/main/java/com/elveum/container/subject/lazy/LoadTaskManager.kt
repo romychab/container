@@ -6,6 +6,7 @@ import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.currentCoroutineContext
@@ -18,6 +19,7 @@ import kotlinx.coroutines.launch
 
 internal class LoadTaskManager<T>(
     private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+    private val loaderDecorator: LoaderDecorator = LoaderDecorator,
 ) {
 
     private val inputFlow = MutableStateFlow<LoadTask<T>>(LoadTask.Instant(Container.Pending))
@@ -37,6 +39,7 @@ internal class LoadTaskManager<T>(
                 .collectLatest { loadTask ->
                     val executeParams = LoadTask.ExecuteParams(
                         flowDependencyStore = flowDependencyStore,
+                        loaderDecorator = loaderDecorator,
                         currentContainer = currentContainer,
                     )
                     loadTask.execute(executeParams)

@@ -929,6 +929,43 @@ val storeModule = module {
 }
 ```
 
+When several stores share the same configuration (cache timeout, coroutine
+context, a loader decorator), bind `SimpleStoreFactory` instead of the
+companion object - every builder it returns starts with those defaults, and a
+builder may still override any of them:
+
+```kotlin
+import com.elveum.store.SimpleStoreFactory
+import com.elveum.store.StoreFactory
+import com.elveum.container.subject.transformation.LoaderDecorator
+import kotlinx.coroutines.Dispatchers
+import kotlin.time.Duration.Companion.seconds
+
+@Module
+@InstallIn(SingletonComponent::class)
+object StoreFactoryModule {
+
+    @Provides
+    @Singleton
+    fun provideStoreFactory(
+        sessionManager: SessionManager,
+    ): StoreFactory = SimpleStoreFactory(
+        // wraps every load of every store built by this factory:
+        loaderDecorator = LoaderDecorator { originLoader ->
+            val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
+            if (token.isBlank()) throw NoSessionException()
+            originLoader()          // required
+        },
+        cacheTimeout = 30.seconds,
+        coroutineContext = Dispatchers.IO,
+    )
+}
+```
+
+Omitted parameters (`coroutineScopeFactory`, `loadRequestFlow`,
+`fetchDistance`, ...) keep the builder defaults; `fetchDistance` applies to
+paged builders only.
+
 Checklist:
 
 1. Search the project for an existing binding before adding one:

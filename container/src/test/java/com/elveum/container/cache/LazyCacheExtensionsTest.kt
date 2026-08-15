@@ -81,7 +81,8 @@ class LazyCacheExtensionsTest {
             val emitter = mockk<Emitter<String>>(relaxUnitFun = true)
             val timeoutMillis = 2000L
             every {
-                LazyCache.create<String, String>(any(), any(), any(), any(), any(), any(), any())
+                LazyCache.create<String, String>(any(), any(), any(), any(), any(), any(), any(),
+                    any())
             } returns lazyCache
 
             val newLazyCache = LazyCache.createSimple<String, String>(

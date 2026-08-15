@@ -3,6 +3,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.subject.transformation.LoaderDecorator
 
 /**
  * Loader function for [LazyFlowSubject] which can emit loaded values.
@@ -23,7 +24,7 @@ public fun interface ValueLoader<T> {
  */
 public interface StatefulValueLoader<T> : ValueLoader<T> {
 
-    public suspend fun StatefulEmitter<T>.statefulInvoke()
+    public suspend fun StatefulEmitter<T>.statefulInvoke(decorator: LoaderDecorator)
 
     public fun intercept(container: Container<T>): Container<T> = container
 
@@ -39,10 +40,12 @@ internal class StatefulValueLoaderImpl<T>(
     private val origin: ValueLoader<T>
 ) : StatefulValueLoader<T>, ValueLoader<T> by origin {
 
-    override suspend fun StatefulEmitter<T>.statefulInvoke() {
+    override suspend fun StatefulEmitter<T>.statefulInvoke(decorator: LoaderDecorator) {
         emitPendingState()
         try {
-            invoke()
+            decorator.apply {
+                decorate { invoke() }
+            }
             if (!hasEmittedValues) {
                 throw IllegalStateException("Value Loader should emit at least one item or " +
                         "throw exception. If you don't want to emit values (e.g. it's okay for " +

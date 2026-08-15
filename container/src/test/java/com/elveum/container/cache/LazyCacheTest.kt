@@ -9,13 +9,18 @@ import com.elveum.container.SourceTypeMetadata
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject
+import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.elveum.container.successContainer
 import com.uandcode.flowtest.CollectStatus
 import com.uandcode.flowtest.runFlowTest
 import io.mockk.MockKAnnotations
+import io.mockk.MockKMatcherScope
 import io.mockk.every
 import io.mockk.impl.annotations.MockK
 import io.mockk.mockk
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
 import io.mockk.verify
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
@@ -56,6 +61,7 @@ class LazyCacheTest {
             coroutineScopeFactory = coroutineScopeFactory,
             cacheTimeoutMillis = timeoutMillis,
             factory = subjectFactory,
+            loaderDecorator = LoaderDecorator,
         )
     }
 
@@ -64,7 +70,7 @@ class LazyCacheTest {
         lazyCache.listen(key)
 
         verify(exactly = 0) {
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
     }
 
@@ -76,7 +82,7 @@ class LazyCacheTest {
         lazyCache.listen(key).startCollecting()
 
         verify(exactly = 1) {
-            subjectFactory.create(key, coroutineScopeFactory, timeoutMillis)
+            executeCreate(key)
         }
     }
 
@@ -175,7 +181,7 @@ class LazyCacheTest {
 
         verify(exactly = 1) { // as a result: coroutineScope and subject should not be created twice
             coroutineScopeFactory.createScope()
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
     }
 
@@ -183,7 +189,7 @@ class LazyCacheTest {
     fun get_withoutActiveCacheSlot_returnsPendingContainer() {
         assertEquals(Container.Pending, lazyCache.get(key))
         verify(exactly = 0) {
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
     }
 
@@ -220,7 +226,7 @@ class LazyCacheTest {
     fun getActiveCollectorsCount_withoutActiveCacheSlot_returnsZero() {
         assertEquals(0, lazyCache.getActiveCollectorsCount(key))
         verify(exactly = 0) {
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
     }
 
@@ -279,7 +285,7 @@ class LazyCacheTest {
         val state = flow.startCollecting()
 
         verify(exactly = 0) {
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
         assertEquals(CollectStatus.Completed, state.collectStatus)
         assertTrue(state.collectedItems.isEmpty())
@@ -312,7 +318,7 @@ class LazyCacheTest {
         lazyCache.updateWith(key, successContainer("value"))
 
         verify(exactly = 0) {
-            subjectFactory.create(any(), any(), any())
+            executeCreate(any())
         }
         assertEquals(Container.Pending, lazyCache.get(key))
     }
@@ -330,17 +336,65 @@ class LazyCacheTest {
         }
     }
 
+    @Test
+    fun newInstance_withoutOverrides_usesCacheConfiguration() = scope.runFlowTest {
+        try {
+            mockkObject(LazyFlowSubject.Companion)
+            val subject = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
+            every { subject.listen() } returns MutableStateFlow(Container.Pending)
+            every {
+                LazyFlowSubject.create<String>(any(), any(), any(), any(), any(), any(), any(),
+                    any())
+            } returns subject
+            val valueLoader = ValueLoader<String> { emit("value") }
+            val loaderDecorator = LoaderDecorator { originLoader -> originLoader() }
+            val cache = LazyCacheImpl<String, String>(
+                coroutineScopeFactory = coroutineScopeFactory,
+                cacheTimeoutMillis = timeoutMillis,
+                loaderDecorator = loaderDecorator,
+                factory = { newInstance(valueLoader = valueLoader) },
+            )
+
+            cache.listen(key).startCollecting()
+
+            verify(exactly = 1) {
+                LazyFlowSubject.create(
+                    cacheTimeoutMillis = timeoutMillis,
+                    reloadDependenciesPeriodMillis = any(),
+                    coroutineScopeFactory = coroutineScopeFactory,
+                    transformation = any(),
+                    loaderDecorator = loaderDecorator,
+                    loadConfig = any(),
+                    metadata = any(),
+                    valueLoader = valueLoader,
+                )
+            }
+        } finally {
+            unmockkObject(LazyFlowSubject.Companion)
+        }
+    }
+
     private fun mockSubject(): LazyFlowSubject<String> {
         val subject = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
-        every { subjectFactory.create(any(), any(), any()) } returns subject
+        every { executeCreate(any()) } returns subject
         return subject
     }
 
     private fun mockTwoSubjects(): Pair<LazyFlowSubject<String>, LazyFlowSubject<String>> {
         val subject1 = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
         val subject2 = mockk<LazyFlowSubject<String>>(relaxUnitFun = true)
-        every { subjectFactory.create(any(), any(), any()) } returns subject1 andThen subject2
+        every { executeCreate(any()) } returns subject1 andThen subject2
         return subject1 to subject2
+    }
+
+    /**
+     * Executes the [LazyFlowSubjectFactory.create] member extension function
+     * within the [MockKMatcherScope] so that it can be stubbed and verified.
+     */
+    private fun MockKMatcherScope.executeCreate(arg: String): LazyFlowSubject<String> {
+        return subjectFactory.run {
+            any<LazyFlowSubjectCreationScope<String>>().create(arg)
+        }
     }
 
 }

@@ -44,8 +44,16 @@ private val store = StoreFactory.simpleStoreBuilder<UserProfile>()
     .setInMemoryCacheTimeout(60.seconds)  // default: 5 seconds
     .setCoroutineContext(Dispatchers.IO)  // context used by fetch/storage calls
     .setLoadRequest(LoadRequest.Silent)   // default request for observe/invalidate/invalidateAsync
+    .setLoaderDecorator(sessionDecorator) // optional wrapper around every fetch
     .build(onFetch = dataSource::fetchUserProfile)
 ```
+
+`setLoaderDecorator` takes a
+[`LoaderDecorator`](../../docs/subjects.md#loaderdecorator) that wraps every
+fetch performed by the store - use it for logic shared by many loaders
+(session checks, logging, retries). When the same options should apply to every
+store of the app, bind a `SimpleStoreFactory` instead of repeating the `set...`
+calls (see the *StoreFactory* section of the Store README).
 
 ## Cache Lifecycle
 

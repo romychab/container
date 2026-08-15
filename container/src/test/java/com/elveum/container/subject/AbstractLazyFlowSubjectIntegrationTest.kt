@@ -5,6 +5,7 @@ import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.uandcode.flowtest.FlowTestScope
 import io.mockk.every
 import io.mockk.mockk
@@ -22,7 +23,8 @@ internal abstract class AbstractLazyFlowSubjectIntegrationTest {
     )
 
     protected fun FlowTestScope.createLazyFlowSubject(
-        metadata: ContainerMetadata,
+        metadata: ContainerMetadata = EmptyMetadata,
+        loaderDecorator: LoaderDecorator = LoaderDecorator,
         loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> {
         val coroutineScopeFactory = mockk<CoroutineScopeFactory>()
@@ -31,9 +33,9 @@ internal abstract class AbstractLazyFlowSubjectIntegrationTest {
             TestScope(scope.testScheduler)
         }
         return LazyFlowSubjectImpl<String>(
-            coroutineScopeFactory,
-            cacheTimeout,
-            LoadTaskManager(),
+            coroutineScopeFactory = coroutineScopeFactory,
+            cacheTimeoutMillis = cacheTimeout,
+            LoadTaskManager(loaderDecorator = loaderDecorator),
         ).apply {
             if (loader != null) {
                 newAsyncLoad(config = LoadConfig.Normal, metadata, loader)

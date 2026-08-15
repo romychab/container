@@ -53,7 +53,8 @@ class PhotoRepository(
 ```
 
 In addition to the base `setInMemoryCacheTimeout` / `setCoroutineContext` /
-`setLoadRequest` options, paged builders provide `setFetchDistance`:
+`setLoadRequest` / `setLoaderDecorator` options (a loader decorator wraps
+**each page load**), paged builders provide `setFetchDistance`:
 
 ```kotlin
 private val store = StoreFactory.pagedStoreBuilder<Int, Photo>(0, Photo::id)

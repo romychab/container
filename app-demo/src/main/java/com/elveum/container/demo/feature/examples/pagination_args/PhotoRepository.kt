@@ -1,6 +1,8 @@
 package com.elveum.container.demo.feature.examples.pagination_args
 
 import com.elveum.container.Container
+import com.elveum.container.FlowComposer
+import com.elveum.container.LoadConfig
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.listenReloadable
 import com.elveum.container.subject.paging.pageLoader
@@ -21,7 +23,8 @@ class PhotoRepository @Inject constructor(
             initialKey = null,
             itemId = Photo::id,
         ) { pageKey ->
-            val categories = dependsOnFlow("categoryFilter") { selectedCategories }
+            val config = FlowComposer.Config(LoadConfig.SilentLoading)
+            val categories = dependsOnFlow("categoryFilter", config) { selectedCategories }
             val result = dataSource.fetchPage(pageKey, categories)
             emitPage(result.photos)
             if (result.nextPageKey != null) emitNextKey(result.nextPageKey)

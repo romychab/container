@@ -134,6 +134,10 @@ public data class IsReloadDependenciesMetadata(
     public val isReloadDependencies: Boolean,
 ) : ContainerMetadata, ContainerMetadata.Hidden
 
+public data class LoadConfigOneShotMetadata(
+    public val loadConfig: LoadConfig,
+) : ContainerMetadata, ContainerMetadata.OneShot, ContainerMetadata.Hidden
+
 public data object EmptyMetadata : ContainerMetadata {
     override fun plus(other: ContainerMetadata?): ContainerMetadata {
         return other ?: EmptyMetadata

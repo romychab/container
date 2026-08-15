@@ -1,6 +1,7 @@
 package com.elveum.container.subject.lazy
 
 import com.elveum.container.Container
+import com.elveum.container.FlowComposer
 import com.elveum.container.LoadConfig
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
@@ -12,10 +13,7 @@ internal interface FlowDependencyStore {
         recomposeFunction: RecomposeFunction,
     )
 
-    fun begin(
-        reloadDependencies: Boolean,
-        loadConfig: LoadConfig,
-    )
+    fun begin(reloadDependencies: Boolean)
 
     suspend fun <R> dependsOn(
         key: Any,
@@ -28,6 +26,6 @@ internal interface FlowDependencyStore {
     fun shutdown()
 
     fun interface RecomposeFunction {
-        fun execute(reloadDependencies: Boolean)
+        fun execute(config: FlowComposer.Config)
     }
 }

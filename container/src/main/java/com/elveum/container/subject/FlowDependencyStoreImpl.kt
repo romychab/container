@@ -5,7 +5,7 @@ package com.elveum.container.subject
 import com.elveum.container.Container
 import com.elveum.container.Container.Completed
 import com.elveum.container.EmptyMetadata
-import com.elveum.container.LoadConfig
+import com.elveum.container.FlowComposer
 import com.elveum.container.ReloadFunction
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.pendingContainer
@@ -39,7 +39,7 @@ internal class FlowDependencyStoreImpl<T>(
     private var recomposeFunction: RecomposeFunction = RecomposeFunction {}
 
     private var debounceReloadJob: Job? = null
-    private val debounceFlow = MutableSharedFlow<Unit>(
+    private val debounceFlow = MutableSharedFlow<FlowComposer.Config>(
         extraBufferCapacity = 1,
         onBufferOverflow = BufferOverflow.DROP_OLDEST,
     )
@@ -55,22 +55,19 @@ internal class FlowDependencyStoreImpl<T>(
         this.recomposeFunction = recomposeFunction
         debounceReloadJob = debounceFlow
             .debounce(timeoutMillis = reloadDependenciesPeriodMillis)
-            .onEach {
-                recomposeFunction.execute(reloadDependencies = false)
-            }
+            .onEach(recomposeFunction::execute)
             .launchIn(scope)
     }
 
-    override fun begin(
-        reloadDependencies: Boolean,
-        loadConfig: LoadConfig,
-    ) = synchronized(loadTaskManager) {
+    override fun begin(reloadDependencies: Boolean) = synchronized(loadTaskManager) {
         activeKeys.clear()
         if (reloadDependencies) {
             val reloadFunctions = flowDependencyRecords.values
                 .map { it.lastReloadFunction }
                 .distinct()
-            reloadFunctions.forEach { it.invoke(loadConfig, EmptyMetadata) }
+            reloadFunctions.forEach {
+                it.invoke(null, EmptyMetadata)
+            }
         }
     }
 
@@ -142,7 +139,7 @@ internal class FlowDependencyStoreImpl<T>(
                             is Container.Error -> firstResultDeferred.completeExceptionally(container.exception)
                         }
                     } else {
-                        debounceFlow.tryEmit(Unit)
+                        debounceFlow.tryEmit(key.getConfig())
                     }
                 }
         } finally {
@@ -151,6 +148,15 @@ internal class FlowDependencyStoreImpl<T>(
                 activeKeys.remove(key)
             }
         }
+    }
+
+    private fun Any.getConfig(): FlowComposer.Config {
+        return (this as? List<Any>)
+            ?.firstOrNull { it is FlowComposer.Config } as? FlowComposer.Config
+            ?: FlowComposer.Config(
+                loadConfig = null,
+                reloadDependencies = false,
+            )
     }
 
     private class FlowDependencyRecord<R> {

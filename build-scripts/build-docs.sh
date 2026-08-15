@@ -34,7 +34,7 @@ elif command -v mkdocs &>/dev/null; then
     MKDOCS="mkdocs"
 else
     echo "MkDocs not found. Install it with:"
-    echo "  python3 -m venv .venv && .venv/bin/pip install mkdocs"
+    echo "  python3 -m venv .venv && .venv/bin/pip install mkdocs mkdocs-material"
     exit 1
 fi
 
@@ -61,6 +61,21 @@ if [ "$PROJECT" = "store" ]; then
         -e 's|(\.\./LICENSE)|(https://github.com/romychab/container/blob/main/LICENSE)|g' \
         -e 's|(\.\./skills/container-store/*)|(https://github.com/romychab/container/tree/main/skills/container-store)|g' \
         -e 's|(\.\./\.\./docs/reducer-pattern\.md)|(https://docs.uandcode.com/container/reducer-pattern/)|g' \
+        -e 's|(\(\.\./\)\{1,2\}docs/subjects\.md#|(https://docs.uandcode.com/container/subjects/#|g' \
+        -e 's|(\.\./\.\./README\.md)|(https://docs.uandcode.com/container/)|g' \
+        "$STAGING_DIR"/*.md
+    rm -f "$STAGING_DIR"/*.bak
+fi
+
+# The container docs link to the store project; rewrite those relative links to
+# absolute URLs of the standalone store site.
+if [ "$PROJECT" = "container" ]; then
+    sed -i.bak \
+        -e 's|(\.\./store/README\.md#|(https://docs.uandcode.com/store/#|g' \
+        -e 's|(\.\./store/README\.md)|(https://docs.uandcode.com/store/)|g' \
+        -e 's|(store/README\.md#|(https://docs.uandcode.com/store/#|g' \
+        -e 's|(store/README\.md)|(https://docs.uandcode.com/store/)|g' \
+        -e 's|(LICENSE)|(https://github.com/romychab/container/blob/main/LICENSE)|g' \
         "$STAGING_DIR"/*.md
     rm -f "$STAGING_DIR"/*.bak
 fi

@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders
 
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.elveum.store.load.LoadRequest
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -15,6 +16,7 @@ internal open class SharedConfig {
     var coroutineScopeFactory: CoroutineScopeFactory? = null
     var inMemoryCacheTimeout: Duration = 5.seconds
     var coroutineContext: CoroutineContext = EmptyCoroutineContext
+    var loaderDecorator: LoaderDecorator = LoaderDecorator
 
     var loadRequestFlow: Flow<LoadRequest> = flowOf(LoadRequest.Default)
 

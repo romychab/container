@@ -68,20 +68,19 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
         .createCacheFromFactory<KeyRecord<Key>, T>(
             cacheTimeoutMillis = config.inMemoryCacheTimeout.inWholeMilliseconds,
             coroutineScopeFactory = config.buildCoroutineScopeFactory(),
-            factory = { arg, coroutineScopeFactory, cacheTimeoutMillis ->
-                LazyFlowSubject.create(
-                    cacheTimeoutMillis = cacheTimeoutMillis,
-                    coroutineScopeFactory = coroutineScopeFactory,
+            factory = { arg ->
+                newInstance(
                     loadConfig = arg.loadRequest.config,
                     metadata = arg.loadRequest.metadata,
+                    loaderDecorator = config.loaderDecorator,
                     valueLoader = valueLoaderProvider.provideValueLoader(
                         key = arg.key,
                         querySource = { observeQueryFlow(arg.key).value },
                         requestSource = arg.loadRequest.requestSource,
                         delegate = createDelegate(),
-                    ),
+                    )
                 )
-            }
+            },
         )
         .whenActive { handleMutexes() }
         .whenActive { observeLocalChanges() }

@@ -34,7 +34,13 @@ internal class ScopedPageLoader<Key, T>(
             )
             try {
                 context.onLoadStarted(context.isRetry)
-                config.block(emitter, context.pageKey)
+                context.loaderDecorator.apply {
+                    emitter.apply {
+                        decorate {
+                            config.block(emitter, context.pageKey)
+                        }
+                    }
+                }
                 if (!emitter.isPageEmitted) {
                     sessionCompleteDeferred.completeExceptionally(
                         IllegalStateException("emitPage() must be called at least once.")

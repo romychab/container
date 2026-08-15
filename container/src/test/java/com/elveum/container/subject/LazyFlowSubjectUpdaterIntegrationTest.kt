@@ -1,10 +1,13 @@
 package com.elveum.container.subject
 
+import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
 import com.elveum.container.Container.Pending
 import com.elveum.container.EmptyMetadata
+import com.elveum.container.FlowComposer
 import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.LoadConfig
+import com.elveum.container.LoadConfigOneShotMetadata
 import com.elveum.container.ReloadFunction
 import com.elveum.container.ReloadFunctionMetadata
 import com.elveum.container.RemoteSourceType
@@ -21,21 +24,24 @@ import io.mockk.verify
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.onCompletion
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.time.Duration.Companion.milliseconds
 
 internal class LazyFlowSubjectUpdaterIntegrationTest : AbstractLazyFlowSubjectIntegrationTest() {
 
     @Test
-    fun dependencyChange_reloadsSilently_keepingCurrentValueVisible() = runFlowTest {
+    fun dependencyChange_withSilentConfig_keepsCurrentValueVisible() = runFlowTest {
         val dependency = MutableSharedFlow<String>()
         // the subject uses the default (Normal) config; a dependency-triggered reload must
         // still be silent and must not reset the currently displayed value to Pending.
+        val config = FlowComposer.Config(LoadConfig.SilentLoading)
         val subject = createLazyFlowSubject {
-            val dep = dependsOnFlow("d") { dependency }
+            val dep = dependsOnFlow("d", config) { dependency }
             emit("value-$dep")
         }
 
@@ -53,6 +59,73 @@ internal class LazyFlowSubjectUpdaterIntegrationTest : AbstractLazyFlowSubjectIn
         // no Pending was emitted between the two values - the reload was silent
         val afterFirstSuccess = state.collectedItems.raw().dropWhile { it != successContainer("value-1") }
         assertFalse(afterFirstSuccess.contains(Pending))
+    }
+
+    @Test
+    fun dependencyChange_withConfig_doesNotAffectInitialLoadConfig() = runFlowTest {
+        val dependency = MutableStateFlow("dep1")
+        val config = FlowComposer.Config(LoadConfig.SilentLoading)
+        val subject = createLazyFlowSubject {
+            val dep = dependsOnFlow("d", config) { dependency }
+            delay(10.milliseconds)
+            emit("value-$dep", isLastValue = true)
+        }
+
+        val state = subject.listen().startCollecting()
+
+        advanceTimeBy(11) // pending, completed
+
+        // dependency changed - no second Pending state emitted:
+        dependency.value = "dep2"
+        advanceTimeBy(61)
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("value-dep1"),
+                successContainer("value-dep2"),
+            ),
+            state.collectedItems.raw()
+        )
+
+        // manual reloading - Pending state emitted:
+        subject.reloadAsync()
+        advanceTimeBy(11)
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("value-dep1"),
+                successContainer("value-dep2"),
+                pendingContainer(),
+                successContainer("value-dep2"),
+            ),
+            state.collectedItems.raw()
+        )
+    }
+
+    @Test
+    fun dependencyChange_withoutConfig_reusesSubjectLoadConfig() = runFlowTest {
+        val dependency = MutableStateFlow("dep1")
+        val subject = createLazyFlowSubject {
+            val dep = dependsOnFlow("d") { dependency }
+            delay(10.milliseconds)
+            emit("value-$dep", isLastValue = true)
+        }
+
+        val state = subject.listen().startCollecting()
+
+        advanceTimeBy(11) // pending, completed
+
+        dependency.value = "dep2"
+        advanceTimeBy(61)
+        assertEquals(
+            listOf(
+                pendingContainer(),
+                successContainer("value-dep1"),
+                pendingContainer(),
+                successContainer("value-dep2"),
+            ),
+            state.collectedItems.raw()
+        )
     }
 
     @Test
@@ -191,6 +264,42 @@ internal class LazyFlowSubjectUpdaterIntegrationTest : AbstractLazyFlowSubjectIn
     }
 
     @Test
+    fun reload_withOneShotLoadConfig_usesItOnlyOnce() = runFlowTest {
+        var counter = 0
+        val subject = createLazyFlowSubject {
+            emit("item-${++counter}", isLastValue = true)
+        }
+
+        val state = subject.listenReloadable().startCollecting()
+        runCurrent()
+
+        subject.reloadAsync(metadata = LoadConfigOneShotMetadata(LoadConfig.SilentLoading))
+        runCurrent()
+
+        subject.reloadAsync()
+        runCurrent()
+
+        assertEquals(
+            listOf(
+                // initial load
+                pendingContainer(),
+                successContainer("item-1"),
+                // silent load
+                successContainer("item-1"), // <-- with bg loading state (index = 2)
+                successContainer("item-2"),
+                // next non-silent load
+                pendingContainer(),
+                successContainer("item-3"),
+            ),
+            state.collectedItems.raw(),
+        )
+        assertEquals(
+            BackgroundLoadState.Loading,
+            state.collectedItems[2].backgroundLoadState,
+        )
+    }
+
+    @Test
     fun loader_withDependencies_observeAllDependencies() = runFlowTest {
         val reloadFunction = mockk<ReloadFunction>(relaxed = true)
         val dependencyA = MutableSharedFlow<Container<String>>()
@@ -241,14 +350,15 @@ internal class LazyFlowSubjectUpdaterIntegrationTest : AbstractLazyFlowSubjectIn
 
         // 5. reload (not silently) -> dependencies must be reloaded
         subject.reloadAsync(config = LoadConfig.Normal)
-        verify(exactly = 0) { reloadFunction(LoadConfig.SilentLoading, EmptyMetadata) }
+        verify(exactly = 0) { reloadFunction(null, EmptyMetadata) }
         runCurrent()
-        verify(exactly = 1) { reloadFunction(LoadConfig.Normal, EmptyMetadata) }
+        verify(exactly = 1) { reloadFunction(null, EmptyMetadata) }
 
         // 6. reload (silently) -> dependencies must be reloaded
+        clearMocks(reloadFunction)
         subject.reloadAsync(config = LoadConfig.SilentLoading)
         runCurrent()
-        verify(exactly = 1) { reloadFunction(LoadConfig.SilentLoading, EmptyMetadata) }
+        verify(exactly = 1) { reloadFunction(null, EmptyMetadata) }
 
         // 7. reload without dependencies
         clearMocks(reloadFunction)

@@ -1,6 +1,7 @@
 package com.elveum.store.builders.base
 
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.elveum.store.load.LoadRequest
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -75,4 +76,9 @@ public interface BaseBuilder<OutBuilder> {
     public fun setLoadRequest(loadRequest: LoadRequest): OutBuilder {
         return setLoadRequest(flowOf(loadRequest))
     }
+
+    /**
+     * Set the [loaderDecorator] to be used by the store instance.
+     */
+    public fun setLoaderDecorator(loaderDecorator: LoaderDecorator): OutBuilder
 }

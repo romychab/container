@@ -5,6 +5,7 @@ import com.elveum.container.Emitter
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageLoader
 import com.elveum.container.subject.paging.PageState
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.supervisorScope
@@ -18,11 +19,14 @@ internal class PageLoaderImpl<Key, T>(
     @Volatile
     private var loadSession: PageLoadSession<Key, T>? = null
 
-    override suspend fun StatefulEmitter<List<T>>.statefulInvoke() = supervisorScope {
+    override suspend fun StatefulEmitter<List<T>>.statefulInvoke(
+        decorator: LoaderDecorator,
+    ) = supervisorScope {
         val loadSession = PageLoadSession(
             coroutineScope = this,
             originEmitter = this@statefulInvoke,
             config = config,
+            loaderDecorator = decorator,
             onNextPageStateChanged = { nextPageState.value = it }
         ).also { this@PageLoaderImpl.loadSession = it }
 

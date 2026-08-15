@@ -1,6 +1,7 @@
 package com.elveum.container.subject
 
 import com.elveum.container.Container
+import com.elveum.container.FlowComposer
 import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
@@ -116,7 +117,30 @@ class FlowDependencyStoreTest {
         advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
 
         verify(exactly = 1) {
-            recomposeFunction.execute(false)
+            recomposeFunction.execute(FlowComposer.Config(null))
+        }
+    }
+
+    @Test
+    fun dependsOn_withConfig_schedulesReloadWithThatConfig() = runFlowDependencyTest {
+        val flow = MutableSharedFlow<Container<String>>()
+        val config = FlowComposer.Config(LoadConfig.SilentLoading, reloadDependencies = true)
+        executeInBackground {
+            flowDependencyStore.dependsOn("key", config) { flow }
+        }
+        runCurrent()
+
+        flow.emit(successContainer("item1"))
+        flow.emit(successContainer("item2"))
+
+        verify(exactly = 0) {
+            recomposeFunction.execute(any())
+        }
+
+        advanceTimeBy(DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS + 1)
+
+        verify(exactly = 1) {
+            recomposeFunction.execute(config)
         }
     }
 
@@ -150,7 +174,7 @@ class FlowDependencyStoreTest {
         val flow2 = MutableSharedFlow<Container<String>>()
         var isBFlowCancelled = false
         flowDependencyStore.initialize(scope.backgroundScope, recomposeFunction)
-        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
+        flowDependencyStore.begin(reloadDependencies = false)
         executeInBackground {
             val a = flowDependencyStore.dependsOn("keyA") { flow1 }
             val b = flowDependencyStore.dependsOn("keyB") {
@@ -168,7 +192,7 @@ class FlowDependencyStoreTest {
         flow1.emit(successContainer("a2"))
         flow2.emit(successContainer("b2"))
 
-        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
+        flowDependencyStore.begin(reloadDependencies = false)
         val state = executeInBackground {
             flowDependencyStore.dependsOn("keyA") { flow1 }
         }
@@ -184,7 +208,7 @@ class FlowDependencyStoreTest {
         block: suspend FlowTestScope.() -> Unit
     ) = runFlowTest {
         flowDependencyStore.initialize(scope.backgroundScope, recomposeFunction)
-        flowDependencyStore.begin(reloadDependencies = false, loadConfig = LoadConfig.Normal)
+        flowDependencyStore.begin(reloadDependencies = false)
         this.block()
     }
 

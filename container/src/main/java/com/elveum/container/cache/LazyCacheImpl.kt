@@ -4,11 +4,17 @@ package com.elveum.container.cache
 
 import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.stateMap
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
+import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.EmptyContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
 import kotlinx.coroutines.cancel
@@ -25,6 +31,11 @@ import kotlinx.coroutines.supervisorScope
 internal class LazyCacheImpl<Arg, T>(
     private val coroutineScopeFactory: CoroutineScopeFactory,
     private val cacheTimeoutMillis: Long,
+    private val loaderDecorator: LoaderDecorator = LoaderDecorator,
+    private val transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
+    private val loadConfig: LoadConfig = LoadConfig.Normal,
+    private val metadata: ContainerMetadata = EmptyMetadata,
     private val factory: LazyFlowSubjectFactory<Arg, T>,
 ) : LazyCache<Arg, T> {
 
@@ -98,7 +109,7 @@ internal class LazyCacheImpl<Arg, T>(
     private fun registerRecord(arg: Arg): CacheRecord<T> = synchronized(this) {
         val existingRecord = cacheSlots[arg]
         val record = if (existingRecord == null) {
-            val subject = factory.create(arg, coroutineScopeFactory, cacheTimeoutMillis)
+            val subject = factory.run { LazyFlowSubjectCreationScopeImpl().create(arg) }
             CacheRecord(subject).also {
                 cacheSlotsFlow.update { oldMap ->
                     oldMap + (arg to it)
@@ -185,6 +196,31 @@ internal class LazyCacheImpl<Arg, T>(
             }
         }
 
+    }
+
+    private inner class LazyFlowSubjectCreationScopeImpl : LazyFlowSubjectCreationScope<T> {
+        override fun newInstance(
+            cacheTimeoutMillis: Long?,
+            reloadDependenciesPeriodMillis: Long?,
+            coroutineScopeFactory: CoroutineScopeFactory?,
+            transformation: ContainerTransformation<T>?,
+            loaderDecorator: LoaderDecorator?,
+            loadConfig: LoadConfig?,
+            metadata: ContainerMetadata?,
+            valueLoader: ValueLoader<T>
+        ): LazyFlowSubject<T> {
+            return LazyFlowSubject.create(
+                cacheTimeoutMillis = cacheTimeoutMillis ?: this@LazyCacheImpl.cacheTimeoutMillis,
+                reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis
+                    ?: this@LazyCacheImpl.reloadDependenciesPeriodMillis,
+                coroutineScopeFactory = coroutineScopeFactory ?: this@LazyCacheImpl.coroutineScopeFactory,
+                transformation = transformation ?: this@LazyCacheImpl.transformation,
+                loaderDecorator = loaderDecorator ?: this@LazyCacheImpl.loaderDecorator,
+                loadConfig = loadConfig ?: this@LazyCacheImpl.loadConfig,
+                metadata = metadata ?: this@LazyCacheImpl.metadata,
+                valueLoader = valueLoader
+            )
+        }
     }
 
 }

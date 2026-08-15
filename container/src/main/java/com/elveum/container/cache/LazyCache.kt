@@ -10,9 +10,9 @@ import com.elveum.container.factory.DEFAULT_CACHE_TIMEOUT_MILLIS
 import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
 import com.elveum.container.subject.ContainerConfiguration
 import com.elveum.container.subject.LazyFlowSubject
-import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -130,6 +130,7 @@ public interface LazyCache<Arg, T> {
          * @param reloadDependenciesPeriodMillis how often dependencies are checked for reload triggers
          * @param coroutineScopeFactory factory used to create coroutine scopes for loading
          * @param transformation optional transformation applied to loaded containers
+         * @param loaderDecorator optional decorator applied to the [valueLoader] of each entry
          * @param loadConfig defines how the loading state of each entry's initial load is propagated
          * @param metadata metadata values to be attached to each entry's initial load request
          * @param valueLoader function that loads data into the cache on demand
@@ -139,6 +140,7 @@ public interface LazyCache<Arg, T> {
             reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+            loaderDecorator: LoaderDecorator = LoaderDecorator,
             loadConfig: LoadConfig = LoadConfig.Normal,
             metadata: ContainerMetadata = EmptyMetadata,
             valueLoader: CacheValueLoader<Arg, T>,
@@ -146,21 +148,14 @@ public interface LazyCache<Arg, T> {
             return LazyCacheImpl(
                 cacheTimeoutMillis = cacheTimeoutMillis,
                 coroutineScopeFactory = coroutineScopeFactory,
-                factory = object : LazyFlowSubjectFactory<Arg, T> {
-                    override fun create(
-                        arg: Arg,
-                        coroutineScopeFactory: CoroutineScopeFactory,
-                        cacheTimeoutMillis: Long,
-                    ): LazyFlowSubject<T> = LazyFlowSubject.create(
-                        cacheTimeoutMillis = cacheTimeoutMillis,
-                        reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
-                        coroutineScopeFactory = coroutineScopeFactory,
-                        transformation = transformation,
-                        loadConfig = loadConfig,
-                        metadata = metadata,
-                        valueLoader = ValueLoader { valueLoader.invoke(this, arg) }
-                    )
-                },
+                loaderDecorator = loaderDecorator,
+                reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
+                transformation = transformation,
+                metadata = metadata,
+                loadConfig = loadConfig,
+                factory = { arg ->
+                    newInstance(valueLoader = { valueLoader(arg) })
+                }
             )
         }
 
@@ -172,14 +167,25 @@ public interface LazyCache<Arg, T> {
          * @param T the type of values held in the cache.
          * @param cacheTimeoutMillis how much time cached values remain in cache if there is no collectors
          * @param coroutineScopeFactory factory used to create coroutine scopes for loading
+         * @param loaderDecorator optional decorator applied to the loader function of each entry
+         * @param transformation optional transformation applied to loaded containers
+         * @param reloadDependenciesPeriodMillis how often dependencies are checked for reload triggers
+         * @param loadConfig defines how the loading state of each entry's initial load is propagated
+         * @param metadata metadata values to be attached to each entry's initial load request
          * @param factory factory that creates a subject for a specific argument
          */
         public fun <Arg, T> createFromFactory(
             cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
+            loaderDecorator: LoaderDecorator = LoaderDecorator,
+            transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+            reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
+            loadConfig: LoadConfig = LoadConfig.Normal,
+            metadata: ContainerMetadata = EmptyMetadata,
             factory: LazyFlowSubjectFactory<Arg, T>,
         ): LazyCache<Arg, T> {
-            return LazyCacheImpl(coroutineScopeFactory, cacheTimeoutMillis, factory)
+            return LazyCacheImpl(coroutineScopeFactory, cacheTimeoutMillis, loaderDecorator,
+                transformation, reloadDependenciesPeriodMillis, loadConfig, metadata, factory)
         }
 
     }

@@ -47,8 +47,9 @@ storage choice, query, etc.). The recommended order is: start from
 `simpleStoreBuilder`/`pagedStoreBuilder`, then `.withKeys<Key>()`, then
 storage/query config, then `.build(...)`.
 
-As with all stores, the builder supports `setInMemoryCacheTimeout` and
-`setCoroutineContext`. `setLoadRequest` is also available and configures
+As with all stores, the builder supports `setInMemoryCacheTimeout`,
+`setCoroutineContext` and `setLoaderDecorator` (the decorator wraps the fetch
+of every key). `setLoadRequest` is also available and configures
 the default request used when observing a key (both the fixed
 `setLoadRequest(loadRequest)` form and the reactive
 `setLoadRequest(flow)` overload are supported):

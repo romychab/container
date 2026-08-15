@@ -12,6 +12,7 @@ import com.elveum.container.subject.LazyFlowSubject.Companion.create
 import com.elveum.container.subject.lazy.LoadTaskManager
 import com.elveum.container.subject.transformation.ContainerTransformation
 import com.elveum.container.subject.transformation.EmptyContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
@@ -182,6 +183,7 @@ public interface LazyFlowSubject<T> {
          * @param reloadDependenciesPeriodMillis how often dependencies are checked for reload triggers
          * @param coroutineScopeFactory factory used to create coroutine scopes for loading
          * @param transformation optional transformation applied to loaded containers
+         * @param loaderDecorator optional decorator applied to the [valueLoader] function
          * @param loadConfig defines how the loading state of the initial load is propagated
          * @param metadata metadata values to be attached to the initial load request
          * @param valueLoader optional function that loads data into the subject; when `null` no initial load is started
@@ -192,6 +194,7 @@ public interface LazyFlowSubject<T> {
             reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
             coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
             transformation: ContainerTransformation<T> = EmptyContainerTransformation(),
+            loaderDecorator: LoaderDecorator = LoaderDecorator,
             loadConfig: LoadConfig = LoadConfig.Normal,
             metadata: ContainerMetadata = EmptyMetadata,
             valueLoader: ValueLoader<T>? = null,
@@ -199,7 +202,7 @@ public interface LazyFlowSubject<T> {
             return LazyFlowSubjectImpl(
                 coroutineScopeFactory = coroutineScopeFactory,
                 cacheTimeoutMillis = cacheTimeoutMillis,
-                loadTaskManager = LoadTaskManager(transformation),
+                loadTaskManager = LoadTaskManager(transformation, loaderDecorator),
                 reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
             ).apply {
                 if (valueLoader != null) {

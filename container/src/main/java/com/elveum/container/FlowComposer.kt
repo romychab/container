@@ -46,4 +46,18 @@ public interface FlowComposer {
         flow: () -> Flow<Container<R>>,
     ): R
 
+    /**
+     * Optional reload configuration that can be used as a key
+     * in [dependsOnFlow] and [dependsOnContainerFlow] calls. It defines
+     * how the reloading is processed (e.g. whether the Loading state
+     * is emitted to consumers, etc.)
+     *
+     * @property loadConfig if set to `null` - the latest load config hosted by subject is used.
+     * @property reloadDependencies whether all other dependencies are reloaded too.
+     */
+    public data class Config(
+        val loadConfig: LoadConfig? = null,
+        val reloadDependencies: Boolean = false,
+    )
+
 }

@@ -22,6 +22,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 ## Table of Contents
 
 - [Installation](#installation)
+- [Store: the High-Level Library](#store-the-high-level-library)
 - [Core Concepts](#core-concepts)
   - [Container Type](#container-type)
   - [Reducer Pattern](#reducer-pattern)
@@ -34,8 +35,23 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.4.0"
+implementation "com.elveum:container:3.5.0"
 ```
+
+## Store: the High-Level Library
+
+[**Store**](store/README.md) is a companion library built on top of Container.
+It is the higher-level, easier-to-use option: instead of assembling
+`LazyFlowSubject`, `LazyCache` and `pageLoader` yourself, you describe *where
+the data comes from* and the store takes care of loading it.
+
+Start with Store if it fits your use case, and drop down to the Container
+building blocks described below when you need full control over loading. Both
+libraries interoperate: `StoreResult` and `Container` convert into each other,
+and stores accept the same metadata, pagination and `LoaderDecorator`
+machinery.
+
+See the [Store documentation](store/README.md) for the full guide.
 
 ## Core Concepts
 
@@ -174,9 +190,13 @@ Key behaviours:
   triggers a fresh load
 - You can replace the loader at any time with `newLoad` / `newSimpleLoad`
 - You can push a value directly with `updateWith`
+- A `LoaderDecorator` can wrap every loader of a subject or a cache, which
+  keeps cross-cutting logic (session checks, logging, retries) out of the
+  individual loaders
 
-For advanced usage (load triggers, source types, flow dependencies, and
-`SubjectFactory` for testability) see [Subjects & Cache](docs/subjects.md).
+For advanced usage (load triggers, source types, flow dependencies,
+`LoaderDecorator` and `SubjectFactory` for testability) see
+[Subjects & Cache](docs/subjects.md).
 
 ### Pagination
 

@@ -8,6 +8,7 @@ guess others.
 ```kotlin
 // Factory - entry point for creating stores
 import com.elveum.store.StoreFactory
+import com.elveum.store.SimpleStoreFactory        // StoreFactory impl holding app-wide builder defaults
 
 // Store interfaces (returned by builders; useful for explicit field types)
 import com.elveum.store.stores.simple.SimpleStore
@@ -113,6 +114,7 @@ import com.elveum.container.LocalSourceType
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.reducer.ReducerOwner      // optional base interface for view-models
+import com.elveum.container.subject.transformation.LoaderDecorator // setLoaderDecorator(...) argument
 ```
 
 Notes:
@@ -331,6 +333,26 @@ of always meaning `LoadRequest.Default`:
   DataStore/preferences: map the flag `Flow<Boolean>` into a `LoadRequest`
   (`if (offline) LoadRequest.builder().offlineMode().build() else LoadRequest.Default`).
   See patterns.md ("Reactive default request").
+- `setLoaderDecorator(decorator: LoaderDecorator)` wraps **every** load the
+  store performs (paged stores: every page load) — one place for cross-cutting
+  logic instead of repeating it in each `onFetch`:
+
+  ```kotlin
+  val decorator = LoaderDecorator { originLoader ->
+      // receiver is FlowComposer: dependsOnFlow / dependsOnContainerFlow are available,
+      // so every store using this decorator reloads when the flow emits
+      val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
+      if (token.isBlank()) throw NoSessionException()
+      originLoader()   // MUST be called, otherwise the load fails with IllegalStateException
+  }
+  ```
+
+- `SimpleStoreFactory(loaderDecorator, cacheTimeout, coroutineContext, coroutineScopeFactory, loadRequestFlow, fetchDistance)`
+  is a `StoreFactory` implementation that applies the given defaults to every
+  builder it returns; every parameter is optional (`null` = keep the builder
+  default) and `fetchDistance` is applied to paged builders only. Bind it in DI
+  instead of the `StoreFactory` companion object when several stores share the
+  same configuration. Per-builder `set...` calls still win.
 - `whenActive(block: suspend Store.() -> Unit): Store` (chained after `build`) —
   runs `block` **while the store is active** (from the first observer until the
   cache is released) and cancels it when the store goes inactive. `this` inside

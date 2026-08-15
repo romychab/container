@@ -2,6 +2,8 @@ package com.elveum.container.demo.feature.examples.subject_args
 
 import androidx.compose.ui.graphics.Color
 import com.elveum.container.Container
+import com.elveum.container.FlowComposer
+import com.elveum.container.LoadConfig
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.listenReloadable
 import kotlinx.coroutines.flow.Flow
@@ -18,7 +20,8 @@ class StarsRepository @Inject constructor(
     private val subject = LazyFlowSubject.create(
         reloadDependenciesPeriodMillis = 100L,
     ) {
-        val filter: StarFilter = dependsOnFlow("filter") { filterFlow }
+        val config = FlowComposer.Config(LoadConfig.SilentLoading)
+        val filter: StarFilter = dependsOnFlow("filter", config) { filterFlow }
         val stars = startsDataSource.fetchStars(filter)
         emit(stars)
     }

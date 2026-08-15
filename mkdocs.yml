@@ -31,6 +31,7 @@ nav:
   - Reducer Pattern: reducer-pattern.md
   - Subjects & Cache: subjects.md
   - Pagination: paging.md
+  - Store Library: https://docs.uandcode.com/store/
 
 markdown_extensions:
   - admonition

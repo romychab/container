@@ -42,7 +42,6 @@ internal class MockLoadTask private constructor(
         return channelFlow {
             executeParams.flowDependencyStore.begin(
                 reloadDependencies = metadata.isReloadDependencies,
-                loadConfig = LoadConfig.Normal,
             )
             try {
                 _controller.executeParams = executeParams

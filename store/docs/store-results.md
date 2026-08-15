@@ -11,8 +11,8 @@ stores, and converting store flows into UI state with
 - [Checking the State](#checking-the-state)
 - [Metadata](#metadata)
 - [Transformations](#transformations)
-  - [map / storeMap](#map--storemap)
-  - [storeFlatMapResultLatest / storeFlatMapLatest](#storeflatmapresultlatest--storeflatmaplatest)
+  - [map and storeMap](#map-and-storemap)
+  - [storeFlatMapResultLatest and storeFlatMapLatest](#storeflatmapresultlatest-and-storeflatmaplatest)
   - [storeListFlatMapLatest](#storelistflatmaplatest)
   - [filterLoaded](#filterloaded)
 - [Reading the Latest Value Synchronously](#reading-the-latest-value-synchronously)
@@ -175,7 +175,7 @@ itemsIndexed(result.value) { index, item ->
 
 ## Transformations
 
-### map / storeMap
+### map and storeMap
 
 `map` converts the value inside a single `StoreResult`; `Loading` and
 `Failed` pass through unchanged. If the mapper throws, the result becomes
@@ -195,7 +195,7 @@ fun isInCart(productId: Long): Flow<StoreResult<Boolean>> {
 }
 ```
 
-### storeFlatMapResultLatest / storeFlatMapLatest
+### storeFlatMapResultLatest and storeFlatMapLatest
 
 `storeFlatMapResultLatest` observes the latest result and, for each
 `Loaded` value, switches to a new inner flow of store results. Use it for

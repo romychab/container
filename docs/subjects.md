@@ -14,10 +14,11 @@ with the metadata system that threads cross-cutting information through containe
   - [Load Triggers](#load-triggers)
   - [ContainerConfiguration](#containerconfiguration)
   - [listenReloadable](#listenreloadable)
-  - [whenActive](#whenActive)
+  - [whenActive](#whenactive)
 - [SubjectFactory](#subjectfactory)
   - [Testability](#testability)
   - [Convenience Factory Functions](#convenience-factory-functions)
+- [LoaderDecorator](#loaderdecorator)
 - [Metadata](#metadata)
   - [ContainerMetadata](#containermetadata)
   - [SourceType](#sourcetype)
@@ -29,6 +30,7 @@ with the metadata system that threads cross-cutting information through containe
   - [dependsOnContainerFlow](#dependsoncontainerflow)
   - [dependsOnFlow](#dependsonflow)
   - [Key Stability](#key-stability)
+  - [Reload Configuration](#reload-configuration)
 
 ## LazyFlowSubject
 
@@ -133,6 +135,20 @@ subject.reloadAsync(metadata = RefreshReasonMetadata(Reason.PushReceived))
 
 Attach a metadata type that implements [`ContainerMetadata.OneShot`](#custom-metadata)
 when it should apply only to this single reload and not stick to later loads.
+
+`LoadConfigOneShotMetadata` is a built-in one-shot type that carries a
+`LoadConfig` for a single load: that load uses the given config, and the subject
+keeps using its own config for every load after it. It lets any code path that
+can pass metadata but no explicit config - a custom metadata pipeline, or a
+dependency change (see [Reload Configuration](#reload-configuration), which uses
+this type internally) - override the config of exactly one load:
+
+```kotlin
+// this reload is silent...
+subject.reloadAsync(metadata = LoadConfigOneShotMetadata(LoadConfig.SilentLoading))
+// ...the next one is back to the subject's own config:
+subject.reloadAsync()
+```
 
 ### Pushing Values Directly
 
@@ -331,6 +347,65 @@ val flow: StateFlow<Container<String>> = subjectFactory.createReloadableFlow {
     emit(fetchData())
 }
 ```
+
+## LoaderDecorator
+
+A `LoaderDecorator` wraps *every* loader function of a subject or a cache, so
+cross-cutting logic (session checks, logging, retries, error mapping) lives in
+one place instead of being repeated in each loader:
+
+```kotlin
+public fun interface LoaderDecorator {
+    public suspend fun FlowComposer.decorate(originLoader: suspend () -> Unit)
+}
+```
+
+The receiver is a `FlowComposer`, so a decorator can declare its own
+[flow dependencies](#flow-dependencies-in-loader-functions). A typical use
+case is failing every load while there is no valid session, and re-running all
+loaders as soon as a new token appears:
+
+```kotlin
+val sessionDecorator = LoaderDecorator { originLoader ->
+    val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
+    if (token.isBlank()) throw NoSessionException()
+    originLoader()
+}
+```
+
+Two rules:
+
+- The implementation **must** call `originLoader()`, otherwise nothing is
+  emitted and the load fails with an `IllegalStateException`. Throwing your own
+  exception instead is fine - it fails the load like any error raised by the
+  loader itself.
+- Choose dependency keys that cannot clash with the keys used by the loaders
+  being decorated (see [Key Stability](#key-stability)).
+
+Install it wherever a loader is configured:
+
+```kotlin
+// a single subject:
+LazyFlowSubject.create(loaderDecorator = sessionDecorator) {
+    emit(loadData())
+}
+
+// a cache (applies to the subject of every argument):
+LazyCache.create(loaderDecorator = sessionDecorator) { arg ->
+    emit(loadData(arg))
+}
+
+// every subject and cache produced by a factory:
+DefaultSubjectFactory(loaderDecorator = sessionDecorator)
+```
+
+For [page loaders](paging.md), the decorator wraps **each page load**
+separately, not the paging session as a whole - so a decorator that waits for
+a valid token does so before every page request.
+
+Stores expose the same hook via `setLoaderDecorator(...)` on any store builder,
+or via `SimpleStoreFactory(loaderDecorator = ...)`; see the
+[Store documentation](../store/README.md#storefactory).
 
 ## Metadata
 
@@ -574,3 +649,37 @@ val a: String = dependsOnContainerFlow("key") { getFlow1() }
 val b: String = dependsOnContainerFlow("key") { getFlow2() } // getFlow2 is ignored
 // a == b, both refer to the results from the first call
 ```
+
+### Reload Configuration
+
+A reload caused by a dependency change behaves like an ordinary reload: it uses
+the load config the subject is currently working with, so by default the
+container goes back to `Pending` while the loader re-runs.
+
+Pass a `FlowComposer.Config` as one of the keys to configure the reloads
+triggered by that particular dependency:
+
+```kotlin
+private val starsSubject = LazyFlowSubject.create {
+    val config = FlowComposer.Config(LoadConfig.SilentLoading)
+    val filter: StarFilter = dependsOnFlow("filter", config) { filterFlow }
+    emit(starsDataSource.fetchStars(filter))
+}
+```
+
+| Property | Default | Meaning |
+|----------|---------|---------|
+| `loadConfig` | `null` | Load config applied to the reload triggered by this dependency. `null` keeps the config the subject is already using; `LoadConfig.SilentLoading` keeps the currently loaded value visible while the loader re-runs |
+| `reloadDependencies` | `false` | When `true`, every flow dependency of the loader is asked to reload itself before the loader re-runs, by invoking the `reloadFunction` attached to its last container. Dependencies whose containers carry no reload function are unaffected |
+
+The config is part of the dependency key, so keep it a stable value (a `val` or
+a constant) exactly like the other keys.
+
+> **Note.** Explicit `reload()` / `reloadAsync()` calls always reload the
+> dependencies, regardless of this setting.
+
+> **Behaviour change in 3.5.0.** Before 3.5.0, dependency-triggered reloads were
+> always silent and ignored the subject's own load config. They now follow the
+> subject's config unless a `FlowComposer.Config` says otherwise. To restore the
+> previous behaviour, pass `FlowComposer.Config(LoadConfig.SilentLoading)` as
+> shown above.

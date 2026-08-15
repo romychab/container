@@ -8,12 +8,14 @@ import com.elveum.container.cache.LazyFlowSubjectFactory
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.container.subject.ValueLoader
 import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 
 public open class DefaultSubjectFactory(
     private val cacheTimeoutMillis: Long = DEFAULT_CACHE_TIMEOUT_MILLIS,
     private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
     private val coroutineScopeFactory: CoroutineScopeFactory = CoroutineScopeFactory,
     private val transformationFactory: TransformationFactory = TransformationFactory,
+    private val loaderDecorator: LoaderDecorator = LoaderDecorator,
 ) : SubjectFactory {
 
     override fun <T> createSubject(
@@ -27,6 +29,7 @@ public open class DefaultSubjectFactory(
     ): LazyFlowSubject<T> {
         return LazyFlowSubject.create(
             valueLoader = valueLoader,
+            loaderDecorator = loaderDecorator,
             reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
             cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
@@ -47,6 +50,7 @@ public open class DefaultSubjectFactory(
     ): LazyCache<Arg, T> {
         return LazyCache.create(
             valueLoader = valueLoader,
+            loaderDecorator = loaderDecorator,
             cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
             reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis ?: this.reloadDependenciesPeriodMillis,
             coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
@@ -62,9 +66,12 @@ public open class DefaultSubjectFactory(
         factory: LazyFlowSubjectFactory<Arg, T>
     ): LazyCache<Arg, T> {
         return LazyCache.createFromFactory(
-            cacheTimeoutMillis ?: this.cacheTimeoutMillis,
-            coroutineScopeFactory ?: this.coroutineScopeFactory,
-            factory,
+            cacheTimeoutMillis = cacheTimeoutMillis ?: this.cacheTimeoutMillis,
+            coroutineScopeFactory = coroutineScopeFactory ?: this.coroutineScopeFactory,
+            reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
+            transformation = transformationFactory.create(),
+            loaderDecorator = loaderDecorator,
+            factory = factory,
         )
     }
 

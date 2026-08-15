@@ -6,15 +6,17 @@ import com.elveum.container.ContainerMetadata
 import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
 import com.elveum.container.pendingContainer
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.elveum.container.successContainer
 import com.elveum.container.update
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 internal class PageContext<Key, T>(
+    val isRetry: Boolean,
+    val loaderDecorator: LoaderDecorator,
     private val state: PageRecordsState<Key, T>,
     private val loadConfig: LoadConfig,
-    val isRetry: Boolean,
     private val onScheduleNextKey: suspend (Int, Key) -> Unit,
     initialRecord: ImmutablePageRecord<Key, T>,
 ) {

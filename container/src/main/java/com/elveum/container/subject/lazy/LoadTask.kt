@@ -4,11 +4,14 @@ import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadConfig
+import com.elveum.container.LoadConfigOneShotMetadata
+import com.elveum.container.get
 import com.elveum.container.pendingContainer
 import com.elveum.container.isReloadDependencies
 import com.elveum.container.subject.FlowSubject
 import com.elveum.container.subject.StatefulValueLoader
 import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
@@ -29,6 +32,7 @@ internal interface LoadTask<T> {
 
     class ExecuteParams<T>(
         val flowDependencyStore: FlowDependencyStore,
+        val loaderDecorator: LoaderDecorator = LoaderDecorator,
         val currentContainer: () -> Container<T> = { pendingContainer() },
     )
 
@@ -77,8 +81,11 @@ internal interface LoadTask<T> {
 
         override val lastLoadConfig: LoadConfig = config
 
+        private val overriddenLoadConfig = metadata.get<LoadConfigOneShotMetadata>()
+            ?.loadConfig ?: config
+
         override val initialContainer: Container<T>? =
-            if (config.isSilentLoadingEnabled) null else Container.Pending
+            if (overriddenLoadConfig.isSilentLoadingEnabled) null else Container.Pending
 
         override val lastRealLoader: ValueLoader<T> = loader
         override val lastRealMetadata: ContainerMetadata = metadata
@@ -106,17 +113,14 @@ internal interface LoadTask<T> {
             val statefulEmitter = StatefulEmitterImpl(
                 emitter = emitter,
                 executeParams = executeParams,
-                loadConfig = config,
+                loadConfig = overriddenLoadConfig,
                 flowCollector = channelFlowCollector,
                 flowSubject = flowSubject,
             )
             val statefulLoader = StatefulValueLoader.wrap(loader)
             try {
-                executeParams.flowDependencyStore.begin(
-                    reloadDependencies = metadata.isReloadDependencies,
-                    loadConfig = config,
-                )
-                with(statefulLoader) { statefulEmitter.statefulInvoke() }
+                executeParams.flowDependencyStore.begin(metadata.isReloadDependencies)
+                with(statefulLoader) { statefulEmitter.statefulInvoke(executeParams.loaderDecorator) }
             } finally {
                 executeParams.flowDependencyStore.end()
             }

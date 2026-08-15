@@ -3,6 +3,7 @@ package com.elveum.container.subject.paging.internal
 import com.elveum.container.Container
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageState
+import com.elveum.container.subject.transformation.LoaderDecorator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -10,6 +11,7 @@ internal class PageLoadSession<Key, T>(
     val coroutineScope: CoroutineScope,
     val originEmitter: StatefulEmitter<List<T>>,
     val config: PageLoaderConfig<Key, T>,
+    val loaderDecorator: LoaderDecorator,
     val onNextPageStateChanged: (PageState) -> Unit
 ) {
 
@@ -39,6 +41,7 @@ internal class PageLoadSession<Key, T>(
         val record = state.prepareRecord(pageIndex, pageKey)
         val context = PageContext(
             state = state,
+            loaderDecorator = loaderDecorator,
             loadConfig = originEmitter.loadConfig,
             initialRecord = record,
             isRetry = isRetry,

@@ -1,7 +1,12 @@
 package com.elveum.container.cache
 
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.LoadConfig
 import com.elveum.container.factory.CoroutineScopeFactory
 import com.elveum.container.subject.LazyFlowSubject
+import com.elveum.container.subject.ValueLoader
+import com.elveum.container.subject.transformation.ContainerTransformation
+import com.elveum.container.subject.transformation.LoaderDecorator
 
 /**
  * Creates a separate [LazyFlowSubject] for each argument used by a [LazyCache].
@@ -17,14 +22,23 @@ public fun interface LazyFlowSubjectFactory<Arg, T> {
     /**
      * Create a new [LazyFlowSubject] instance for the specified [arg].
      *
+     * Use [newInstance] call to create a subject inheriting configuration from the cache.
+     *
      * @param arg the argument identifying the cache entry to create a subject for
-     * @param coroutineScopeFactory factory used to create coroutine scopes for loading
-     * @param cacheTimeoutMillis how much time loaded values remain cached when there are no collectors
      * @return the created [LazyFlowSubject] instance
      */
-    public fun create(
-        arg: Arg,
-        coroutineScopeFactory: CoroutineScopeFactory,
-        cacheTimeoutMillis: Long,
+    public fun LazyFlowSubjectCreationScope<T>.create(arg: Arg): LazyFlowSubject<T>
+}
+
+public interface LazyFlowSubjectCreationScope<T> {
+    public fun newInstance(
+        cacheTimeoutMillis: Long? = null,
+        reloadDependenciesPeriodMillis: Long? = null,
+        coroutineScopeFactory: CoroutineScopeFactory? = null,
+        transformation: ContainerTransformation<T>? = null,
+        loaderDecorator: LoaderDecorator? = null,
+        loadConfig: LoadConfig? = null,
+        metadata: ContainerMetadata? = null,
+        valueLoader: ValueLoader<T>,
     ): LazyFlowSubject<T>
 }

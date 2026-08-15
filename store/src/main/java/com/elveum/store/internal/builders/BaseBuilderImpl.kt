@@ -1,6 +1,7 @@
 package com.elveum.store.internal.builders
 
 import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.subject.transformation.LoaderDecorator
 import com.elveum.store.builders.base.BaseBuilder
 import com.elveum.store.load.LoadRequest
 import kotlinx.coroutines.flow.Flow
@@ -30,6 +31,11 @@ internal open class BaseBuilderImpl<OutBuilder : Any>(
 
     override fun setLoadRequest(flow: Flow<LoadRequest>): OutBuilder {
         config.loadRequestFlow = flow
+        return ref
+    }
+
+    override fun setLoaderDecorator(loaderDecorator: LoaderDecorator): OutBuilder {
+        config.loaderDecorator = loaderDecorator
         return ref
     }
 

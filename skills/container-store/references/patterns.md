@@ -574,6 +574,32 @@ Rules:
   `storeListFlatMapLatest`. The flow can be composed in repositories,
   view-models, etc. It depends on project / concrete use-case context.
 
+### Clearing every store on sign-out
+
+A `LoaderDecorator` (see api.md, `setLoaderDecorator` /
+`SimpleStoreFactory(loaderDecorator = ...)`) wraps every load of every store, so
+it is the one place that can react to the session ending. Throwing from it fails
+the load, but that still leaves the signed-out user's data in the cache until
+the store is reloaded - and under a `keepContentOnLoadAndError()` request the
+stale value even stays visible. Terminate the load explicitly instead:
+
+```kotlin
+loaderDecorator = LoaderDecorator { originLoader ->
+    when (val session = dependsOnFlow("session") { sessionManager.sessionFlow }) {
+        // wipes the cache of every active store and shows StoreResult.Loading
+        is Session.SignedOut -> completeWithCacheCleanUp()
+        // always surfaces StoreResult.Failed, whatever the load request says
+        is Session.Expired -> completeWithFailure(SessionExpiredException())
+        is Session.Active -> originLoader()
+    }
+}
+```
+
+`completeWithCacheCleanUp()` and `completeWithFailure(e)` both return `Nothing`,
+so the store's own `onFetch` is skipped entirely. Only *active* (observed)
+stores react immediately - an unobserved store runs nothing until it is
+observed again, and its next load goes through the decorator as well.
+
 ## ViewModels
 
 Rules:
@@ -954,7 +980,8 @@ object StoreFactoryModule {
         loaderDecorator = LoaderDecorator { originLoader ->
             val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
             if (token.isBlank()) throw NoSessionException()
-            originLoader()          // required
+            originLoader()          // required, unless the load is terminated
+                                    // (see "Clearing every store on sign-out")
         },
         cacheTimeout = 30.seconds,
         coroutineContext = Dispatchers.IO,

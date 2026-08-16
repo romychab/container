@@ -19,6 +19,7 @@ with the metadata system that threads cross-cutting information through containe
   - [Testability](#testability)
   - [Convenience Factory Functions](#convenience-factory-functions)
 - [LoaderDecorator](#loaderdecorator)
+  - [Terminating a Load from a Decorator](#terminating-a-load-from-a-decorator)
 - [Metadata](#metadata)
   - [ContainerMetadata](#containermetadata)
   - [SourceType](#sourcetype)
@@ -351,16 +352,17 @@ val flow: StateFlow<Container<String>> = subjectFactory.createReloadableFlow {
 ## LoaderDecorator
 
 A `LoaderDecorator` wraps *every* loader function of a subject or a cache, so
-cross-cutting logic (session checks, logging, retries, error mapping) lives in
+cross-cutting logic (session checks, logging, error mapping) lives in
 one place instead of being repeated in each loader:
 
 ```kotlin
 public fun interface LoaderDecorator {
-    public suspend fun FlowComposer.decorate(originLoader: suspend () -> Unit)
+    public suspend fun DecoratedFlowComposer.decorate(originLoader: suspend () -> Unit)
 }
 ```
 
-The receiver is a `FlowComposer`, so a decorator can declare its own
+The receiver is a `DecoratedFlowComposer`, which extends `FlowComposer`, so a
+decorator can declare its own
 [flow dependencies](#flow-dependencies-in-loader-functions). A typical use
 case is failing every load while there is no valid session, and re-running all
 loaders as soon as a new token appears:
@@ -378,9 +380,52 @@ Two rules:
 - The implementation **must** call `originLoader()`, otherwise nothing is
   emitted and the load fails with an `IllegalStateException`. Throwing your own
   exception instead is fine - it fails the load like any error raised by the
-  loader itself.
+  loader itself. The only other way out is to
+  [terminate the load](#terminating-a-load-from-a-decorator) explicitly.
 - Choose dependency keys that cannot clash with the keys used by the loaders
   being decorated (see [Key Stability](#key-stability)).
+
+### Terminating a Load from a Decorator
+
+Throwing an exception from a decorator fails the load like any other error, so
+it still obeys the current [load configuration](#containerconfiguration): with
+`LoadConfig.SilentLoadingAndError` the previously cached value is kept and the
+error is only reported as background state. When a decorator needs to override
+that policy, `DecoratedFlowComposer` offers two terminating functions:
+
+```kotlin
+public interface DecoratedFlowComposer : FlowComposer {
+    public fun completeWithFailure(exception: Exception): Nothing
+    public fun completeWithCacheCleanUp(): Nothing
+}
+```
+
+- `completeWithFailure(exception)` finishes the load with an error container.
+  The exception reaches collectors **regardless of the silent error policy**.
+- `completeWithCacheCleanUp()` finishes the load with a pending container, so
+  any cached value is dropped and collectors go back to the loading state.
+
+Both functions return `Nothing`: they unwind the decorator body immediately, so
+the origin loader is not executed if it has not been called yet. Calling them
+after `originLoader()` discards whatever the loader emitted.
+
+A sign-out decorator that must not leave stale data behind:
+
+```kotlin
+val sessionDecorator = LoaderDecorator { originLoader ->
+    val session = dependsOnFlow("session") { sessionManager.sessionFlow }
+    when (session) {
+        // no session at all: wipe cached data, show the loading state
+        is Session.SignedOut -> completeWithCacheCleanUp()
+        // expired token: always surface the error, even for silent loads
+        is Session.Expired -> completeWithFailure(SessionExpiredException())
+        is Session.Active -> originLoader()
+    }
+}
+```
+
+For [page loaders](paging.md) the same functions terminate the whole paging
+session, not only the page being loaded.
 
 Install it wherever a loader is configured:
 

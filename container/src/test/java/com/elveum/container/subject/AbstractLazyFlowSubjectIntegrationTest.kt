@@ -25,6 +25,7 @@ internal abstract class AbstractLazyFlowSubjectIntegrationTest {
     protected fun FlowTestScope.createLazyFlowSubject(
         metadata: ContainerMetadata = EmptyMetadata,
         loaderDecorator: LoaderDecorator = LoaderDecorator,
+        loadConfig: LoadConfig = LoadConfig.Normal,
         loader: ValueLoader<String>? = null,
     ): LazyFlowSubjectImpl<String> {
         val coroutineScopeFactory = mockk<CoroutineScopeFactory>()
@@ -38,7 +39,7 @@ internal abstract class AbstractLazyFlowSubjectIntegrationTest {
             LoadTaskManager(loaderDecorator = loaderDecorator),
         ).apply {
             if (loader != null) {
-                newAsyncLoad(config = LoadConfig.Normal, metadata, loader)
+                newAsyncLoad(config = loadConfig, metadata, loader)
             }
         }
     }

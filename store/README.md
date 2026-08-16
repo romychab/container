@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.5.0"
+implementation "com.elveum:store:3.5.1"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container
@@ -110,7 +110,7 @@ which is a convenient place for logic that would otherwise be repeated in each
 
 ```kotlin
 val sessionDecorator = LoaderDecorator { originLoader ->
-    // the decorator receives a FlowComposer, so it can depend on flows too:
+    // the decorator receives a DecoratedFlowComposer, so it can depend on flows too:
     val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
     if (token.isBlank()) throw NoSessionException()
     originLoader()   // required: this runs the store's own fetch
@@ -121,6 +121,25 @@ Whenever the token flow emits a new value, every *active* store using this
 decorator reloads (stores with no observer do nothing until they are observed
 again). See [LoaderDecorator](../docs/subjects.md#loaderdecorator) for the full
 contract.
+
+A decorator can also finish a load itself instead of delegating to
+`originLoader()`, which is useful when cached data must not survive:
+
+```kotlin
+val sessionDecorator = LoaderDecorator { originLoader ->
+    when (val session = dependsOnFlow("session") { sessionManager.sessionFlow }) {
+        // drop cached data of every store and go back to the loading state
+        is Session.SignedOut -> completeWithCacheCleanUp()
+        // report the error whatever the load request says - even a
+        // keepContentOnLoadAndError() request cannot keep the stale value
+        is Session.Expired -> completeWithFailure(SessionExpiredException())
+        is Session.Active -> originLoader()
+    }
+}
+```
+
+See
+[Terminating a load from a decorator](../docs/subjects.md#terminating-a-load-from-a-decorator).
 
 To apply the same defaults to every store of an app, inject
 `SimpleStoreFactory` instead of the `StoreFactory` companion object. Any option

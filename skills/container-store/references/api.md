@@ -115,6 +115,7 @@ import com.elveum.container.RemoteSourceType
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.reducer.ReducerOwner      // optional base interface for view-models
 import com.elveum.container.subject.transformation.LoaderDecorator // setLoaderDecorator(...) argument
+import com.elveum.container.subject.transformation.DecoratedFlowComposer // decorator receiver; only needed when named explicitly
 ```
 
 Notes:
@@ -339,11 +340,40 @@ of always meaning `LoadRequest.Default`:
 
   ```kotlin
   val decorator = LoaderDecorator { originLoader ->
-      // receiver is FlowComposer: dependsOnFlow / dependsOnContainerFlow are available,
-      // so every store using this decorator reloads when the flow emits
+      // receiver is DecoratedFlowComposer (extends FlowComposer): dependsOnFlow /
+      // dependsOnContainerFlow are available, so every store using this decorator
+      // reloads when the flow emits
       val token: String = dependsOnFlow("session-token") { sessionManager.tokenFlow }
       if (token.isBlank()) throw NoSessionException()
       originLoader()   // MUST be called, otherwise the load fails with IllegalStateException
+  }
+  ```
+
+  The `DecoratedFlowComposer` receiver adds two terminating functions, both
+  returning `Nothing`, that end the load instead of delegating to
+  `originLoader()` (for paged stores they end the whole paging session, not just
+  the current page):
+
+  - `completeWithCacheCleanUp()` - finishes the load with a pending container:
+    the cached value is dropped and observers go back to `StoreResult.Loading`.
+  - `completeWithFailure(exception)` - finishes the load with `exception`, which
+    reaches observers as `StoreResult.Failed` **regardless of the silent error
+    policy**. Under a request built with `keepContentOnLoadAndError()` a plain
+    `throw` would instead keep the cached `Loaded` value and report the error
+    only as background state; `completeWithFailure` overrides that.
+    (`LoadRequest.Silent` keeps content while *loading* only, so a plain `throw`
+    already surfaces `Failed` there.)
+
+  Because they return `Nothing`, the origin loader is not executed if it has not
+  been called yet; calling them after `originLoader()` discards what it emitted.
+
+  ```kotlin
+  val sessionDecorator = LoaderDecorator { originLoader ->
+      when (val session = dependsOnFlow("session") { sessionManager.sessionFlow }) {
+          is Session.SignedOut -> completeWithCacheCleanUp()
+          is Session.Expired -> completeWithFailure(SessionExpiredException())
+          is Session.Active -> originLoader()
+      }
   }
   ```
 

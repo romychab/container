@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging.internal
 
+import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.paging.PageEmitter
@@ -23,6 +24,7 @@ import io.mockk.slot
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.delay
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -1011,6 +1013,123 @@ class PageLoaderIntegrationTest {
 
     private suspend fun PageLoader<Int, String>.statefulInvoke() {
         emitter.statefulInvoke(LoaderDecorator)
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithFailure_terminatesWithErrorContainer() = runFlowTest {
+        val expectedException = IllegalStateException("terminated")
+        val decorator = LoaderDecorator {
+            completeWithFailure(expectedException)
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index"))
+        }
+
+        executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        coVerify(exactly = 1) {
+            emitter.terminateWith(
+                match { it is Container.Error && it.exception === expectedException },
+                any(),
+            )
+        }
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithFailure_doesNotExecuteOriginLoader() = runFlowTest {
+        var loaderExecuted = false
+        val decorator = LoaderDecorator {
+            completeWithFailure(IllegalStateException("terminated"))
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            loaderExecuted = true
+            emitPage(listOf("a$index"))
+        }
+
+        executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        assertFalse(loaderExecuted)
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithCacheCleanUp_terminatesWithPendingContainer() = runFlowTest {
+        val decorator = LoaderDecorator {
+            completeWithCacheCleanUp()
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index"))
+        }
+
+        executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        coVerify(exactly = 1) { emitter.terminateWith(Container.Pending, any()) }
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithCacheCleanUp_doesNotEmitFailureState() = runFlowTest {
+        val decorator = LoaderDecorator {
+            completeWithCacheCleanUp()
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index"))
+        }
+
+        executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        coVerify(exactly = 0) { emitter.emitFailureState(any()) }
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithCacheCleanUp_completesPagingSession() = runFlowTest {
+        val decorator = LoaderDecorator {
+            completeWithCacheCleanUp()
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index"))
+        }
+
+        val state = executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        assertEquals(JobStatus.Completed(Unit), state.status)
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorCompletesWithFailure_completesPagingSession() = runFlowTest {
+        val decorator = LoaderDecorator {
+            completeWithFailure(IllegalStateException("terminated"))
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index"))
+        }
+
+        val state = executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        runCurrent()
+
+        assertEquals(JobStatus.Completed(Unit), state.status)
+    }
+
+    @Test
+    fun pageLoader_whenDecoratorTerminatesNextPageLoad_completesPagingSession() = runFlowTest {
+        var pageIndexToTerminate = -1
+        val decorator = LoaderDecorator { originLoader ->
+            if (pageIndexToTerminate == 1) completeWithCacheCleanUp() else originLoader()
+        }
+        val pageLoader = createPageLoader(initialKey = 0) { index ->
+            emitPage(listOf("a$index", "b$index"))
+            if (index == 0) emitNextKey(1)
+            pageIndexToTerminate = index + 1
+        }
+
+        val state = executeInBackground { with(pageLoader) { emitter.statefulInvoke(decorator) } }
+        pageLoader.onItemRendered(1)
+        runCurrent()
+
+        assertEquals(JobStatus.Completed(Unit), state.status)
     }
 
     private fun createPageLoader(

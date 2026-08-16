@@ -32,7 +32,9 @@ Key features:
 - Retry support for failed page loads
 - Metadata for rendering loading/error indicators per page
 - Support for flow dependencies via `dependsOnFlow` / `dependsOnContainerFlow`
-- Support for `LoaderDecorator`, applied to every page load
+- Support for `LoaderDecorator`, applied to every page load; a decorator may
+  also [terminate the load](subjects.md#terminating-a-load-from-a-decorator),
+  which ends the whole paging session, not only the page being loaded
 
 ## Basic Usage
 

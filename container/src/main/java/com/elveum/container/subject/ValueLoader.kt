@@ -4,6 +4,7 @@ import com.elveum.container.Container
 import com.elveum.container.Emitter
 import com.elveum.container.StatefulEmitter
 import com.elveum.container.subject.transformation.LoaderDecorator
+import com.elveum.container.subject.transformation.internal.executeOn
 
 /**
  * Loader function for [LazyFlowSubject] which can emit loaded values.
@@ -41,21 +42,7 @@ internal class StatefulValueLoaderImpl<T>(
 ) : StatefulValueLoader<T>, ValueLoader<T> by origin {
 
     override suspend fun StatefulEmitter<T>.statefulInvoke(decorator: LoaderDecorator) {
-        emitPendingState()
-        try {
-            decorator.apply {
-                decorate { invoke() }
-            }
-            if (!hasEmittedValues) {
-                throw IllegalStateException("Value Loader should emit at least one item or " +
-                        "throw exception. If you don't want to emit values (e.g. it's okay for " +
-                        "you to have an infinite Container.Pending state), you can call " +
-                        "awaitCancellation() in the end of your loader function.")
-            }
-            emitCompletedState()
-        } catch (e: Exception) {
-            emitFailureState(e)
-        }
+        decorator.executeOn(emitter = this) { invoke() }
     }
 
 }

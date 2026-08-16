@@ -12,4 +12,9 @@ public interface StatefulEmitter<T> : Emitter<T> {
 
     public suspend fun emitFailureState(exception: Exception)
 
+    public suspend fun terminateWith(
+        container: Container<T>,
+        metadata: ContainerMetadata = EmptyMetadata,
+    )
+
 }

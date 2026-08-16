@@ -2,7 +2,7 @@
 name: container-store
 description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, KeyedQueryStore, PagedStore, PagedKeyedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md.
 metadata:
-  version: 3.5.0
+  version: 3.5.1
 ---
 
 # Container Store Library
@@ -24,13 +24,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.5.0` (transitively brings
+Maven coordinates: `com.elveum:store:3.5.1` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.5.0"
+store = "3.5.1"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```
@@ -122,7 +122,8 @@ still appropriate.
 | Attach/read custom result flags (metadata)                   | `PagedList(items, nextKey, metadata = MyMeta(...))` / `emit(v, metadata = MyMeta(...))`; read `result.metadata.get<MyMeta>()` (see api.md)             |
 | Tag a reload/query with metadata (why it happened)           | `invalidate/invalidateAsync/invalidateAllAsync/submitQuery(Async)` all take an optional `metadata: ContainerMetadata`, merged into the emitted result; mark it `ContainerMetadata.OneShot` to drop it on the next load (see api.md) |
 | Strip metadata for tests / equality (`assertEquals`)         | `result.raw()` → same `Loading`/`Loaded`/`Failed` with all metadata dropped, so results compare by value/exception only                               |
-| Cross-cutting logic around every fetch (auth, logging, retry) | `builder.setLoaderDecorator(LoaderDecorator { originLoader -> ...; originLoader() })`; wraps each load (paged: each page). Receiver is `FlowComposer`, so `dependsOnFlow` inside it reloads the store when that flow emits (see api.md) |
+| Cross-cutting logic around every fetch (auth, logging, retry) | `builder.setLoaderDecorator(LoaderDecorator { originLoader -> ...; originLoader() })`; wraps each load (paged: each page). Receiver is `DecoratedFlowComposer`, so `dependsOnFlow` inside it reloads the store when that flow emits (see api.md) |
+| Drop cached data / force an error from a decorator (sign-out, expired token) | Inside the decorator, instead of `originLoader()`: `completeWithCacheCleanUp()` → store goes back to `Loading` and the cache is dropped; `completeWithFailure(e)` → `Failed(e)` even under a `keepContentOnLoadAndError()` request, which would otherwise keep the cached value. Both return `Nothing` and end the load (paged: the whole session) (see api.md) |
 | App-wide builder defaults (one place for all stores)          | Bind `SimpleStoreFactory(loaderDecorator = ..., cacheTimeout = ..., ...)` as the injected `StoreFactory`; per-builder `set...` calls still override it |
 
 Cache behavior (all stores): lazy first fetch, one shared in-memory

@@ -385,6 +385,178 @@ class StatefulEmitterImplTest {
         }
     }
 
+    @Test
+    fun terminateWith_pendingContainer_emitsPendingContainer() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+
+        coVerify(exactly = 1) { flowCollector.emit(Container.Pending) }
+    }
+
+    @Test
+    fun terminateWith_pendingContainer_callsFlowSubjectOnComplete() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+
+        verify(exactly = 1) { flowSubject.onComplete() }
+    }
+
+    @Test
+    fun terminateWith_pendingContainer_doesNotEmitLastItem() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+
+        coVerify(exactly = 0) { flowEmitter.emitLastItem() }
+    }
+
+    @Test
+    fun terminateWith_errorContainer_emitsErrorContainer() = runTest {
+        val exception = RuntimeException("terminated")
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(errorContainer(exception))
+
+        coVerify(exactly = 1) {
+            flowCollector.emit(match { container ->
+                container is Container.Error && container.exception === exception
+            })
+        }
+    }
+
+    @Test
+    fun terminateWith_errorContainer_callsFlowSubjectOnError() = runTest {
+        val exception = RuntimeException("terminated")
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(errorContainer(exception))
+
+        verify(exactly = 1) { flowSubject.onError(exception) }
+    }
+
+    @Test
+    fun terminateWith_errorContainer_silentErrorConfig_stillEmitsErrorContainer() = runTest {
+        // termination bypasses the silent error policy on purpose
+        val currentContainer = successContainer("old-value")
+        val exception = RuntimeException("terminated")
+        val emitter = makeEmitter(
+            loadConfig = LoadConfig.SilentLoadingAndError,
+            currentContainer = { currentContainer },
+        )
+
+        emitter.terminateWith(errorContainer(exception))
+
+        coVerify(exactly = 1) {
+            flowCollector.emit(match { container ->
+                container is Container.Error && container.exception === exception
+            })
+        }
+    }
+
+    @Test
+    fun terminateWith_pendingContainer_silentLoadingConfig_stillEmitsPendingContainer() = runTest {
+        // termination bypasses the silent loading policy on purpose
+        val currentContainer = successContainer("old-value")
+        val emitter = makeEmitter(
+            loadConfig = LoadConfig.SilentLoadingAndError,
+            currentContainer = { currentContainer },
+        )
+
+        emitter.terminateWith(pendingContainer())
+
+        coVerify(exactly = 1) { flowCollector.emit(Container.Pending) }
+    }
+
+    @Test
+    fun terminateWith_calledTwice_onlyExecutesOnce() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+        emitter.terminateWith(errorContainer(RuntimeException("second")))
+
+        verify(exactly = 1) { flowSubject.onComplete() }
+        verify(exactly = 0) { flowSubject.onError(any()) }
+        coVerify(exactly = 1) { flowCollector.emit(any()) }
+    }
+
+    @Test
+    fun terminateWith_afterEmitCompletedState_doesNothing() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.emitCompletedState()
+        emitter.terminateWith(errorContainer(RuntimeException("terminated")))
+
+        verify(exactly = 0) { flowSubject.onError(any()) }
+        coVerify(exactly = 0) { flowCollector.emit(any()) }
+    }
+
+    @Test
+    fun emitCompletedState_afterTerminateWith_doesNothing() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+        emitter.emitCompletedState()
+
+        verify(exactly = 1) { flowSubject.onComplete() }
+        coVerify(exactly = 0) { flowEmitter.emitLastItem() }
+    }
+
+    @Test
+    fun emitFailureState_afterTerminateWith_doesNothing() = runTest {
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(pendingContainer())
+        emitter.emitFailureState(RuntimeException("late error"))
+
+        verify(exactly = 0) { flowSubject.onError(any()) }
+        coVerify(exactly = 1) { flowCollector.emit(any()) }
+    }
+
+    @Test
+    fun terminateWith_withNullFlowSubject_doesNotCrash() = runTest {
+        val emitter = makeEmitter(flowSubject = null)
+
+        emitter.terminateWith(pendingContainer())
+
+        coVerify(exactly = 1) { flowCollector.emit(Container.Pending) }
+    }
+
+    @Test
+    fun terminateWith_attachesEmitterMetadataToErrorContainer() = runTest {
+        every { flowEmitter.metadata } returns SourceTypeMetadata(LocalSourceType)
+        val exception = RuntimeException("terminated")
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(errorContainer(exception))
+
+        coVerify(exactly = 1) {
+            flowCollector.emit(match { container ->
+                container is Container.Error &&
+                    container.metadata.sourceType == LocalSourceType
+            })
+        }
+    }
+
+    @Test
+    fun terminateWith_attachesExplicitMetadataToErrorContainer() = runTest {
+        val exception = RuntimeException("terminated")
+        val emitter = makeEmitter()
+
+        emitter.terminateWith(
+            container = errorContainer(exception),
+            metadata = SourceTypeMetadata(LocalSourceType),
+        )
+
+        coVerify(exactly = 1) {
+            flowCollector.emit(match { container ->
+                container is Container.Error &&
+                    container.metadata.sourceType == LocalSourceType
+            })
+        }
+    }
+
     private fun makeEmitter(
         loadConfig: LoadConfig = LoadConfig.Normal,
         currentContainer: () -> Container<String> = { pendingContainer() },

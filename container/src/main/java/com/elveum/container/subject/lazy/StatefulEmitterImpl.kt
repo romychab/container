@@ -3,6 +3,7 @@ package com.elveum.container.subject.lazy
 import com.elveum.container.BackgroundLoadMetadata
 import com.elveum.container.BackgroundLoadState
 import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
 import com.elveum.container.Emitter
 import com.elveum.container.LoadConfig
 import com.elveum.container.errorContainer
@@ -52,6 +53,23 @@ internal class StatefulEmitterImpl<T>(
             flowSubject?.onError(exception)
             if (exception is CancellationException) throw exception
             handleSilentErrorConfig(executeParams, exception)
+        }
+    }
+
+    override suspend fun terminateWith(
+        container: Container<T>,
+        metadata: ContainerMetadata
+    ) {
+        if (isCompleted.compareAndSet(false, true)) {
+            val finalContainer = container.update {
+                this.metadata = this@StatefulEmitterImpl.metadata + metadata
+            }
+            if (finalContainer.isError()) {
+                flowSubject?.onError(finalContainer.exception)
+            } else {
+                flowSubject?.onComplete()
+            }
+            flowCollector.emit(finalContainer)
         }
     }
 

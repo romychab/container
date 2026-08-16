@@ -22,7 +22,8 @@ public fun interface LazyFlowSubjectFactory<Arg, T> {
     /**
      * Create a new [LazyFlowSubject] instance for the specified [arg].
      *
-     * Use [newInstance] call to create a subject inheriting configuration from the cache.
+     * Use [LazyFlowSubjectCreationScope.newInstance] call to create a subject inheriting
+     * configuration from the cache.
      *
      * @param arg the argument identifying the cache entry to create a subject for
      * @return the created [LazyFlowSubject] instance

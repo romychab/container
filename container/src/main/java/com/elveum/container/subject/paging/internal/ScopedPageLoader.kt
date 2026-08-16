@@ -3,6 +3,7 @@
 package com.elveum.container.subject.paging.internal
 
 import com.elveum.container.StatefulEmitter
+import com.elveum.container.subject.transformation.internal.executeOn
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -32,24 +33,22 @@ internal class ScopedPageLoader<Key, T>(
                 context = context,
                 originEmitter = originEmitter,
             )
-            try {
-                context.onLoadStarted(context.isRetry)
-                context.loaderDecorator.apply {
-                    emitter.apply {
-                        decorate {
-                            config.block(emitter, context.pageKey)
-                        }
+            context.loaderDecorator.executeOn(
+                emitter = originEmitter,
+                onStart = { context.onLoadStarted(context.isRetry) },
+                onComplete = {
+                    if (!emitter.isPageEmitted) {
+                        sessionCompleteDeferred.completeExceptionally(
+                            IllegalStateException("emitPage() must be called at least once.")
+                        )
+                    } else {
+                        completeLoad(context)
                     }
-                }
-                if (!emitter.isPageEmitted) {
-                    sessionCompleteDeferred.completeExceptionally(
-                        IllegalStateException("emitPage() must be called at least once.")
-                    )
-                    return@launch
-                }
-                completeLoad(context)
-            } catch (e: Exception) {
-                handleLoadError(context, emitter.isPageEmitted, e)
+                },
+                onError = { e -> handleLoadError(context, emitter.isPageEmitted, e) },
+                onTerminated = { sessionCompleteDeferred.complete(Unit) },
+            ) {
+                config.block(emitter, context.pageKey)
             }
         }
     }

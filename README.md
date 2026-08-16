@@ -35,7 +35,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.5.0"
+implementation "com.elveum:container:3.5.1"
 ```
 
 ## Store: the High-Level Library
@@ -192,7 +192,8 @@ Key behaviours:
 - You can push a value directly with `updateWith`
 - A `LoaderDecorator` can wrap every loader of a subject or a cache, which
   keeps cross-cutting logic (session checks, logging, retries) out of the
-  individual loaders
+  individual loaders. It can also finish a load on its own - dropping any
+  cached value or forcing an error through a silent load configuration
 
 For advanced usage (load triggers, source types, flow dependencies,
 `LoaderDecorator` and `SubjectFactory` for testability) see

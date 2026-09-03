@@ -6,6 +6,7 @@ import com.elveum.container.EmptyMetadata
 import com.elveum.container.LoadTrigger
 import com.elveum.container.LoadTriggerMetadata
 import com.elveum.container.LoadConfig
+import com.elveum.container.LoadConfigOneShotMetadata
 import com.elveum.container.IsReloadDependenciesMetadata
 import com.elveum.container.RemoteSourceType
 import com.elveum.container.SourceTypeMetadata
@@ -100,7 +101,7 @@ class LazyFlowSubjectTest {
     }
 
     @Test
-    fun reload_withLoader_executesNewLoad() {
+    fun reload_withLoader_passesConfigAsOneShotMetadataWithoutPersistingIt() {
         val valueLoader = mockk<ValueLoader<String>>()
         val loadTask = mockk<LoadTask<String>>()
         val flowSubject = mockk<FlowSubject<String>>()
@@ -109,9 +110,12 @@ class LazyFlowSubjectTest {
         every { flowSubject.flow() } returns expectedFlow
         every {
             loadTaskFactory.create(
-                config = LoadConfig.SilentLoading,
+                // the subject's persisted config is untouched by reload(config)
+                config = LoadConfig.Normal,
                 valueLoader = refEq(valueLoader),
-                metadata = LoadTriggerMetadata(LoadTrigger.Reload) + IsReloadDependenciesMetadata(true),
+                metadata = LoadTriggerMetadata(LoadTrigger.Reload) +
+                        IsReloadDependenciesMetadata(true) +
+                        LoadConfigOneShotMetadata(LoadConfig.SilentLoading),
             )
         } returns LoadTaskFactory.LoadTaskRecord(loadTask, flowSubject)
 

@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging
 
+import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.get
 
@@ -14,6 +15,13 @@ import com.elveum.container.get
  */
 public val ContainerMetadata.totalPagedItemsCount: Int
     get() = get<TotalPagedItemsCountMetadata>()?.totalPagedItemsCount ?: -1
+
+/**
+ * Get the total number of items across all pages directly from the container,
+ * without going through [Container.metadata]. Returns `-1` when unknown.
+ */
+public val Container<*>.totalPagedItemsCount: Int
+    get() = metadata.totalPagedItemsCount
 
 /**
  * Metadata holding the total number of items available across all pages.

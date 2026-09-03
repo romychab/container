@@ -2,6 +2,7 @@
 <SmellBaseline>
   <ManuallySuppressedIssues/>
   <CurrentIssues>
+    <ID>ComplexInterface:ContainerMapperScope.kt$ContainerMapperScope</ID>
     <ID>LateinitUsage:BaseBuilderImpl.kt$BaseBuilderImpl$protected lateinit var ref: OutBuilder</ID>
     <ID>NestedBlockDepth:ListMerger.kt$ListMerger$private fun State.buildFinalList(): List&lt;T></ID>
     <ID>TooManyFunctions:KeyedStoreImpl.kt$KeyedStoreImpl&lt;Key : Any, T : Any> : KeyedStore</ID>

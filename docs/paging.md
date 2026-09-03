@@ -96,7 +96,8 @@ The page loader needs to know which items are currently visible so it can
 trigger loading the next page at the right time.
 
 When `emitMetadata = true` (the default), each emitted container includes an
-`OnItemRenderedCallbackMetadata` accessible via `metadata.onItemRendered`.
+`OnItemRenderedCallbackMetadata`, reachable as `onItemRendered` inside a
+`fold` branch, on the container itself, or via `metadata.onItemRendered`.
 Call it from a `LaunchedEffect` inside your `LazyColumn`:
 
 ```kotlin
@@ -110,7 +111,7 @@ container.fold(
         LazyColumn {
             itemsIndexed(orders) { index, order ->
                 LaunchedEffect(index) {
-                    metadata.onItemRendered(index)
+                    onItemRendered(index)
                 }
                 OrderItem(order)
             }
@@ -123,7 +124,7 @@ Inside the `onSuccess` lambda, `metadata`, `reload()`, and `backgroundLoadState`
 are available directly via the `ContainerMapperScope` receiver, so you don't need to
 prefix with `container.`.
 
-You can also call `container.metadata.onItemRendered(index)` when you need
+You can also call `container.onItemRendered(index)` when you need
 to reference it from outside the `fold` block.
 
 ## Next Page State
@@ -148,19 +149,20 @@ sealed class PageState {
 | `Pending` | The next page is currently being loaded |
 | `Error` | The next-page load failed; call `retry()` to try again |
 
-Access the current next-page state via `container.metadata.nextPageState`.
+Access the current next-page state via `container.nextPageState`, or as a
+bare `nextPageState` inside a `fold` branch.
 Typically you render it in a footer item at the bottom of your list:
 
 ```kotlin
 LazyColumn {
     itemsIndexed(orders) { index, order ->
         LaunchedEffect(index) {
-            container.metadata.onItemRendered(index)
+            container.onItemRendered(index)
         }
         OrderItem(order)
     }
     item {
-        when (val state = container.metadata.nextPageState) {
+        when (val state = container.nextPageState) {
             PageState.Pending -> CircularProgressIndicator()
             is PageState.Error -> {
                 Button(
@@ -289,13 +291,14 @@ receiver:
 | `emitNextKey(key)`         | Register the key of the next page. Call once if there is a next page, or not at all if this is the last page                                                                                                                  |
 
 The optional `metadata` lets a page attach extra information to the merged
-result - for example `TotalPagedItemsCountMetadata`, readable via the
-`metadata.totalPagedItemsCount` extension property (returns `-1` when unknown):
+result - for example `TotalPagedItemsCountMetadata`, read back through the
+`totalPagedItemsCount` extension property, available both on the container
+itself and on `metadata` (returns `-1` when unknown):
 
 ```kotlin
-emitPage(orders, TotalPagedItemsCountMetadata(totalCount = response.total))
+emitPage(orders, TotalPagedItemsCountMetadata(totalPagedItemsCount = response.total))
 // later, on the collector side:
-val total = container.metadata.totalPagedItemsCount
+val total = container.totalPagedItemsCount
 ```
 
 `PageEmitter` also extends `FlowComposer`, giving you access to
@@ -369,13 +372,13 @@ fun OrdersScreen(viewModel: OrdersViewModel = hiltViewModel()) {
                 LazyColumn {
                     itemsIndexed(orders, key = { _, o -> o.id }) { index, order ->
                         LaunchedEffect(index) {
-                            metadata.onItemRendered(index)
+                            onItemRendered(index)
                         }
                         OrderItem(order)
                     }
                     // Next-page loading/error indicator at the bottom:
                     item {
-                        when (val state = metadata.nextPageState) {
+                        when (val state = nextPageState) {
                             PageState.Pending -> {
                                 CircularProgressIndicator(
                                     modifier = Modifier.fillMaxWidth().padding(16.dp),

@@ -35,7 +35,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.5.1"
+implementation "com.elveum:container:3.6.0"
 ```
 
 ## Store: the High-Level Library
@@ -252,9 +252,10 @@ per-item updates), see [Pagination](docs/paging.md).
 
 ## Detailed Documentation
 
-| Topic                                      | Description                                                                          |
-|--------------------------------------------|--------------------------------------------------------------------------------------|
-| [Container Type](docs/container-type.md)   | States, value extraction, transformations, flow extensions, combining flows          |
-| [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner`                       |
-| [Subjects](docs/subjects.md)               | `LazyFlowSubject`, metadata, source types                                            |
-| [Pagination](docs/paging.md)               | `PageLoader`, next-page states, pull-to-refresh, flow dependencies, per-item updates |
+| Topic                                      | Description                                                                                        |
+|--------------------------------------------|----------------------------------------------------------------------------------------------------|
+| [Container Type](docs/container-type.md)   | States, value extraction, transformations, flow extensions, combining flows                        |
+| [Reducer Pattern](docs/reducer-pattern.md) | `Reducer`, `ContainerReducer`, combining flows, `ReducerOwner`                                     |
+| [Subjects](docs/subjects.md)               | `LazyFlowSubject`, metadata, source types                                                          |
+| [Pagination](docs/paging.md)               | `PageLoader`, next-page states, pull-to-refresh, flow dependencies, per-item updates               |
+| [LLM Agent Skill](skills/container-core/)  | Installable Agent Skill for AI coding agents: setup, API reference, architecture patterns, testing |

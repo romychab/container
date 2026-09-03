@@ -1,5 +1,6 @@
 package com.elveum.container.subject.paging
 
+import com.elveum.container.Container
 import com.elveum.container.ContainerMetadata
 import com.elveum.container.get
 
@@ -12,7 +13,15 @@ public fun ContainerMetadata.onItemRendered(index: Int) {
     get<OnItemRenderedCallbackMetadata>()?.onItemRendered?.invoke(index)
 }
 
+/**
+ * Notify the page loader that an item with the specified [index] has been
+ * rendered, directly from the container without going through
+ * [Container.metadata].
+ */
+public fun Container<*>.onItemRendered(index: Int) {
+    metadata.onItemRendered(index)
+}
+
 public data class OnItemRenderedCallbackMetadata(
     val onItemRendered: (index: Int) -> Unit
 ) : ContainerMetadata
-

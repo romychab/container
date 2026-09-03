@@ -38,7 +38,7 @@ the hood.
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:store:3.5.1"
+implementation "com.elveum:store:3.6.0"
 ```
 
 The `store` artifact depends on `com.elveum:container`, so the Container

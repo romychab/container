@@ -112,12 +112,15 @@ internal class LazyFlowSubjectImpl<T>(
         val lastLoadTask = loadTaskManager.getLastLoadTask()
         lastLoadTask.lastRealLoader?.let { lastLoader ->
             doNewLoad(
-                config = config,
+                // config = null, using LoadConfigOneShotMetadata instead
+                // to one-shot the load config instead remembering it:
+                config = null,
                 valueLoader = lastLoader,
                 metadata = lastLoadTask.lastFilteredRealMetadata +
                         LoadTriggerMetadata(LoadTrigger.Reload) +
                         IsReloadDependenciesMetadata(true) +
-                        metadata,
+                        metadata +
+                        config?.let(::LoadConfigOneShotMetadata),
             )
         } ?: emptyFlow()
     }

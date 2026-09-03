@@ -417,4 +417,107 @@ internal class LazyFlowSubjectLoadIntegrationTest : AbstractLazyFlowSubjectInteg
         assertFalse(afterFirstSuccess.contains(Pending))
     }
 
+    @Test
+    fun reload_withConfig_appliesItToThatLoadOnly() = runFlowTest {
+        var call = 0
+        val subject = createLazyFlowSubject(ValueLoader {
+            call++
+            delay(10)
+            emit("value-$call")
+        })
+
+        val collectedItems = subject.listen().startCollecting().collectedItems
+        runCurrent()
+        advanceTimeBy(11)
+
+        // silent reload: no Pending for this load
+        subject.reloadAsync(config = LoadConfig.SilentLoading)
+        runCurrent()
+        advanceTimeBy(11)
+
+        // plain reload afterwards: Pending must come back, proving the
+        // SilentLoading config did not persist into the subject
+        subject.reloadAsync()
+        runCurrent()
+        advanceTimeBy(11)
+
+        assertEquals(
+            listOf(
+                Pending,                      // initial load
+                successContainer("value-1"),
+                successContainer("value-2"),  // silent reload: no Pending before it
+                Pending,                      // plain reload: Pending is back
+                successContainer("value-3"),
+            ),
+            collectedItems.raw(),
+        )
+    }
+
+    @Test
+    fun reload_withoutConfig_keepsTheConfigTheSubjectWasCreatedWith() = runFlowTest {
+        var call = 0
+        val subject = createLazyFlowSubject(
+            loadConfig = LoadConfig.SilentLoading,
+            loader = ValueLoader {
+                call++
+                delay(10)
+                emit("value-$call")
+            },
+        )
+
+        val collectedItems = subject.listen().startCollecting().collectedItems
+        runCurrent()
+        advanceTimeBy(11)
+
+        subject.reloadAsync()
+        runCurrent()
+        advanceTimeBy(11)
+
+        // The initial load still reports Pending - there is no cached value to
+        // preserve yet. The reload does not, because the subject's own
+        // SilentLoading default is untouched by the one-shot change.
+        assertEquals(
+            listOf(
+                Pending,
+                successContainer("value-1"),
+                successContainer("value-2"),
+            ),
+            collectedItems.raw(),
+        )
+    }
+
+    @Test
+    fun newLoad_withConfig_becomesTheSubjectsNewDefault() = runFlowTest {
+        var call = 0
+        val loader = ValueLoader<String> {
+            call++
+            delay(10)
+            emit("value-$call")
+        }
+        val subject = createLazyFlowSubject(loader)
+
+        val collectedItems = subject.listen().startCollecting().collectedItems
+        runCurrent()
+        advanceTimeBy(11)
+
+        // newLoad stores the config as the subject's new default...
+        subject.newAsyncLoad(config = LoadConfig.SilentLoading, EmptyMetadata, loader)
+        runCurrent()
+        advanceTimeBy(11)
+
+        // ...so a later reload with no config inherits it and stays silent.
+        subject.reloadAsync()
+        runCurrent()
+        advanceTimeBy(11)
+
+        assertEquals(
+            listOf(
+                Pending,
+                successContainer("value-1"),
+                successContainer("value-2"),
+                successContainer("value-3"),
+            ),
+            collectedItems.raw(),
+        )
+    }
 }

@@ -24,7 +24,7 @@ with the metadata system that threads cross-cutting information through containe
   - [ContainerMetadata](#containermetadata)
   - [SourceType](#sourcetype)
   - [ReloadFunctionMetadata](#reloadfunctionmetadata)
-  - [BackgroundLoadStateMetadata](#backgroundloadstatemetadata)
+  - [BackgroundLoadMetadata](#backgroundloadmetadata)
   - [LoadTrigger](#loadtrigger)
   - [Custom Metadata](#custom-metadata)
 - [Flow Dependencies in Loader Functions](#flow-dependencies-in-loader-functions)
@@ -125,6 +125,12 @@ new load runs in the background):
 subject.reloadAsync(LoadConfig.SilentLoading)
 ```
 
+A config passed to `reload` / `reloadAsync` applies to **that load only**. The
+subject keeps its own configuration - the one it was created with, or the one a
+later `newLoad` established - so the next `reloadAsync()` with no config behaves
+normally again. `newLoad` is the opposite: the `config` it receives becomes the
+subject's new default (see [Replacing the Loader](#replacing-the-loader)).
+
 `reload` / `reloadAsync` also accept an optional `metadata: ContainerMetadata`
 that is merged into the container emitted by this reload - a convenient channel
 for tagging *why* the reload happened. The same argument is available on
@@ -138,11 +144,11 @@ Attach a metadata type that implements [`ContainerMetadata.OneShot`](#custom-met
 when it should apply only to this single reload and not stick to later loads.
 
 `LoadConfigOneShotMetadata` is a built-in one-shot type that carries a
-`LoadConfig` for a single load: that load uses the given config, and the subject
-keeps using its own config for every load after it. It lets any code path that
-can pass metadata but no explicit config - a custom metadata pipeline, or a
-dependency change (see [Reload Configuration](#reload-configuration), which uses
-this type internally) - override the config of exactly one load:
+`LoadConfig` for a single load. Passing a `config` to `reload` is exactly this,
+spelled shorter. The metadata form exists for code paths that can pass metadata
+but no explicit config - a custom metadata pipeline, or a dependency change (see
+[Reload Configuration](#reload-configuration), which uses this type
+internally):
 
 ```kotlin
 // this reload is silent...
@@ -192,10 +198,10 @@ val result: T = subject.newSimpleLoad { fetchData() }
 subject.newSimpleAsyncLoad { fetchData() }
 ```
 
-The `newLoad` / `newSimpleLoad` functions also accept a `loadConfig` argument and
+The `newLoad` / `newSimpleLoad` functions also accept a `config` argument and
 an optional `metadata` argument:
 
-- `loadConfig = LoadConfig.SilentLoading`: the existing cached value stays visible
+- `config = LoadConfig.SilentLoading`: the existing cached value stays visible
   while the new load runs in the background. Emitted containers carry
   `backgroundLoadState = BackgroundLoadState.Loading` when `emitBackgroundLoads` is
   enabled (e.g. via `listenReloadable()`).
@@ -205,7 +211,7 @@ an optional `metadata` argument:
 
 ```kotlin
 subject.newAsyncLoad(
-    loadConfig = LoadConfig.SilentLoading,
+    config = LoadConfig.SilentLoading,
     metadata = SourceTypeMetadata(RemoteSourceType),
 ) {
     emit(fetchRemote())
@@ -275,8 +281,8 @@ executed whenever the subject becomes active (when at least one subscriber start
 collecting a flow returned by the subject):
 
 ```kotlin
-val productsSubject = LazyFlowSubject<List<Product>>
-    .create {
+val productsSubject = LazyFlowSubject
+    .create<List<Product>> {
         emit(loadProducts())
     }
     .whenActive {
@@ -338,13 +344,13 @@ val subject: LazyFlowSubject<String> = subjectFactory.createSimpleSubject(
     sourceType  = RemoteSourceType,
 ) { fetchString() }
 
-// Create a StateFlow directly (backed by a LazyFlowSubject internally):
-val flow: StateFlow<Container<String>> = subjectFactory.createFlow {
+// Create a Flow directly (backed by a LazyFlowSubject internally):
+val flow: Flow<Container<String>> = subjectFactory.createFlow {
     emit(fetchData())
 }
 
-// Create a reloadable StateFlow (emitReloadFunction + emitBackgroundLoads enabled):
-val flow: StateFlow<Container<String>> = subjectFactory.createReloadableFlow {
+// Create a reloadable Flow (emitReloadFunction + emitBackgroundLoads enabled):
+val flow: Flow<Container<String>> = subjectFactory.createReloadableFlow {
     emit(fetchData())
 }
 ```
@@ -460,7 +466,7 @@ or via `SimpleStoreFactory(loaderDecorator = ...)`; see the
 `Container.Error`. Multiple metadata instances can be combined:
 
 ```kotlin
-val meta = SourceTypeMetadata(RemoteSourceType) + ReloadFunctionMetadata { loadItems() }
+val meta = SourceTypeMetadata(RemoteSourceType) + ReloadFunctionMetadata { _, _ -> loadItems() }
 val container = successContainer("data", meta)
 ```
 
@@ -483,7 +489,7 @@ Or use the shorthand extension properties available on containers:
 ```kotlin
 val source: SourceType  = container.sourceType
 val bgLoadState: BackgroundLoadState = container.backgroundLoadState
-val reloadFn = container.reloadFunction
+val reloadFn = container.metadata.reloadFunction
 ```
 
 ### SourceType
@@ -535,14 +541,14 @@ other components:
 fun listenProducts() = productsSubject.listenReloadable()
 
 // Or attach manually on an existing container:
-val container = successContainer("data") + ReloadFunctionMetadata { loadMyData() }
+val container = successContainer("data") + ReloadFunctionMetadata { _, _ -> loadMyData() }
 
 // Or override the reload function in a flow:
 val flow = source.containerUpdate {
     val originalReload = reloadFunction
-    reloadFunction = {
+    reloadFunction = { config, metadata ->
         println("Reloading...")
-        originalReload(it) // call the original reload function if needed
+        originalReload(config, metadata) // call the original reload function if needed
     }
 }
 ```
@@ -557,7 +563,7 @@ container.fold(
 )
 ```
 
-### BackgroundLoadStateMetadata
+### BackgroundLoadMetadata
 
 When a silent reload is in progress and `emitBackgroundLoads = true` is set,
 emitted containers carry `backgroundLoadState = Loading` metadata value. UI can use this to

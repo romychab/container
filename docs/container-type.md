@@ -37,16 +37,16 @@ Kotlin Flows.
 
 ```kotlin
 sealed class Container<out T> {
-    object Pending : Container<Nothing>()
+    data object Pending : Container<Nothing>()
 
     sealed class Completed<out T> : Container<T>()
 
-    data class Success<out T>(
+    data class Success<T> internal constructor(
         val value: T,
         val metadata: ContainerMetadata,
     ) : Completed<T>()
 
-    data class Error(
+    data class Error internal constructor(
         val exception: Exception,
         val metadata: ContainerMetadata,
     ) : Completed<Nothing>()
@@ -81,7 +81,7 @@ val error = errorContainer(IOException("network error"))
 You can also combine metadata after creation using the `+` operator:
 
 ```kotlin
-val container = successContainer("data") + ReloadFunctionMetadata { reload() }
+val container = successContainer("data") + ReloadFunctionMetadata { _, _ -> reload() }
 ```
 
 ## Extracting Values
@@ -272,8 +272,9 @@ val stringState: StateFlow<Container<String>> = intState
 ### containerFlatMapLatest
 
 Transforms each `Success` value into a new `Flow<Container<R>>`, cancelling
-the previous inner flow when a new outer value arrives. The resulting flow
-emits `Pending` while waiting for the inner flow:
+the previous inner flow when a new outer value arrives. A `Pending` input is
+re-emitted as `Pending`; the operator itself does not insert a `Pending` while
+waiting for the first value of the inner flow:
 
 ```kotlin
 val detailsFlow: Flow<Container<Details>> = idsFlow
@@ -307,14 +308,22 @@ val textFlow: Flow<String> = containerFlow.containerFold(
 // with a default value for unhandled cases:
 val textFlow: Flow<String> = containerFlow.containerFoldDefault(
     defaultValue = "-",
+    onError      = { "-" },
+    onPending    = { "-" },
     onSuccess    = { value -> value.toString() },
 )
 
 // nullable result:
 val textFlow: Flow<String?> = containerFlow.containerFoldNullable(
+    onError   = { null },
+    onPending = { null },
     onSuccess = { value -> value.toString() },
 )
 ```
+
+`containerFoldDefault` and `containerFoldNullable` declare defaults for
+`onPending`, `onError` and `onSuccess`, so you may pass only the callbacks you
+care about and let the rest fall back to `defaultValue` / `null`.
 
 ### containerTransform
 
@@ -359,7 +368,7 @@ Update metadata on every container in the flow without changing the value:
 ```kotlin
 val flow: Flow<Container<String>> = source
     .containerUpdate {
-        reloadFunction = ::loadList
+        reloadFunction = { _, _ -> loadList() }
     }
 ```
 
@@ -369,8 +378,9 @@ val flow: Flow<Container<String>> = source
 
 Combine two or more `Flow<Container<T>>` into a single flow. The result is:
 
-- `Container.Pending` if any input is `Pending`
-- `Container.Error` (first error wins) if any input is `Error`
+- `Container.Error` (first error wins) if any input is `Error` - an `Error`
+  input takes precedence over a `Pending` one
+- `Container.Pending` if any input is `Pending` and none is `Error`
 - `Container.Success` only when every input is `Success`
 
 ```kotlin
@@ -401,6 +411,36 @@ val combined: Flow<Container<String>> = containerFlow
     .containerCombineWith(plainFlow) { value, extra ->
         "$value ($extra)"
     }
+```
+
+## Updating Items in a List
+
+Patching one entity inside a cached `List<T>` is common enough to have a
+helper. `updateItem` finds the element by identity rather than by position and
+returns a new list; if no element matches, the original list is returned
+unchanged.
+
+```kotlin
+// replace an item with a newer copy
+subject.updateIfSuccess { products ->
+    products.updateItem(updatedProduct) { it.id }
+}
+
+// derive the new value from the old one
+subject.updateIfSuccess { products ->
+    products.updateItem(productId, { it.id }) { it.copy(isFavorite = true) }
+}
+```
+
+The `itemId` selector has the same shape as the one `pageLoader` takes, so a
+single selector can serve both.
+
+The same two overloads exist on `Container<List<T>>`, for patching a container
+directly. Non-`Success` containers are returned unchanged:
+
+```kotlin
+val patched: Container<List<Product>> =
+    container.updateItem(updatedProduct) { it.id }
 ```
 
 ## Type Aliases
@@ -440,7 +480,7 @@ val source = success.metadata.sourceType  // metadata extension
 val source = success.metadata.get<SourceTypeMetadata>()?.sourceType  // explicit
 ```
 
-`Container.reload(config? = null, metadata: ContainerMetadata = EmptyMetadata)`
+`Container.reload(config: LoadConfig? = null, metadata: ContainerMetadata = EmptyMetadata)`
 re-triggers the load and merges the optional `metadata` into the resulting
 container - a convenient way to tag *why* a reload happened.
 

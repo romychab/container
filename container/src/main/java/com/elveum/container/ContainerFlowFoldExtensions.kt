@@ -32,11 +32,11 @@ public inline fun <T, R> Flow<Container<T>>.containerFold(
  *
  * @see Container.foldDefault
  */
-public inline fun <T, R> Flow<Container<T>>.containerFoldDefault(
+public fun <T, R> Flow<Container<T>>.containerFoldDefault(
     defaultValue: R,
-    crossinline onSuccess: suspend ContainerMapperScope.(T) -> R = { defaultValue },
-    crossinline onError: suspend ContainerMapperScope.(Exception) -> R = { defaultValue },
-    crossinline onPending: suspend () -> R = { defaultValue },
+    onSuccess: suspend ContainerMapperScope.(T) -> R = { defaultValue },
+    onError: suspend ContainerMapperScope.(Exception) -> R = { defaultValue },
+    onPending: suspend () -> R = { defaultValue },
 ): Flow<R> {
     return containerFold(onSuccess, onError, onPending)
 }
@@ -47,10 +47,10 @@ public inline fun <T, R> Flow<Container<T>>.containerFoldDefault(
  *
  * @see Container.foldNullable
  */
-public inline fun <T, R> Flow<Container<T>>.containerFoldNullable(
-    crossinline onSuccess: suspend ContainerMapperScope.(T) -> R? = { null },
-    crossinline onError: suspend ContainerMapperScope.(Exception) -> R? = { null },
-    crossinline onPending: suspend () -> R? = { null },
+public fun <T, R> Flow<Container<T>>.containerFoldNullable(
+    onSuccess: suspend ContainerMapperScope.(T) -> R? = { null },
+    onError: suspend ContainerMapperScope.(Exception) -> R? = { null },
+    onPending: suspend () -> R? = { null },
 ): Flow<R?> {
     return containerFold(onSuccess, onError, onPending)
 }

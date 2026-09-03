@@ -1,5 +1,10 @@
 package com.elveum.container
 
+import com.elveum.container.subject.paging.PageState
+import com.elveum.container.subject.paging.nextPageState
+import com.elveum.container.subject.paging.onItemRendered
+import com.elveum.container.subject.paging.totalPagedItemsCount
+
 /**
  * Mapping function for converting containers of type `T` into containers
  * of another type `R`.
@@ -32,6 +37,28 @@ public interface ContainerMapperScope {
      * Function for reloading data.
      */
     public val reloadFunction: ReloadFunction get() = metadata.reloadFunction
+
+    /**
+     * The current state of the next page load, for paged containers.
+     *
+     * Returns [PageState.Idle] when the container is not paged.
+     */
+    public val nextPageState: PageState get() = metadata.nextPageState
+
+    /**
+     * The total number of items across all pages, for paged containers.
+     *
+     * Returns `-1` when the total count is unknown.
+     */
+    public val totalPagedItemsCount: Int get() = metadata.totalPagedItemsCount
+
+    /**
+     * Notify the page loader that an item with the specified [index] has been
+     * rendered. Does nothing when the container is not paged.
+     */
+    public fun onItemRendered(index: Int) {
+        metadata.onItemRendered(index)
+    }
 
     /**
      * Reload data encapsulated by container.

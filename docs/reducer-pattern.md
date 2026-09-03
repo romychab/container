@@ -114,7 +114,7 @@ data class State(
 
 private val reducer: ContainerReducer<State> = getIntFlow() // Flow<Int>
     .toContainerReducer(
-        initialState = ::State,   // () -> State (constructor reference)
+        initialState = ::State,   // (Int) -> State: built from the flow value
         nextState    = State::copy,
         scope        = viewModelScope,
         started      = SharingStarted.WhileSubscribed(5000),
@@ -259,8 +259,11 @@ Supplying `scope` and `started` to every reducer constructor is repetitive.
 The `ReducerOwner` interface lets you define them once and then omit them at
 every call site.
 
-To make it work, enabling Kotlin Context Parameters first is required for the
-context-parameter overloads:
+To omit them in `toReducer`, `toContainerReducer`, `containerToReducer`,
+`stateIn` and `shareIn`, Kotlin Context Parameters have to be enabled - these
+overloads are declared with a `context(owner: ReducerOwner)` clause. The
+`combineXxx` shorthands are plain `ReducerOwner` extensions and need no
+compiler flag:
 
 ```kotlin
 // build.gradle
@@ -373,7 +376,7 @@ This approach works because `StateImpl` implements `State`, so
 ```
 Reducer<State>
   stateFlow: StateFlow<State>
-  update(transform: (State) -> State)
+  update(transform: suspend (State) -> State)
 ```
 
 ### ContainerReducer
@@ -381,8 +384,8 @@ Reducer<State>
 ```
 ContainerReducer<State>  // extends Reducer<Container<State>>
   stateFlow: StateFlow<Container<State>>
-  update(transform: (Container<State>) -> Container<State>)
-  updateState(transform: (State) -> State) // no-op if not Success
+  update(transform: suspend (Container<State>) -> Container<State>)
+  updateState(transform: suspend (State) -> State) // no-op if not Success
 ```
 
 ### Flow to Reducer conversion functions
@@ -404,9 +407,12 @@ combineContainersToReducer(flow1, flow2, ..., initialState, nextState?, scope, s
 All combine functions have overloads for 2–5 input flows and a list-based
 overload for an arbitrary number.
 
-For every combine function `initialState` is a factory (`() -> State`),
-so a constructor reference such as `::State` (or a `{ State() }` lambda)
-can be passed consistently across all variants.
+In `combineToReducer` the `initialState` parameter is a plain factory
+(`() -> State`). In `combineToContainerReducer` and `combineContainersToReducer`
+(and in `toContainerReducer` / `containerToReducer`) it instead receives the
+first value of every input flow (`(T1, T2, ...) -> State`), so a constructor
+reference such as `::State` fits only when the leading state properties match
+the flow value types.
 
 When used inside a `ReducerOwner`, `scope` and `started` can be omitted from
 all of the above functions.

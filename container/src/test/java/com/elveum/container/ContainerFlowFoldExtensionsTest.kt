@@ -2,6 +2,7 @@ package com.elveum.container
 
 import com.uandcode.flowtest.runFlowTest
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.yield
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test
@@ -233,5 +234,53 @@ class ContainerFlowFoldExtensionsTest {
             onError = { errorContainer(it) },
         ).startCollecting()
         assertEquals(RemoteSourceType, collected.lastItem.sourceType)
+    }
+
+    // --- Regression: omitting a defaulted callback used to fail codegen ---
+    // While containerFoldDefault/containerFoldNullable were `inline` with
+    // `crossinline suspend` parameters, relying on a declared default crashed
+    // the Kotlin compiler with "suspend default lambda ... cannot be inlined".
+
+    @Test
+    fun containerFoldDefault_omittedCallbacks_emitDefaultValue() = runFlowTest {
+        val flow = MutableStateFlow<Container<String>>(pendingContainer())
+        val collected = flow.containerFoldDefault(
+            defaultValue = "none",
+            onSuccess = { it.uppercase() },
+        ).startCollecting()
+
+        assertEquals("none", collected.lastItem)
+        flow.value = errorContainer(IllegalStateException("boom"))
+        assertEquals("none", collected.lastItem)
+        flow.value = successContainer("ok")
+        assertEquals("OK", collected.lastItem)
+    }
+
+    @Test
+    fun containerFoldNullable_omittedCallbacks_emitNull() = runFlowTest {
+        val flow = MutableStateFlow<Container<String>>(pendingContainer())
+        val collected = flow.containerFoldNullable(
+            onSuccess = { it.uppercase() },
+        ).startCollecting()
+
+        assertNull(collected.lastItem)
+        flow.value = successContainer("ok")
+        assertEquals("OK", collected.lastItem)
+    }
+
+    @Test
+    fun containerFoldDefault_callbackCanCallSuspendFunction() = runFlowTest {
+        suspend fun suspendingUpper(value: String): String {
+            yield()
+            return value.uppercase()
+        }
+
+        val flow = MutableStateFlow<Container<String>>(successContainer("ok"))
+        val collected = flow.containerFoldDefault(
+            defaultValue = "none",
+            onSuccess = { suspendingUpper(it) },
+        ).startCollecting()
+
+        assertEquals("OK", collected.lastItem)
     }
 }

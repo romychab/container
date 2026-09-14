@@ -7,6 +7,7 @@ coroutines = "1.10.2"
 serialization = "1.10.0"
 collections-immutable = "0.4.0"
 compose-bom = "2026.02.00"
+compose-runtime-annotation = "1.9.5"
 activity-compose = "1.10.1"
 lifecycle = "2.9.0"
 lifecycle-viewmodel-navigation3 = "2.10.0"
@@ -19,11 +20,11 @@ junit = "4.13.2"
 mockk = "1.14.9"
 flowtest = "1.1.0"
 javafaker = "1.0.2"
-compose-stable-marker = "1.0.7"
 effects2 = "2.0.0"
 mavenPublish = "0.36.0"
 detekt = "1.23.8"
 kover = "0.9.8"
+atomicfu = "0.29.0"
 
 [libraries]
 kotlinx-coroutines-core = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-core", version.ref = "coroutines" }
@@ -36,7 +37,7 @@ compose-ui-graphics = { group = "androidx.compose.ui", name = "ui-graphics" }
 compose-material3 = { group = "androidx.compose.material3", name = "material3" }
 compose-material-icons-core = { group = "androidx.compose.material", name = "material-icons-core" }
 compose-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
-compose-stable-marker = { group = "com.github.skydoves", name = "compose-stable-marker", version.ref = "compose-stable-marker" }
+compose-runtime-annotation = { group = "androidx.compose.runtime", name = "runtime-annotation", version.ref = "compose-runtime-annotation" }
 activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activity-compose" }
 lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycle" }
 lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
@@ -55,6 +56,7 @@ flowtest = { group = "com.uandcode", name = "flowtest", version.ref = "flowtest"
 javafaker = { group = "com.github.javafaker", name = "javafaker", version.ref = "javafaker" }
 effects2-hilt-compose = { group = "com.uandcode", name = "effects2-hilt-compose", version.ref = "effects2" }
 effects2-hilt-compiler = { group = "com.uandcode", name = "effects2-hilt-compiler", version.ref = "effects2" }
+atomicfu = { group = "org.jetbrains.kotlinx", name = "atomicfu", version.ref = "atomicfu" }
 
 [bundles]
 compose-core = ["compose-ui", "compose-ui-graphics", "compose-material3"]
@@ -64,6 +66,7 @@ navigation3 = ["navigation3-runtime", "navigation3-ui"]
 
 [plugins]
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
 android-application = { id = "com.android.application", version.ref = "agp" }

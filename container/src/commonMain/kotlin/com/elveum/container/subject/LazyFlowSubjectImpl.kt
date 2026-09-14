@@ -1,0 +1,283 @@
+@file:OptIn(ExperimentalForInheritanceCoroutinesApi::class)
+
+package com.elveum.container.subject
+
+import com.elveum.container.BackgroundLoadState
+import com.elveum.container.Container
+import com.elveum.container.ContainerMetadata
+import com.elveum.container.EmptyReloadFunction
+import com.elveum.container.IsReloadDependenciesMetadata
+import com.elveum.container.LoadConfig
+import com.elveum.container.LoadConfigOneShotMetadata
+import com.elveum.container.LoadTrigger
+import com.elveum.container.LoadTriggerMetadata
+import com.elveum.container.ReloadFunction
+import com.elveum.container.factory.CoroutineScopeFactory
+import com.elveum.container.factory.DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS
+import com.elveum.container.internal.Lock
+import com.elveum.container.internal.withLock
+import com.elveum.container.internalDistinctUntilChanged
+import com.elveum.container.stateMap
+import com.elveum.container.subject.lazy.LoadTask
+import com.elveum.container.subject.lazy.LoadTaskManager
+import com.elveum.container.subject.lazy.ScopedLazyFlowSubjectImpl
+import com.elveum.container.subject.lazy.lastFilteredRealMetadata
+import com.elveum.container.update
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.ExperimentalForInheritanceCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.awaitCancellation
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.emptyFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+
+internal class LazyFlowSubjectImpl<T>(
+    private val coroutineScopeFactory: CoroutineScopeFactory,
+    private val cacheTimeoutMillis: Long,
+    private val loadTaskManager: LoadTaskManager<T>,
+    private val reloadDependenciesPeriodMillis: Long = DEFAULT_RELOAD_DEPENDENCIES_PERIOD_MILLIS,
+    private val loadTaskFactory: LoadTaskFactory = LoadTaskFactory.Default,
+    private val lock: Lock = Lock(),
+    private val flowDependencyStore: FlowDependencyStoreImpl = FlowDependencyStoreImpl(
+        reloadDependenciesPeriodMillis = reloadDependenciesPeriodMillis,
+        lock = lock,
+    )
+) : LazyFlowSubject<T> {
+
+    override val activeCollectorsCount: Int get() = collectorsCountFlow.value
+
+    private val currentValue: Container<T> get() = loadTaskManager.listen().value
+    private val collectorsCountFlow = MutableStateFlow(0)
+    private var scope: CoroutineScope? = null
+    private var cancellationJob: Job? = null
+    private val whenActiveRecords = mutableListOf<WhenActiveRecord>()
+
+    private val reloadFunctionRef: ReloadFunction = ::reloadAsync
+
+    override fun currentValue(configuration: ContainerConfiguration): Container<T> {
+        return currentValue.applyConfiguration(configuration)
+    }
+
+    override fun listen(configuration: ContainerConfiguration): StateFlow<Container<T>> {
+        return ListenStateFlowImpl(configuration)
+    }
+
+    override fun newLoad(
+        config: LoadConfig?,
+        metadata: ContainerMetadata,
+        valueLoader: ValueLoader<T>,
+    ): Flow<T> {
+        return doNewLoad(
+            config = config,
+            valueLoader = valueLoader,
+            metadata = LoadTriggerMetadata(LoadTrigger.NewLoad) + metadata,
+        )
+    }
+
+    override fun updateWith(container: Container<T>) = lock.withLock {
+        if (loadTaskManager.interceptByLoader(container)) return@withLock
+        val lastLoadTask = loadTaskManager.getLastLoadTask()
+        loadTaskManager.submitNewLoadTask(
+            LoadTask.Instant(
+                initialContainer = container,
+                lastRealLoader = lastLoadTask.lastRealLoader,
+                lastRealMetadata = lastLoadTask.lastRealMetadata,
+                lastLoadConfig = lastLoadTask.lastLoadConfig,
+            )
+        )
+    }
+
+    override fun compareAndSet(
+        configuration: ContainerConfiguration,
+        expected: Container<T>,
+        updated: Container<T>
+    ): Boolean = lock.withLock {
+        val latestCurrentValue = currentValue(configuration)
+        return if (latestCurrentValue == expected) {
+            updateWith(updated)
+            true
+        } else {
+            false
+        }
+    }
+
+    override fun reload(
+        config: LoadConfig?,
+        metadata: ContainerMetadata,
+    ): Flow<T> = lock.withLock {
+        val lastLoadTask = loadTaskManager.getLastLoadTask()
+        lastLoadTask.lastRealLoader?.let { lastLoader ->
+            doNewLoad(
+                // config = null, using LoadConfigOneShotMetadata instead
+                // to one-shot the load config instead remembering it:
+                config = null,
+                valueLoader = lastLoader,
+                metadata = lastLoadTask.lastFilteredRealMetadata +
+                        LoadTriggerMetadata(LoadTrigger.Reload) +
+                        IsReloadDependenciesMetadata(true) +
+                        metadata +
+                        config?.let(::LoadConfigOneShotMetadata),
+            )
+        } ?: emptyFlow()
+    }
+
+    override fun whenActive(
+        spyMode: Boolean,
+        block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
+    ): LazyFlowSubject<T> = lock.withLock {
+        val newRecord = WhenActiveRecord(spyMode, block)
+        whenActiveRecords.add(newRecord)
+        this
+    }
+
+    override fun spy(
+        configuration: ContainerConfiguration,
+    ): StateFlow<Container<T>> {
+        return loadTaskManager
+            .listen()
+            .stateMap { it.applyConfiguration(configuration) }
+    }
+
+    private fun doNewLoad(
+        config: LoadConfig?,
+        valueLoader: ValueLoader<T>,
+        metadata: ContainerMetadata,
+    ): Flow<T> = lock.withLock {
+        val finalConfig = config ?: loadTaskManager.getLastLoadTask().lastLoadConfig
+        val loadTaskRecord = loadTaskFactory.create(finalConfig, valueLoader, metadata)
+        loadTaskManager.submitNewLoadTask(loadTaskRecord.loadTask)
+        loadTaskRecord.flowSubject.flow()
+    }
+
+    private fun onStart() = lock.withLock {
+        collectorsCountFlow.value++
+        if (collectorsCountFlow.value == 1) {
+            cancellationJob?.cancel()
+            cancellationJob = null
+            startLoading()
+        }
+    }
+
+    private fun onStop() = lock.withLock {
+        collectorsCountFlow.value--
+        if (collectorsCountFlow.value == 0) {
+            scheduleStopLoading()
+        }
+    }
+
+    private fun startLoading() {
+        if (scope != null) return
+        scope = coroutineScopeFactory.createScope()
+            .also { scope ->
+                flowDependencyStore.initialize(scope) { config ->
+                    val loadConfigMetadata = config.loadConfig
+                        ?.let(::LoadConfigOneShotMetadata)
+                    val metadata = IsReloadDependenciesMetadata(config.reloadDependencies) + loadConfigMetadata
+                    reloadAsync(metadata = metadata)
+                }
+                loadTaskManager.startProcessingLoads(
+                    scope = scope,
+                    flowDependencyStore = flowDependencyStore,
+                )
+                whenActiveRecords.forEach { record ->
+                    scope.launch {
+                        supervisorScope {
+                            val scopedSubject = ScopedLazyFlowSubjectImpl(
+                                spyMode = record.spyMode,
+                                coroutineScope = this,
+                                subject = this@LazyFlowSubjectImpl,
+                            )
+                            record.block(scopedSubject)
+                        }
+                    }
+                }
+            }
+    }
+
+    private fun scheduleStopLoading() {
+        cancellationJob = scope?.launch {
+            delay(cacheTimeoutMillis)
+            lock.withLock {
+                cancellationJob = null
+                if (collectorsCountFlow.value == 0) { // double check required
+                    loadTaskManager.cancelProcessingLoads()
+                    flowDependencyStore.shutdown()
+                    scope?.cancel()
+                    scope = null
+                }
+            }
+        }
+    }
+
+    private fun Container<T>.applyConfiguration(
+        configuration: ContainerConfiguration,
+    ): Container<T> {
+        return update {
+            reloadFunction = if (configuration.emitReloadFunction) reloadFunctionRef else EmptyReloadFunction
+            if (!configuration.emitBackgroundLoads) {
+                backgroundLoadState = BackgroundLoadState.Idle
+            }
+        }
+    }
+
+    private inner class ListenStateFlowImpl(
+        private val configuration: ContainerConfiguration,
+    ) : StateFlow<Container<T>> {
+
+        override val replayCache: List<Container<T>> get() = listOf(value)
+        override val value: Container<T> get() = currentValue.applyConfiguration(configuration)
+
+        override suspend fun collect(collector: FlowCollector<Container<T>>): Nothing {
+            try {
+                onStart()
+                loadTaskManager.listen()
+                    .map { it.applyConfiguration(configuration) }
+                    .internalDistinctUntilChanged()
+                    .collect(collector)
+                awaitCancellation()
+            } finally {
+                onStop()
+            }
+        }
+    }
+
+    private inner class WhenActiveRecord(
+        val spyMode: Boolean,
+        val block: suspend ScopedLazyFlowSubject<T>.() -> Unit,
+    )
+
+    interface LoadTaskFactory {
+
+        fun <T> create(
+            config: LoadConfig,
+            valueLoader: ValueLoader<T>,
+            metadata: ContainerMetadata,
+        ): LoadTaskRecord<T>
+
+        object Default : LoadTaskFactory {
+            override fun <T> create(
+                config: LoadConfig,
+                valueLoader: ValueLoader<T>,
+                metadata: ContainerMetadata,
+            ): LoadTaskRecord<T> {
+                val flowSubject = FlowSubject.create<T>()
+                val loadTask = LoadTask.Load(valueLoader, metadata, config, flowSubject)
+                return LoadTaskRecord(loadTask, flowSubject)
+            }
+        }
+
+        class LoadTaskRecord<T>(
+            val loadTask: LoadTask<T>,
+            val flowSubject: FlowSubject<T>,
+        )
+
+    }
+
+}

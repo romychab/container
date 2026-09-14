@@ -29,7 +29,6 @@ dependencies {
     api(projects.container)
 
     implementation(libs.kotlinx.coroutines.core)
-    compileOnly(libs.compose.stable.marker)
 
     testImplementation(libs.junit)
     testImplementation(libs.mockk)

@@ -1,5 +1,6 @@
 plugins {
     alias(libs.plugins.kotlin.jvm) apply false
+    alias(libs.plugins.kotlin.multiplatform) apply false
     alias(libs.plugins.ksp) apply false
     alias(libs.plugins.hilt) apply false
     alias(libs.plugins.android.application) apply false
@@ -16,7 +17,9 @@ detekt {
     baseline = file("$rootDir/detekt-baseline.xml")
     buildUponDefaultConfig = true
     source.setFrom(
-        "container/src/main/java",
+        "container/src/commonMain/kotlin",
+        "container/src/jvmMain/kotlin",
+        "container/src/nativeMain/kotlin",
         "store/src/main/java"
     )
 }

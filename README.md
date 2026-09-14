@@ -7,8 +7,8 @@
 [![Coverage](https://img.shields.io/endpoint?url=https://gist.githubusercontent.com/romychab/90ef83eacc2f4ce17e4c53c8bb255295/raw/container-coverage.json)](https://github.com/romychab/container/actions/workflows/publish.yml)
 [![Publish](https://github.com/romychab/container/actions/workflows/publish.yml/badge.svg)](https://github.com/romychab/container/actions/workflows/publish.yml)
 
-Container is a library for simplifying state management and data loading in
-Android applications. It provides a small set of building blocks
+Container is a Kotlin Multiplatform library for simplifying state management
+and data loading. It provides a small set of building blocks
 that cover the most common reactive patterns: wrapping async results in a
 typed status, managing derived state from multiple flows, and lazily loading
 data on demand.
@@ -22,6 +22,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 ## Table of Contents
 
 - [Installation](#installation)
+- [Multiplatform Support](#multiplatform-support)
 - [Store: the High-Level Library](#store-the-high-level-library)
 - [Core Concepts](#core-concepts)
   - [Container Type](#container-type)
@@ -35,10 +36,46 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.6.0"
+implementation "com.elveum:container:3.7.0"
 ```
 
+## Multiplatform Support
+
+Container is published as a Kotlin Multiplatform library for the following targets:
+
+- `jvm` (including Android)
+- `linuxX64`
+- `iosArm64`, `iosSimulatorArm64`, `iosX64`
+
+This changes how the library resolves depending on your build tool:
+
+- **Gradle users are unaffected.** `implementation("com.elveum:container:3.7.0")`
+  keeps working as before - Gradle module metadata transparently resolves the
+  root `com.elveum:container` coordinate to the right per-target artifact
+  (e.g. `container-jvm` on the JVM).
+- **Maven users must switch coordinates.** Maven does not understand Gradle
+  module metadata, so the root `com.elveum:container` artifact is no longer a
+  usable JVM jar for Maven - it is a Kotlin metadata module. If you consume
+  this library from a Maven `pom.xml`, change the `artifactId` from
+  `container` to `container-jvm`:
+
+  ```xml
+  <dependency>
+      <groupId>com.elveum</groupId>
+      <artifactId>container-jvm</artifactId>
+      <version>3.7.0</version>
+  </dependency>
+  ```
+
+- **`linuxX64` users must supply their own `CoroutineScopeFactory`.** The
+  default `CoroutineScopeFactory` uses `Dispatchers.Main.immediate`, which has
+  no Kotlin/Native implementation on Linux. JVM/Android and iOS are unaffected
+  since a Main dispatcher is provided there.
+
 ## Store: the High-Level Library
+
+**`:store` is JVM/Android-only for now** and is not published for the other
+Container targets (`linuxX64`, iOS).
 
 [**Store**](store/README.md) is a companion library built on top of Container.
 It is the higher-level, easier-to-use option: instead of assembling

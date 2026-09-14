@@ -2,7 +2,7 @@
 name: container-core
 description: Use when writing, updating, or reviewing Kotlin/Android code that references Container-library symbols (Container, pendingContainer, successContainer, errorContainer, LazyFlowSubject, LazyCache, Reducer, ContainerReducer, toReducer, combineToReducer, pageLoader, PageEmitter, LoaderDecorator, SubjectFactory, ContainerMetadata, SourceType) or when integrating the com.elveum:container Kotlin/Android library. NOT for Docker, OCI, or Kubernetes containers. If the project uses com.elveum:store, prefer the container-store skill for the data layer. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/.
 metadata:
-  version: 3.6.0
+  version: 3.7.0
 ---
 
 # Container Library
@@ -26,12 +26,12 @@ table below and read it directly.
 
 ## Dependency Setup
 
-Maven coordinate: `com.elveum:container:3.6.0`.
+Maven coordinate: `com.elveum:container:3.7.0`.
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-container = "3.6.0"
+container = "3.7.0"
 [libraries]
 container = { module = "com.elveum:container", version.ref = "container" }
 ```

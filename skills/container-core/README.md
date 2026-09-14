@@ -47,4 +47,4 @@ discovers skills (e.g. `~/.agents/skills/` for Codex), or paste
 | `references/patterns.md` | Architecture patterns across app layers, `LoaderDecorator`, DI, scoping |
 | `references/testing.md` | Testing `Container`-based code |
 
-The skill matches library version `3.6.0`.
+The skill matches library version `3.7.0`.

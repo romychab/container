@@ -1,6 +1,6 @@
 # Container Type Reference
 
-`Container<T>` is the core type of `com.elveum:container:3.6.0`. It represents
+`Container<T>` is the core type of `com.elveum:container:3.7.0`. It represents
 the current status of an async fetch/operation: still loading, failed, or
 finished with a value. Every other building block in this library (subjects,
 caches, reducers, paging) produces or consumes `Container<T>` values.

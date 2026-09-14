@@ -1,7 +1,7 @@
 # Subjects and Caches Reference
 
 `LazyFlowSubject<T>` and `LazyCache<Arg, T>` are the data-layer building blocks
-of `com.elveum:container:3.6.0`. Both turn a suspending *loader function* into
+of `com.elveum:container:3.7.0`. Both turn a suspending *loader function* into
 an observable `Flow<Container<T>>` that:
 
 - runs the loader lazily, only when someone actually collects;

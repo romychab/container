@@ -1,6 +1,6 @@
 # Testing Reference
 
-`com.elveum:container:3.6.0` code is tested with **flow-test**
+`com.elveum:container:3.7.0` code is tested with **flow-test**
 (`com.uandcode:flowtest:1.1.0`), a small library that replaces
 `kotlinx-coroutines-test`'s `runTest { }` / `backgroundScope.launch { }` /
 `advanceUntilIdle()` dance with a single `startCollecting()` call. This file

@@ -1,6 +1,6 @@
 # Architecture Patterns Reference
 
-How the pieces of `com.elveum:container:3.6.0` fit together in a real app:
+How the pieces of `com.elveum:container:3.7.0` fit together in a real app:
 which layer owns which type, what crosses each boundary, and which
 conventions save you from writing plumbing the library already provides.
 

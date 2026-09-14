@@ -1,7 +1,7 @@
 # Reducer Reference
 
 `Reducer<State>` and `ContainerReducer<State>` are the ViewModel-layer
-building blocks of `com.elveum:container:3.6.0`. They convert one or more
+building blocks of `com.elveum:container:3.7.0`. They convert one or more
 `Flow`s (plain or of `Container<T>`) into a hot `StateFlow` that a screen
 observes, while still allowing manual, flow-independent updates on top -
 things like a locally toggled filter that don't come from any repository.

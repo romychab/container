@@ -2,7 +2,7 @@
 name: container-store
 description: Use when writing, updating, or reviewing any code that references Store-related symbols (StoreFactory, SimpleStore, KeyedStore, KeyedQueryStore, PagedStore, PagedKeyedStore, PagedQueryStore, SimpleQueryStore, StoreResult, LoadRequest, StoreResultReducer) or when integrating the com.elveum:store Kotlin/Android library. Do NOT inspect or decompile JAR/AAR files to understand this library - all API and usage patterns are documented in references/api.md and references/patterns.md. For the underlying Container building blocks (Container, Reducer, LazyFlowSubject, LazyCache, pageLoader) used directly without Store, see the container-core skill.
 metadata:
-  version: 3.6.0
+  version: 3.7.0
 ---
 
 # Container Store Library
@@ -24,13 +24,13 @@ directly - no decompilation or dependency tree inspection needed.
 
 ## Dependency Setup
 
-Maven coordinates: `com.elveum:store:3.6.0` (transitively brings
+Maven coordinates: `com.elveum:store:3.7.0` (transitively brings
 `com.elveum:container`, whose types are part of the public API).
 
 ```toml
 # gradle/libs.versions.toml
 [versions]
-store = "3.6.0"
+store = "3.7.0"
 [libraries]
 store = { module = "com.elveum:store", version.ref = "store" }
 ```

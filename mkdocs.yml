@@ -1,6 +1,6 @@
 site_name: Container
 site_url: https://docs.uandcode.com/container/
-site_description: A library for simplifying state management and data loading in Android applications
+site_description: A Kotlin Multiplatform library for simplifying state management and data loading
 site_dir: build/mkdocs-container
 docs_dir: build/mkdocs-src
 repo_url: https://github.com/romychab/container

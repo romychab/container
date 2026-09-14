@@ -17,6 +17,7 @@ jobs:
   publish:
     name: Stage to Maven Central
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +55,7 @@ jobs:
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     needs: publish
     permissions:
       contents: write

@@ -18,6 +18,7 @@ import com.elveum.container.pendingContainer
 import com.elveum.container.stateMap
 import com.elveum.container.subject.LazyFlowSubject
 import com.elveum.store.internal.builders.SharedConfig
+import com.elveum.store.internal.flatMapLatestMakeBeforeBreak
 import com.elveum.store.internal.load.metadata
 import com.elveum.store.internal.processItems
 import com.elveum.store.load.LoadRequest
@@ -40,7 +41,6 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
-import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
@@ -215,7 +215,9 @@ internal class CoreStore<Key : Any, Q : Any, T : Any, R : Any>(
             invalidateAsync(key, isByQuery = false, metadata = metadata)
         }
         return loadRequestFlow
-            .flatMapLatest { loadRequest ->
+            // make-before-break keeps the key registered while the load request changes,
+            // so its query state survives the switch even with a zero cache timeout
+            .flatMapLatestMakeBeforeBreak { loadRequest ->
                 val record = KeyRecord(key, loadRequest)
                 cache.listenReloadable(record)
                     .map { loadRequest to it.toStoreResult() }

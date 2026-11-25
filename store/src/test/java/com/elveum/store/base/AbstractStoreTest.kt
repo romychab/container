@@ -5,6 +5,7 @@ import com.elveum.store.load.StoreResult
 import com.uandcode.flowtest.FlowTestScope
 import com.uandcode.flowtest.runFlowTest
 import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.junit.Assert.assertEquals
 import org.junit.Before
 
@@ -33,6 +34,11 @@ abstract class AbstractStoreTest {
 
     protected fun createStoreScopeFactory() = CoroutineScopeFactory {
         TestScope(testScope.testScheduler)
+    }
+
+    // Runs store-internal tasks eagerly, like a background thread that wins every race.
+    protected fun createEagerStoreScopeFactory() = CoroutineScopeFactory {
+        TestScope(UnconfinedTestDispatcher(testScope.testScheduler))
     }
 
 }

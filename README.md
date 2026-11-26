@@ -36,7 +36,7 @@ The full documentation is available [here](https://docs.uandcode.com/container).
 Add the following line to your `build.gradle` file:
 
 ```
-implementation "com.elveum:container:3.7.0"
+implementation "com.elveum:container:3.7.1"
 ```
 
 ## Multiplatform Support
@@ -49,7 +49,7 @@ Container is published as a Kotlin Multiplatform library for the following targe
 
 This changes how the library resolves depending on your build tool:
 
-- **Gradle users are unaffected.** `implementation("com.elveum:container:3.7.0")`
+- **Gradle users are unaffected.** `implementation("com.elveum:container:3.7.1")`
   keeps working as before - Gradle module metadata transparently resolves the
   root `com.elveum:container` coordinate to the right per-target artifact
   (e.g. `container-jvm` on the JVM).
@@ -63,7 +63,7 @@ This changes how the library resolves depending on your build tool:
   <dependency>
       <groupId>com.elveum</groupId>
       <artifactId>container-jvm</artifactId>
-      <version>3.7.0</version>
+      <version>3.7.1</version>
   </dependency>
   ```
 
